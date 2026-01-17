@@ -1,0 +1,404 @@
+{
+    "dataSources": [
+        {
+            "id": "ds_001",
+            "type": "dataSource",
+            "name": "Windows Security Logs",
+            "friendlyName": "WINDOWS SECURITY",
+            "spl": "index=wineventlog sourcetype=WinEventLog:Security",
+            "tags": [
+                "windows",
+                "security",
+                "authentication"
+            ],
+            "description": "Windows Security event logs including authentication, privilege use, and policy changes"
+        },
+        {
+            "id": "ds_002",
+            "type": "dataSource",
+            "name": "Network Traffic",
+            "friendlyName": "NETWORK TRAFFIC",
+            "spl": "index=network sourcetype=firewall OR sourcetype=netflow",
+            "tags": [
+                "network",
+                "firewall",
+                "traffic"
+            ],
+            "description": "Network traffic logs from firewalls and netflow data"
+        },
+        {
+            "id": "ds_003",
+            "type": "dataSource",
+            "name": "Sysmon Events",
+            "friendlyName": "SYSMON",
+            "spl": "index=wineventlog sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational",
+            "tags": [
+                "windows",
+                "sysmon",
+                "endpoint"
+            ],
+            "description": "Windows Sysmon process creation, network connections, and file events"
+        },
+        {
+            "id": "ds_004",
+            "type": "dataSource",
+            "name": "Linux Auth Logs",
+            "friendlyName": "LINUX AUTH",
+            "spl": "index=linux sourcetype=linux_secure OR sourcetype=syslog",
+            "tags": [
+                "linux",
+                "authentication",
+                "syslog"
+            ],
+            "description": "Linux authentication and syslog events"
+        },
+        {
+            "id": "ds_005",
+            "type": "dataSource",
+            "name": "Web Proxy Logs",
+            "friendlyName": "WEB PROXY",
+            "spl": "index=proxy sourcetype=bluecoat OR sourcetype=squid",
+            "tags": [
+                "proxy",
+                "web",
+                "network"
+            ],
+            "description": "Web proxy logs for URL filtering and web traffic analysis"
+        }
+    ],
+    "fieldValues": [
+        {
+            "id": "fv_001",
+            "type": "fieldValue",
+            "name": "Domain Controllers",
+            "friendlyName": "DOMAIN CONTROLLERS",
+            "spl": "(dest=\"*DC*\" OR ComputerName=\"*DC*\" OR host=\"*DC*\")",
+            "tags": [
+                "identity",
+                "servers",
+                "active-directory"
+            ],
+            "description": "Target domain controller hosts by naming convention"
+        },
+        {
+            "id": "fv_002",
+            "type": "fieldValue",
+            "name": "Service Accounts",
+            "friendlyName": "SERVICE ACCOUNTS",
+            "spl": "(user=\"svc_*\" OR user=\"SVC_*\" OR user=\"*$\")",
+            "tags": [
+                "identity",
+                "accounts",
+                "service"
+            ],
+            "description": "Service account usernames by naming convention"
+        },
+        {
+            "id": "fv_003",
+            "type": "fieldValue",
+            "name": "Administrator Accounts",
+            "friendlyName": "ADMIN ACCOUNTS",
+            "spl": "(user=\"*admin*\" OR user=\"Administrator\" OR user=\"root\")",
+            "tags": [
+                "identity",
+                "accounts",
+                "privileged"
+            ],
+            "description": "Privileged administrator account names"
+        },
+        {
+            "id": "fv_004",
+            "type": "fieldValue",
+            "name": "Internal IP Range",
+            "friendlyName": "INTERNAL IPS",
+            "spl": "(src_ip=\"10.*\" OR src_ip=\"192.168.*\" OR src_ip=\"172.16.*\")",
+            "tags": [
+                "network",
+                "ip",
+                "internal"
+            ],
+            "description": "RFC 1918 private IP address ranges"
+        },
+        {
+            "id": "fv_005",
+            "type": "fieldValue",
+            "name": "External IP Range",
+            "friendlyName": "EXTERNAL IPS",
+            "spl": "NOT (src_ip=\"10.*\" OR src_ip=\"192.168.*\" OR src_ip=\"172.16.*\" OR src_ip=\"127.*\")",
+            "tags": [
+                "network",
+                "ip",
+                "external"
+            ],
+            "description": "Non-RFC1918 public IP addresses"
+        },
+        {
+            "id": "fv_006",
+            "type": "fieldValue",
+            "name": "Common Malware Ports",
+            "friendlyName": "SUSPICIOUS PORTS",
+            "spl": "(dest_port=4444 OR dest_port=5555 OR dest_port=6666 OR dest_port=8080 OR dest_port=1337)",
+            "tags": [
+                "network",
+                "ports",
+                "malware"
+            ],
+            "description": "Commonly used ports by malware and C2 frameworks"
+        }
+    ],
+    "patterns": [
+        {
+            "id": "pf_001",
+            "type": "pattern",
+            "name": "Failed Logins",
+            "friendlyName": "FAILED LOGINS",
+            "spl": "(action=failure OR EventCode=4625 OR status=failure)",
+            "tags": [
+                "authentication",
+                "detection",
+                "brute-force"
+            ],
+            "description": "Authentication failure events across different log sources"
+        },
+        {
+            "id": "pf_002",
+            "type": "pattern",
+            "name": "Successful Logins",
+            "friendlyName": "SUCCESSFUL LOGINS",
+            "spl": "(action=success OR EventCode=4624 OR status=success)",
+            "tags": [
+                "authentication",
+                "detection"
+            ],
+            "description": "Successful authentication events"
+        },
+        {
+            "id": "pf_003",
+            "type": "pattern",
+            "name": "Lateral Movement Indicators",
+            "friendlyName": "LATERAL MOVEMENT",
+            "spl": "(EventCode=4648 OR EventCode=4624 Logon_Type=3 OR EventCode=4624 Logon_Type=10)",
+            "tags": [
+                "detection",
+                "lateral-movement",
+                "threat-hunting"
+            ],
+            "description": "Network logons and explicit credential use indicating lateral movement"
+        },
+        {
+            "id": "pf_004",
+            "type": "pattern",
+            "name": "Process Creation",
+            "friendlyName": "PROCESS CREATED",
+            "spl": "(EventCode=1 OR EventCode=4688)",
+            "tags": [
+                "endpoint",
+                "process",
+                "execution"
+            ],
+            "description": "Process creation events from Sysmon or Windows Security"
+        },
+        {
+            "id": "pf_005",
+            "type": "pattern",
+            "name": "PowerShell Execution",
+            "friendlyName": "POWERSHELL",
+            "spl": "(Image=\"*powershell*\" OR CommandLine=\"*powershell*\" OR EventCode=4104)",
+            "tags": [
+                "endpoint",
+                "powershell",
+                "execution"
+            ],
+            "description": "PowerShell process execution and script block logging"
+        },
+        {
+            "id": "pf_006",
+            "type": "pattern",
+            "name": "Port 22 Connections",
+            "friendlyName": "SSH TRAFFIC",
+            "spl": "(dest_port=22 OR src_port=22)",
+            "tags": [
+                "network",
+                "ssh",
+                "remote-access"
+            ],
+            "description": "SSH traffic on port 22"
+        },
+        {
+            "id": "pf_007",
+            "type": "pattern",
+            "name": "Outbound DNS",
+            "friendlyName": "DNS QUERIES",
+            "spl": "(dest_port=53 OR query_type=* OR record_type=*)",
+            "tags": [
+                "network",
+                "dns",
+                "c2"
+            ],
+            "description": "DNS query traffic for C2 and exfiltration detection"
+        },
+        {
+            "id": "pf_008",
+            "type": "pattern",
+            "name": "File Downloads",
+            "friendlyName": "FILE DOWNLOADS",
+            "spl": "(http_method=GET cs_uri_stem=\"*.exe\" OR cs_uri_stem=\"*.dll\" OR cs_uri_stem=\"*.ps1\")",
+            "tags": [
+                "web",
+                "download",
+                "malware"
+            ],
+            "description": "HTTP downloads of potentially malicious file types"
+        }
+    ],
+    "outputShapes": [
+        {
+            "id": "os_001",
+            "type": "outputShape",
+            "name": "Top 10",
+            "friendlyName": "TOP 10",
+            "spl": "| stats count by {field} | sort -count | head 10",
+            "tags": [
+                "aggregation",
+                "ranking"
+            ],
+            "description": "Count and display top 10 results by a field",
+            "requiresField": true,
+            "fieldPlaceholder": "{field}"
+        },
+        {
+            "id": "os_002",
+            "type": "outputShape",
+            "name": "Hourly Timeline",
+            "friendlyName": "BY HOUR",
+            "spl": "| timechart span=1h count",
+            "tags": [
+                "timeline",
+                "visualization"
+            ],
+            "description": "Aggregate results by hour for timeline visualization"
+        },
+        {
+            "id": "os_003",
+            "type": "outputShape",
+            "name": "Daily Timeline",
+            "friendlyName": "BY DAY",
+            "spl": "| timechart span=1d count",
+            "tags": [
+                "timeline",
+                "visualization"
+            ],
+            "description": "Aggregate results by day for trend analysis"
+        },
+        {
+            "id": "os_004",
+            "type": "outputShape",
+            "name": "Unique Count",
+            "friendlyName": "UNIQUE COUNT",
+            "spl": "| stats dc({field}) as unique_count",
+            "tags": [
+                "aggregation",
+                "distinct"
+            ],
+            "description": "Count distinct/unique values of a field",
+            "requiresField": true,
+            "fieldPlaceholder": "{field}"
+        },
+        {
+            "id": "os_005",
+            "type": "outputShape",
+            "name": "Group By Summary",
+            "friendlyName": "GROUP BY",
+            "spl": "| stats count values({field2}) as details by {field1}",
+            "tags": [
+                "aggregation",
+                "grouping"
+            ],
+            "description": "Group and summarize by specified fields",
+            "requiresField": true,
+            "fieldPlaceholder": "{field1}"
+        },
+        {
+            "id": "os_006",
+            "type": "outputShape",
+            "name": "Raw Events",
+            "friendlyName": "RAW EVENTS",
+            "spl": "| table _time host source {field}",
+            "tags": [
+                "display",
+                "raw"
+            ],
+            "description": "Display raw events with key fields",
+            "requiresField": true,
+            "fieldPlaceholder": "{field}"
+        },
+        {
+            "id": "os_007",
+            "type": "outputShape",
+            "name": "First/Last Seen",
+            "friendlyName": "FIRST/LAST",
+            "spl": "| stats earliest(_time) as first_seen latest(_time) as last_seen count by {field}",
+            "tags": [
+                "aggregation",
+                "time"
+            ],
+            "description": "Show first and last occurrence with count",
+            "requiresField": true,
+            "fieldPlaceholder": "{field}"
+        },
+        {
+            "id": "os_008",
+            "type": "outputShape",
+            "name": "Event Count Only",
+            "friendlyName": "TOTAL COUNT",
+            "spl": "| stats count",
+            "tags": [
+                "aggregation",
+                "simple"
+            ],
+            "description": "Simple total count of matching events"
+        }
+    ],
+    "timeRangePresets": [
+        {
+            "id": "tr_001",
+            "name": "Last 15 minutes",
+            "spl": "earliest=-15m latest=now"
+        },
+        {
+            "id": "tr_002",
+            "name": "Last 1 hour",
+            "spl": "earliest=-1h latest=now"
+        },
+        {
+            "id": "tr_003",
+            "name": "Last 4 hours",
+            "spl": "earliest=-4h latest=now"
+        },
+        {
+            "id": "tr_004",
+            "name": "Last 24 hours",
+            "spl": "earliest=-24h latest=now"
+        },
+        {
+            "id": "tr_005",
+            "name": "Last 7 days",
+            "spl": "earliest=-7d@d latest=now"
+        },
+        {
+            "id": "tr_006",
+            "name": "Last 30 days",
+            "spl": "earliest=-30d@d latest=now"
+        },
+        {
+            "id": "tr_007",
+            "name": "This week",
+            "spl": "earliest=@w0 latest=now"
+        },
+        {
+            "id": "tr_008",
+            "name": "Today",
+            "spl": "earliest=@d latest=now"
+        }
+    ]
+}

@@ -1,0 +1,288 @@
+{% extends "_base.html" %}
+
+{% block title %}Prompt Builder - SPLUNKed{% endblock %}
+
+{% block content %}
+{% from "_components.html" import search_input %}
+
+<div class="page-container">
+    <!-- Page Header -->
+    <header class="page-header">
+        <h1 class="page-title">Prompt Builder</h1>
+        <p class="page-subtitle">
+            Compose SPL queries using reusable search objects. Select data sources,
+            add filters, and generate production-ready SPL.
+        </p>
+    </header>
+
+    <!-- Main Tabs Navigation -->
+    <div class="builder-tabs-container">
+        <div class="builder-tabs" role="tablist">
+            <button class="builder-tab active" data-tab="build" role="tab" aria-selected="true">
+                <span class="tab-icon">&#9881;</span>
+                Build Query
+            </button>
+            <button class="builder-tab" data-tab="manage" role="tab" aria-selected="false">
+                <span class="tab-icon">&#9776;</span>
+                Manage Objects
+            </button>
+        </div>
+    </div>
+
+    <!-- Build Query Tab Panel -->
+    <div id="buildPanel" class="builder-panel active" role="tabpanel">
+        <div class="builder-layout">
+            <!-- Left Side: Query Composer -->
+            <div class="query-composer">
+                <!-- Data Sources Section -->
+                <section class="composer-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <span class="section-number">1</span>
+                            Data Sources
+                        </h3>
+                        <span class="section-hint">Where to search</span>
+                    </div>
+                    <div class="selector-container">
+                        <input type="text" class="selector-search" id="dsSearch" placeholder="Filter data sources...">
+                        <div class="chips-container" id="dataSourceChips">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                    <div class="selected-tags" id="selectedDataSources">
+                        <!-- Selected chips appear here -->
+                    </div>
+                </section>
+
+                <!-- Include Filters Section -->
+                <section class="composer-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <span class="section-number">2</span>
+                            Include Filters
+                        </h3>
+                        <span class="section-hint">What to find</span>
+                    </div>
+                    <div class="filter-type-tabs">
+                        <button class="filter-type-tab active" data-filter-type="patterns">Patterns</button>
+                        <button class="filter-type-tab" data-filter-type="fieldValues">Field Values</button>
+                    </div>
+                    <div class="selector-container">
+                        <input type="text" class="selector-search" id="includeSearch" placeholder="Filter patterns & values...">
+                        <div class="chips-container" id="includeChips">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                    <div class="selected-tags" id="selectedIncludes">
+                        <!-- Selected chips appear here -->
+                    </div>
+                </section>
+
+                <!-- Exclude Filters Section -->
+                <section class="composer-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <span class="section-number">3</span>
+                            Exclude Filters
+                        </h3>
+                        <span class="section-hint">What to exclude</span>
+                    </div>
+                    <div class="selector-container">
+                        <input type="text" class="selector-search" id="excludeSearch" placeholder="Filter patterns & values...">
+                        <div class="chips-container" id="excludeChips">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                    <div class="selected-tags" id="selectedExcludes">
+                        <!-- Selected chips appear here -->
+                    </div>
+                </section>
+
+                <!-- Time Range Section -->
+                <section class="composer-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <span class="section-number">4</span>
+                            Time Range
+                        </h3>
+                        <span class="section-hint">Time boundaries</span>
+                    </div>
+                    <div class="time-range-container">
+                        <div class="time-presets" id="timePresets">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                        <div class="time-custom">
+                            <label for="customTimeRange">Custom:</label>
+                            <input type="text" id="customTimeRange" class="custom-time-input" placeholder="earliest=-24h latest=now">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Output Shape Section -->
+                <section class="composer-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <span class="section-number">5</span>
+                            Output Shape
+                        </h3>
+                        <span class="section-hint">How to display</span>
+                    </div>
+                    <div class="selector-container">
+                        <div class="chips-container output-shapes" id="outputShapeChips">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                    <div class="output-field-container" id="outputFieldContainer" style="display: none;">
+                        <label for="outputField">Field name:</label>
+                        <input type="text" id="outputField" class="output-field-input" placeholder="e.g., user, src_ip, dest">
+                    </div>
+                </section>
+
+                <!-- Action Buttons -->
+                <div class="composer-actions">
+                    <button class="btn btn-secondary" id="clearBuilder">Clear All</button>
+                    <button class="btn btn-primary" id="generateSPL">Generate SPL</button>
+                </div>
+            </div>
+
+            <!-- Right Side: SPL Preview -->
+            <div class="spl-preview">
+                <div class="preview-header">
+                    <h3 class="preview-title">Generated SPL</h3>
+                    <button class="copy-btn" id="copySPL" title="Copy to clipboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2"/>
+                            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                        </svg>
+                        <span>Copy</span>
+                    </button>
+                </div>
+                <div class="spl-output" id="splOutput">
+                    <code class="spl-code-display">*</code>
+                </div>
+                <div class="explanation-panel">
+                    <h4 class="explanation-title">Plain Language</h4>
+                    <p class="explanation-text" id="splExplanation">Search all events</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Objects Tab Panel -->
+    <div id="managePanel" class="builder-panel" role="tabpanel" hidden>
+        <!-- Object Type Tabs -->
+        <div class="object-tabs-container">
+            <div class="object-tabs" role="tablist">
+                <button class="object-tab active" data-object-type="dataSources" role="tab">Data Sources</button>
+                <button class="object-tab" data-object-type="fieldValues" role="tab">Field Values</button>
+                <button class="object-tab" data-object-type="patterns" role="tab">Patterns</button>
+                <button class="object-tab" data-object-type="outputShapes" role="tab">Output Shapes</button>
+            </div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="manage-controls">
+            {{ search_input(placeholder='Search objects...', id='objectSearch') }}
+            <button class="btn btn-primary" id="addNewObject">
+                <span>+</span> Add New
+            </button>
+        </div>
+
+        <!-- Objects Grid -->
+        <div class="objects-grid" id="objectsGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state hidden" id="objectsEmptyState">
+            <div class="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <h3 class="empty-title">No objects found</h3>
+            <p class="empty-message">Create your first search object to get started.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Object Edit Modal -->
+<div class="modal-overlay" id="objectModalOverlay">
+    <div class="modal object-modal" id="objectModal" role="dialog" aria-labelledby="objectModalTitle">
+        <div class="modal-header">
+            <h2 class="modal-title" id="objectModalTitle">Add New Object</h2>
+            <button class="modal-close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <form id="objectForm" class="object-form">
+                <input type="hidden" id="objectId" name="objectId">
+                <input type="hidden" id="objectType" name="objectType">
+
+                <div class="form-group">
+                    <label for="objectName">Name</label>
+                    <input type="text" id="objectName" name="name" required placeholder="e.g., Failed Logins">
+                </div>
+
+                <div class="form-group">
+                    <label for="objectFriendlyName">Display Name</label>
+                    <input type="text" id="objectFriendlyName" name="friendlyName" placeholder="e.g., FAILED LOGINS (auto-generated if empty)">
+                </div>
+
+                <div class="form-group">
+                    <label for="objectSPL">SPL Snippet</label>
+                    <textarea id="objectSPL" name="spl" required rows="3" placeholder="e.g., (action=failure OR EventCode=4625)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="objectDescription">Description</label>
+                    <textarea id="objectDescription" name="description" rows="2" placeholder="What does this search for?"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="objectTags">Tags (comma-separated)</label>
+                    <input type="text" id="objectTags" name="tags" placeholder="e.g., authentication, detection">
+                </div>
+
+                <!-- Output Shape specific fields -->
+                <div class="form-group output-shape-fields" style="display: none;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="requiresField" name="requiresField">
+                        Requires field input
+                    </label>
+                    <div class="field-placeholder-group" style="display: none;">
+                        <label for="fieldPlaceholder">Field placeholder</label>
+                        <input type="text" id="fieldPlaceholder" name="fieldPlaceholder" placeholder="{field}">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-ghost" id="cancelObject">Cancel</button>
+                    <button type="button" class="btn btn-secondary delete-btn" id="deleteObject" style="display: none;">Delete</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteModalOverlay">
+    <div class="modal delete-modal" id="deleteModal" role="dialog">
+        <div class="modal-header">
+            <h2 class="modal-title">Confirm Delete</h2>
+            <button class="modal-close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <p>Are you sure you want to delete this object? This action cannot be undone.</p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" id="cancelDelete">Cancel</button>
+                <button type="button" class="btn btn-primary delete-confirm" id="confirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='prompt-builder.js') }}"></script>
+{% endblock %}

@@ -34,13 +34,19 @@
         {{ search_input(placeholder='Search commands, functions...', id='glossarySearch') }}
 
         <div class="filter-dropdown">
-            <label for="difficultyFilter" class="filter-label">Level:</label>
-            <select id="difficultyFilter" class="filter-select">
-                <option value="all">All Levels</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-                <option value="expert">Expert</option>
+            <label for="purposeFilter" class="filter-label">When you need to:</label>
+            <select id="purposeFilter" class="filter-select">
+                <option value="all">All purposes</option>
+                <option value="find">Find events</option>
+                <option value="count">Count & summarize</option>
+                <option value="calculate">Do math & logic</option>
+                <option value="enrich">Add context</option>
+                <option value="format">Clean up output</option>
+                <option value="parse">Work with structure</option>
+                <option value="combine">Combine data</option>
+                <option value="order">Order & limit</option>
+                <option value="create">Create data</option>
+                <option value="save">Save results</option>
             </select>
         </div>
 
@@ -49,48 +55,56 @@
 
     <!-- Tab Panels -->
     <div id="commandsPanel" class="tab-panel active" role="tabpanel">
+        <div class="category-info" id="commandsInfo"></div>
         <div class="glossary-grid" id="commandsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
     <div id="functionsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="functionsInfo"></div>
         <div class="glossary-grid" id="functionsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
     <div id="extractionsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="extractionsInfo"></div>
         <div class="glossary-grid" id="extractionsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
     <div id="fieldsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="fieldsInfo"></div>
         <div class="glossary-grid" id="fieldsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
     <div id="conceptsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="conceptsInfo"></div>
         <div class="glossary-grid" id="conceptsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
     <div id="cimPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="cimInfo"></div>
         <div class="glossary-grid" id="cimGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
     <div id="macrosPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="macrosInfo"></div>
         <div class="glossary-grid" id="macrosGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
     <div id="antipatternsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="antipatternsInfo"></div>
         <div class="glossary-grid" id="antipatternsGrid">
             <!-- Populated by JavaScript -->
         </div>

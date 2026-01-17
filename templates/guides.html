@@ -1,6 +1,6 @@
 {% extends "_base.html" %}
 
-{% block title %}Investigation Guides - SPLUNKed{% endblock %}
+{% block title %}How-To Guides - SPLUNKed{% endblock %}
 
 {% block content %}
 {% from "_components.html" import search_input, category_tab %}
@@ -8,46 +8,49 @@
 <div class="page-container">
     <!-- Page Header -->
     <header class="page-header">
-        <h1 class="page-title">Investigation Guides</h1>
+        <h1 class="page-title">How-To Guides</h1>
         <p class="page-subtitle">
-            Detection-driven and data-source guides for security investigations.
-            Real-world scenarios with practical SPL patterns.
+            Practical guides for getting things done in Splunk.
+            Start here if you're new to SPL.
         </p>
     </header>
 
     <!-- Tabs Navigation -->
     <div class="tabs-container" id="guidesTabs">
         <div class="tabs-list" role="tablist">
-            {{ category_tab('detection', 'Detection Guides', active=true) }}
-            {{ category_tab('datasource', 'Data Source Guides') }}
+            {{ category_tab('basics', 'Search Basics', active=true) }}
+            {{ category_tab('summarizing', 'Counting & Summarizing') }}
+            {{ category_tab('investigating', 'Investigating Activity') }}
+            {{ category_tab('refining', 'Filtering & Refining') }}
         </div>
     </div>
 
     <!-- Controls Bar -->
     <div class="controls-bar">
         {{ search_input(placeholder='Search guides...', id='guidesSearch') }}
-
-        <div class="filter-dropdown">
-            <label for="guidesDifficultyFilter" class="filter-label">Level:</label>
-            <select id="guidesDifficultyFilter" class="filter-select">
-                <option value="all">All Levels</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-                <option value="expert">Expert</option>
-            </select>
-        </div>
     </div>
 
     <!-- Tab Panels -->
-    <div id="detectionPanel" class="tab-panel active" role="tabpanel">
-        <div class="guides-grid" id="detectionGrid">
+    <div id="basicsPanel" class="tab-panel active" role="tabpanel">
+        <div class="guides-grid" id="basicsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="datasourcePanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="guides-grid" id="datasourceGrid">
+    <div id="summarizingPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="summarizingGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="investigatingPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="investigatingGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="refiningPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="refiningGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>

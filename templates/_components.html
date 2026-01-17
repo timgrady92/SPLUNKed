@@ -22,6 +22,10 @@
                class="nav-link {{ 'active' if current_endpoint == 'guides' else '' }}">
                 Guides
             </a>
+            <a href="{{ url_for('prompt_builder') }}"
+               class="nav-link {{ 'active' if current_endpoint == 'prompt_builder' else '' }}">
+                Builder
+            </a>
         </div>
 
         <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
