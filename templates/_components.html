@@ -1,0 +1,339 @@
+{# SPLUNKed Component Macros #}
+
+{# Navigation Bar #}
+{% macro navbar(current_endpoint) %}
+<nav class="navbar">
+    <div class="navbar-container">
+        <a href="{{ url_for('index') }}" class="navbar-brand">
+            <span class="brand-icon">></span>
+            <span class="brand-text">SPLUNK<span class="brand-accent">ed</span></span>
+        </a>
+
+        <div class="navbar-links">
+            <a href="{{ url_for('index') }}"
+               class="nav-link {{ 'active' if current_endpoint == 'index' else '' }}">
+                Home
+            </a>
+            <a href="{{ url_for('glossary') }}"
+               class="nav-link {{ 'active' if current_endpoint == 'glossary' else '' }}">
+                Glossary
+            </a>
+            <a href="{{ url_for('guides') }}"
+               class="nav-link {{ 'active' if current_endpoint == 'guides' else '' }}">
+                Guides
+            </a>
+        </div>
+
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+            <span class="toggle-icon"></span>
+        </button>
+    </div>
+</nav>
+{% endmacro %}
+
+{# Sidebar #}
+{% macro sidebar() %}
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h3 class="sidebar-title">Quick Reference</h3>
+        <button class="sidebar-close" id="sidebarClose" aria-label="Close sidebar">&times;</button>
+    </div>
+
+    <div class="sidebar-content">
+        <div class="sidebar-section">
+            <h4 class="sidebar-section-title">Skill Levels</h4>
+            <div class="skill-legend">
+                <div class="skill-item">
+                    <span class="skill-badge beginner">Beginner</span>
+                    <span class="skill-desc">Day-one analysts</span>
+                </div>
+                <div class="skill-item">
+                    <span class="skill-badge intermediate">Intermediate</span>
+                    <span class="skill-desc">1-3 years experience</span>
+                </div>
+                <div class="skill-item">
+                    <span class="skill-badge advanced">Advanced</span>
+                    <span class="skill-desc">3-5 years experience</span>
+                </div>
+                <div class="skill-item">
+                    <span class="skill-badge expert">Expert</span>
+                    <span class="skill-desc">5+ years, deep knowledge</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <h4 class="sidebar-section-title">SPL Basics</h4>
+            <div class="quick-ref-list">
+                <div class="quick-ref-item">
+                    <code>|</code> Pipe - chain commands
+                </div>
+                <div class="quick-ref-item">
+                    <code>=</code> Exact match
+                </div>
+                <div class="quick-ref-item">
+                    <code>!=</code> Not equal
+                </div>
+                <div class="quick-ref-item">
+                    <code>*</code> Wildcard
+                </div>
+                <div class="quick-ref-item">
+                    <code>AND OR NOT</code> Boolean operators
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <h4 class="sidebar-section-title">Common Time Modifiers</h4>
+            <div class="quick-ref-list">
+                <div class="quick-ref-item">
+                    <code>earliest=-24h</code> Last 24 hours
+                </div>
+                <div class="quick-ref-item">
+                    <code>earliest=-7d@d</code> Last 7 days (snap to day)
+                </div>
+                <div class="quick-ref-item">
+                    <code>earliest=@w0</code> Since start of week
+                </div>
+                <div class="quick-ref-item">
+                    <code>latest=now</code> Up to current time
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <h4 class="sidebar-section-title">Keyboard Shortcuts</h4>
+            <div class="quick-ref-list">
+                <div class="quick-ref-item">
+                    <kbd>/</kbd> Focus search
+                </div>
+                <div class="quick-ref-item">
+                    <kbd>Esc</kbd> Close modal/sidebar
+                </div>
+                <div class="quick-ref-item">
+                    <kbd>?</kbd> Toggle help
+                </div>
+            </div>
+        </div>
+    </div>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+{% endmacro %}
+
+{# Footer #}
+{% macro footer() %}
+<footer class="footer">
+    <div class="footer-container">
+        <div class="footer-brand">
+            <span class="brand-icon">></span>
+            <span class="brand-text">SPLUNK<span class="brand-accent">ed</span></span>
+        </div>
+        <div class="footer-tagline">
+            Educational SPL reference for security analysts
+        </div>
+        <div class="footer-note">
+            Not affiliated with Splunk Inc.
+        </div>
+    </div>
+</footer>
+{% endmacro %}
+
+{# Feature Card #}
+{% macro feature_card(title, description, icon, link, link_text="Explore") %}
+<div class="feature-card">
+    <div class="feature-icon">{{ icon }}</div>
+    <h3 class="feature-title">{{ title }}</h3>
+    <p class="feature-description">{{ description }}</p>
+    <a href="{{ link }}" class="feature-link">
+        {{ link_text }}
+        <span class="link-arrow">&rarr;</span>
+    </a>
+</div>
+{% endmacro %}
+
+{# Skill Badge #}
+{% macro skill_badge(level) %}
+<span class="skill-badge {{ level }}">{{ level | capitalize }}</span>
+{% endmacro %}
+
+{# Category Tab #}
+{% macro category_tab(id, label, active=false) %}
+<button class="category-tab {{ 'active' if active else '' }}"
+        data-category="{{ id }}"
+        role="tab"
+        aria-selected="{{ 'true' if active else 'false' }}">
+    {{ label }}
+</button>
+{% endmacro %}
+
+{# Search Input #}
+{% macro search_input(placeholder="Search...", id="searchInput") %}
+<div class="search-container">
+    <span class="search-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+        </svg>
+    </span>
+    <input type="text"
+           id="{{ id }}"
+           class="search-input"
+           placeholder="{{ placeholder }}"
+           autocomplete="off">
+    <button class="search-clear" id="{{ id }}Clear" aria-label="Clear search">&times;</button>
+</div>
+{% endmacro %}
+
+{# Filter Dropdown #}
+{% macro filter_dropdown(id, label, options) %}
+<div class="filter-dropdown">
+    <label for="{{ id }}" class="filter-label">{{ label }}</label>
+    <select id="{{ id }}" class="filter-select">
+        {% for option in options %}
+        <option value="{{ option.value }}">{{ option.label }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endmacro %}
+
+{# View Toggle #}
+{% macro view_toggle(id="viewToggle") %}
+<div class="view-toggle" id="{{ id }}">
+    <button class="view-btn active" data-view="categorized" aria-label="Categorized view">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+        </svg>
+    </button>
+    <button class="view-btn" data-view="alphabetical" aria-label="Alphabetical view">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"/>
+        </svg>
+    </button>
+</div>
+{% endmacro %}
+
+{# Modal Container #}
+{% macro modal(id, title) %}
+<div class="modal-overlay" id="{{ id }}Overlay">
+    <div class="modal" id="{{ id }}" role="dialog" aria-labelledby="{{ id }}Title">
+        <div class="modal-header">
+            <h2 class="modal-title" id="{{ id }}Title">{{ title }}</h2>
+            <button class="modal-close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-content">
+            {{ caller() }}
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# Glossary Entry Card #}
+{% macro glossary_card(entry) %}
+<div class="glossary-card" data-id="{{ entry.id }}" data-difficulty="{{ entry.difficulty }}">
+    <div class="glossary-card-header">
+        <code class="glossary-name">{{ entry.name }}</code>
+        <span class="skill-badge {{ entry.difficulty }}">{{ entry.difficulty }}</span>
+    </div>
+    <p class="glossary-takeaway">{{ entry.takeaway }}</p>
+    <button class="glossary-expand" aria-label="Expand details">
+        <span class="expand-icon">+</span>
+    </button>
+</div>
+{% endmacro %}
+
+{# Guide Card #}
+{% macro guide_card(guide) %}
+<div class="guide-card" data-id="{{ guide.id }}" data-category="{{ guide.category }}">
+    <div class="guide-card-header">
+        <span class="guide-category-badge">{{ guide.category }}</span>
+        <span class="skill-badge {{ guide.difficulty }}">{{ guide.difficulty }}</span>
+    </div>
+    <h3 class="guide-title">{{ guide.title }}</h3>
+    <p class="guide-description">{{ guide.description }}</p>
+    <button class="guide-open-btn">
+        Open Guide
+        <span class="btn-arrow">&rarr;</span>
+    </button>
+</div>
+{% endmacro %}
+
+{# SPL Code Block #}
+{% macro spl_block(code, copyable=true) %}
+<div class="spl-block">
+    <pre class="spl-code"><code>{{ code }}</code></pre>
+    {% if copyable %}
+    <button class="spl-copy" aria-label="Copy to clipboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+    </button>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Tooltip #}
+{% macro tooltip(content, position="top") %}
+<span class="tooltip" data-tooltip="{{ content }}" data-position="{{ position }}">
+    {{ caller() }}
+</span>
+{% endmacro %}
+
+{# Empty State #}
+{% macro empty_state(title, message, icon="search") %}
+<div class="empty-state">
+    <div class="empty-icon">
+        {% if icon == "search" %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        {% elif icon == "folder" %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+        </svg>
+        {% endif %}
+    </div>
+    <h3 class="empty-title">{{ title }}</h3>
+    <p class="empty-message">{{ message }}</p>
+</div>
+{% endmacro %}
+
+{# Loading Spinner #}
+{% macro loading_spinner(size="medium") %}
+<div class="loading-spinner {{ size }}">
+    <div class="spinner"></div>
+</div>
+{% endmacro %}
+
+{# Tab Panel #}
+{% macro tab_panel(id, active=false) %}
+<div class="tab-panel {{ 'active' if active else '' }}"
+     id="{{ id }}Panel"
+     role="tabpanel"
+     aria-labelledby="{{ id }}Tab"
+     {% if not active %}hidden{% endif %}>
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# Progressive Disclosure Section #}
+{% macro disclosure_section(title, level="intermediate", expanded=false) %}
+<div class="disclosure-section {{ level }} {{ 'expanded' if expanded else '' }}">
+    <button class="disclosure-header" aria-expanded="{{ 'true' if expanded else 'false' }}">
+        <span class="disclosure-level">{{ level | capitalize }}</span>
+        <span class="disclosure-title">{{ title }}</span>
+        <span class="disclosure-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+        </span>
+    </button>
+    <div class="disclosure-content">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}

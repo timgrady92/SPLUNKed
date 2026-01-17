@@ -1,0 +1,164 @@
+{% extends "_base.html" %}
+
+{% block title %}SPLUNKed - Learn SPL{% endblock %}
+
+{% block content %}
+{% from "_components.html" import feature_card, skill_badge %}
+
+<!-- Hero Section -->
+<section class="hero">
+    <div class="hero-content">
+        <h1 class="hero-title">
+            <span class="brand-icon">></span>
+            SPLUNK<span class="brand-accent">ed</span>
+        </h1>
+        <p class="hero-subtitle">
+            Your educational companion for mastering SPL (Search Processing Language).
+            From day-one analysts to seasoned experts.
+        </p>
+        <div class="hero-cta">
+            <a href="{{ url_for('glossary') }}" class="btn btn-primary">
+                Explore Glossary
+            </a>
+            <a href="{{ url_for('guides') }}" class="btn btn-secondary">
+                Investigation Guides
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="page-container">
+    <div class="features-grid">
+        {{ feature_card(
+            title="SPL Glossary",
+            description="Comprehensive reference for SPL commands, eval functions, field extractions, and more. Organized by category with progressive disclosure for all skill levels.",
+            icon="</>",
+            link=url_for('glossary'),
+            link_text="Browse Commands"
+        ) }}
+
+        {{ feature_card(
+            title="Investigation Guides",
+            description="Detection-driven and data-source guides for security investigations. Real-world scenarios with SPL patterns you can apply immediately.",
+            icon="?",
+            link=url_for('guides'),
+            link_text="View Guides"
+        ) }}
+
+        {{ feature_card(
+            title="Progressive Learning",
+            description="Content organized by skill level - beginner, intermediate, advanced, and expert. Start where you are and grow your expertise.",
+            icon="+",
+            link=url_for('glossary'),
+            link_text="Start Learning"
+        ) }}
+    </div>
+</section>
+
+<!-- Skill Levels Section -->
+<section class="page-container">
+    <div class="page-header">
+        <h2 class="page-title">For Every Skill Level</h2>
+        <p class="page-subtitle">
+            SPLUNKed adapts to your experience. Each entry reveals more detail as you need it.
+        </p>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            {{ skill_badge('beginner') }}
+            <h3 class="feature-title mt-md">Day-One Analyst</h3>
+            <p class="feature-description">
+                Just getting started with Splunk? Learn the essential commands and concepts.
+                Clear explanations, simple examples, and foundational knowledge.
+            </p>
+        </div>
+
+        <div class="feature-card">
+            {{ skill_badge('intermediate') }}
+            <h3 class="feature-title mt-md">Growing Skills</h3>
+            <p class="feature-description">
+                1-3 years with Splunk? Dive deeper into syntax variations, common patterns,
+                and practical examples for everyday investigations.
+            </p>
+        </div>
+
+        <div class="feature-card">
+            {{ skill_badge('advanced') }}
+            <h3 class="feature-title mt-md">Experienced User</h3>
+            <p class="feature-description">
+                3-5 years of experience? Explore performance considerations, gotchas,
+                and advanced patterns that separate good from great SPL.
+            </p>
+        </div>
+
+        <div class="feature-card">
+            {{ skill_badge('expert') }}
+            <h3 class="feature-title mt-md">Deep Knowledge</h3>
+            <p class="feature-description">
+                5+ years and counting? Discover edge cases, internals, and optimization
+                techniques that push Splunk to its limits.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Quick Start Section -->
+<section class="page-container">
+    <div class="page-header">
+        <h2 class="page-title">Quick Reference</h2>
+        <p class="page-subtitle">
+            Essential SPL patterns to get you started
+        </p>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <h4 class="feature-title">Basic Search</h4>
+            <pre class="spl-example">index=main sourcetype=syslog
+| stats count by host
+| sort -count
+| head 10</pre>
+            <p class="feature-description mt-md">
+                Count events by host and show the top 10
+            </p>
+        </div>
+
+        <div class="feature-card">
+            <h4 class="feature-title">Time Analysis</h4>
+            <pre class="spl-example">index=security EventCode=4625
+| timechart span=1h count
+| where count > 100</pre>
+            <p class="feature-description mt-md">
+                Find hours with unusual failed login activity
+            </p>
+        </div>
+
+        <div class="feature-card">
+            <h4 class="feature-title">Field Extraction</h4>
+            <pre class="spl-example">index=web
+| rex field=_raw "user=(?<username>\w+)"
+| stats count by username</pre>
+            <p class="feature-description mt-md">
+                Extract usernames from raw events
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section class="page-container">
+    <div class="page-header">
+        <h2 class="page-title">About SPLUNKed</h2>
+        <p class="page-subtitle">
+            SPLUNKed is an offline educational resource for security analysts learning
+            Splunk's Search Processing Language. Inspired by the "scaffolding for learning"
+            philosophy, it provides use-case driven content with progressive disclosure.
+        </p>
+        <p class="page-subtitle mt-md">
+            <em>Not affiliated with Splunk Inc.</em>
+        </p>
+    </div>
+</section>
+{% endblock %}
