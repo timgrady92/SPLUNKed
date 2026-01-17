@@ -136,19 +136,45 @@ const GLOSSARY_DATA = {
             subcategory: 'manipulating',
             difficulty: 'beginner',
             takeaway: 'Display specific fields in table format',
-            what: 'Creates a table with only the specified fields, in the order specified.',
-            why: 'Essential for creating clean output, reports, and focusing on relevant fields.',
-            syntax: 'table <field-list>',
-            examples: [
-                { spl: '... | table _time, src_ip, dest_ip, action', explanation: 'Select specific fields' },
-                { spl: '... | table host, count, percent', explanation: 'Format stats output' }
-            ],
-            performance: 'Placing table at the end is slightly more efficient than early field removal.',
-            gotchas: [
-                'Fields not in the list are removed from results',
-                'Order of fields matters - matches your specified order',
-                'Does not deduplicate - use dedup if needed'
-            ],
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Creates a table with only the specified fields, in the order you specify.',
+                    why: 'Essential for creating clean output, reports, and focusing on relevant fields.',
+                    syntax: 'table <field1>, <field2>, ...',
+                    example: { spl: '... | table _time, src_ip, dest_ip, action', explanation: 'Select and order specific fields' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '... | table user, action, status', explanation: 'Clean output with just the fields you need' },
+                        { spl: '... | stats count by host | table host, count', explanation: 'Format stats output for display' },
+                        { spl: '... | table _time, src_ip, dest_*, bytes', explanation: 'Wildcards select multiple fields' }
+                    ],
+                    gotchas: [
+                        'Fields not in the list are removed from results',
+                        'Order of fields in table command = order in output',
+                        'Does not deduplicate — use dedup if you need unique rows'
+                    ],
+                    commonUses: [
+                        'Create clean output for reports and dashboards',
+                        'Select specific fields after stats or other transformations',
+                        'Reorder fields for readability'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Wildcard fields', spl: '... | table _time, *_ip, *_port', explanation: 'Select all fields matching a pattern' },
+                        { name: 'Rename inline', spl: '... | table _time, src_ip AS "Source", dest_ip AS "Destination"', explanation: 'Rename fields in the table output' }
+                    ],
+                    performance: 'Table is a streaming command — very efficient. Place at the end to keep all fields available for earlier operations.',
+                    internals: 'Table removes fields from the results and reorders remaining fields. Does not modify the underlying events.',
+                    vsAlternatives: {
+                        'fields': 'Removes or keeps fields but preserves original order',
+                        'rename': 'Changes field names without removing other fields',
+                        'format': 'Formats results as a single string for subsearches'
+                    }
+                }
+            },
             relatedCommands: ['fields', 'rename', 'format']
         },
         {
@@ -211,21 +237,47 @@ const GLOSSARY_DATA = {
             subcategory: 'searching',
             difficulty: 'beginner',
             takeaway: 'Remove duplicate events',
-            what: 'Removes duplicate events based on specified fields, keeping only the first occurrence.',
-            why: 'Useful for getting unique values, removing redundant events, and simplifying result sets.',
-            syntax: 'dedup [N] <field-list> [sortby <sort-field>]',
-            examples: [
-                { spl: '... | dedup user', explanation: 'One event per unique user' },
-                { spl: '... | dedup src_ip, dest_ip', explanation: 'One event per IP pair' },
-                { spl: '... | dedup 5 host sortby -_time', explanation: 'Keep 5 most recent per host' }
-            ],
-            performance: 'Memory-efficient for dedup on low-cardinality fields. High cardinality can be expensive.',
-            gotchas: [
-                'By default keeps the first event - use sortby to control which',
-                'Consecutive option only removes adjacent duplicates',
-                'Does not work on null values'
-            ],
-            relatedCommands: ['sort', 'head', 'uniq', 'stats dc()']
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Removes duplicate events based on specified fields, keeping only the first occurrence.',
+                    why: 'Get unique values, remove redundant events, and simplify result sets.',
+                    syntax: 'dedup <field-list>',
+                    example: { spl: '... | dedup user', explanation: 'One event per unique user' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '... | dedup src_ip, dest_ip', explanation: 'One event per unique IP pair' },
+                        { spl: '... | dedup host sortby -_time', explanation: 'Keep most recent event per host' },
+                        { spl: '... | dedup 5 user sortby -_time', explanation: 'Keep 5 most recent events per user' }
+                    ],
+                    gotchas: [
+                        'By default keeps the FIRST event found — use sortby to control which',
+                        'Does not work on null values — nulls are ignored',
+                        'High-cardinality fields (many unique values) can be memory-intensive'
+                    ],
+                    commonUses: [
+                        'Get one representative event per entity (user, host, IP)',
+                        'Remove repeated log entries or duplicate alerts',
+                        'Find unique combinations of field values'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Keep N per group', spl: '... | dedup 3 src_ip sortby -bytes', explanation: 'Top 3 events by bytes for each source IP' },
+                        { name: 'Consecutive only', spl: '... | dedup consecutive=true status', explanation: 'Only removes adjacent duplicates' },
+                        { name: 'Keep empty values', spl: '... | dedup keepempty=true user', explanation: 'Include events where user is null' }
+                    ],
+                    performance: 'Memory-efficient for low-cardinality fields. Very high cardinality (millions of unique values) may need alternative approaches.',
+                    internals: 'Dedup maintains a hash table of seen values. Events are checked against this table as they stream through.',
+                    vsAlternatives: {
+                        'stats dc()': 'Counts unique values without returning events',
+                        'stats values()': 'Collects unique values into a multivalue field',
+                        'uniq': 'Similar but only works on sorted, adjacent duplicates'
+                    }
+                }
+            },
+            relatedCommands: ['sort', 'head', 'uniq', 'stats']
         },
         {
             id: 'join',
@@ -278,6 +330,164 @@ const GLOSSARY_DATA = {
             advancedPatterns: [
                 { pattern: 'Lookup with wildcards', spl: '... | lookup threat_intel domain OUTPUTNEW threat_type' }
             ]
+        },
+
+        // ============================================
+        // EXPERIMENTAL CARD STYLES - Test Entries
+        // ============================================
+
+        // Zone-based card
+        {
+            id: 'sort',
+            name: 'sort',
+            category: 'commands',
+            subcategory: 'ordering',
+            difficulty: 'beginner',
+            takeaway: 'Order results by field values',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Puts your search results in order — like sorting a spreadsheet column from A→Z or highest→lowest.',
+                    why: 'Find the biggest, smallest, newest, or oldest items in your results quickly.',
+                    syntax: 'sort <field>\nsort -<field>',
+                    example: { spl: '... | sort -_time', explanation: 'Newest events first' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '... | sort -count', explanation: 'Biggest counts at top' },
+                        { spl: '... | sort _time', explanation: 'Oldest events first' },
+                        { spl: '... | sort -count, user', explanation: 'Sort by count, then alphabetically by user' },
+                        { spl: '... | sort limit=100 -bytes', explanation: 'Top 100 by bytes transferred' }
+                    ],
+                    gotchas: [
+                        'Default limit is 10,000 results — use limit=0 or sort 0 for unlimited',
+                        'Minus sign (-) before field = descending (biggest/newest first)',
+                        'Numbers stored as strings sort wrong: "9" comes after "10"'
+                    ],
+                    commonUses: [
+                        'Find top N results by a metric',
+                        'Order events chronologically for timeline analysis',
+                        'Rank items by count, bytes, or other numeric fields'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Sort IPs numerically', spl: '... | sort ip(src_ip)', explanation: '10.0.0.2 comes before 10.0.0.10' },
+                        { name: 'Force numeric sort', spl: '... | sort num(port)', explanation: 'Ensures 80 < 443 < 8080' },
+                        { name: 'Force string sort', spl: '... | sort str(error_code)', explanation: 'Preserves leading zeros like "007"' }
+                    ],
+                    performance: 'Sort loads all results into memory. For large datasets, consider using stats, top, or rare instead when you only need extremes.',
+                    internals: 'Sort buffers all events in memory before outputting. For truly large-scale sorting, consider indexed-time sorting or summary indexing.',
+                    vsAlternatives: {
+                        'top': 'Returns top N values with counts — faster for "top 10" scenarios',
+                        'rare': 'Returns least common values — inverse of top',
+                        'head': 'Use after sort to limit results: sort -count | head 10'
+                    }
+                }
+            },
+            relatedCommands: ['reverse', 'head', 'tail', 'top', 'rare']
+        },
+
+        // Zone-based card
+        {
+            id: 'head',
+            name: 'head',
+            category: 'commands',
+            subcategory: 'filtering',
+            difficulty: 'beginner',
+            takeaway: 'Return first N results',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Returns only the first N events from your search results.',
+                    why: 'Quickly preview data without waiting for the full search to complete. Essential for testing and exploration.',
+                    syntax: 'head [N]',
+                    example: { spl: '... | head 10', explanation: 'First 10 results' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '... | head', explanation: 'First 10 results (default)' },
+                        { spl: '... | head 5', explanation: 'First 5 results' },
+                        { spl: '... | sort -count | head 20', explanation: 'Top 20 by count' },
+                        { spl: '... | head 1000 | rex field=_raw "..."', explanation: 'Test regex on subset first' }
+                    ],
+                    gotchas: [
+                        'Results are NOT random — they\'re the first events found',
+                        'Order depends on what comes before: raw search order or previous sort',
+                        'For random sampling, use the "sample" command instead'
+                    ],
+                    commonUses: [
+                        'Preview data without running full search',
+                        'Get top N after sorting by a field',
+                        'Test expensive operations on a small subset first'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Keep last event', spl: '... | head limit=100 keeplast=true', explanation: 'Ensures last event passes through even at limit' },
+                        { name: 'Skip nulls', spl: '... | head 50 null=false', explanation: 'Skip events with null in first field' },
+                        { name: 'Alert triage', spl: 'index=alerts severity=critical | sort -_time | head 5', explanation: 'Quick view of most recent critical alerts' }
+                    ],
+                    performance: 'Head is a streaming command — it stops processing as soon as N events pass through. Very efficient for early termination.',
+                    internals: 'In distributed search, each indexer returns up to N events. Search head then takes first N from combined results.',
+                    vsAlternatives: {
+                        'tail': 'Returns the LAST N events instead of first',
+                        'sample': 'Returns random events, not first N',
+                        'top': 'Returns top values by count with automatic aggregation'
+                    }
+                }
+            },
+            relatedCommands: ['tail', 'sample', 'sort', 'top']
+        },
+
+        // Zone-based card
+        {
+            id: 'rename',
+            name: 'rename',
+            category: 'commands',
+            subcategory: 'manipulating',
+            difficulty: 'beginner',
+            takeaway: 'Change field names in results',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Changes the name of a field in your search results.',
+                    why: 'Make field names more readable, match expected naming conventions, or prepare data for joins and lookups.',
+                    syntax: 'rename <old-field> AS <new-field>',
+                    example: { spl: '... | rename src_ip AS source_address', explanation: 'More descriptive name' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '... | rename count AS "Event Count"', explanation: 'Spaces require quotes' },
+                        { spl: '... | rename src AS src_ip, dst AS dest_ip', explanation: 'Multiple renames' },
+                        { spl: '... | rename *_addr AS *_ip', explanation: 'Wildcard rename pattern' }
+                    ],
+                    gotchas: [
+                        'New name with spaces or special chars needs quotes',
+                        'Renaming to existing field name overwrites it',
+                        'Case-sensitive: "User" and "user" are different'
+                    ],
+                    commonUses: [
+                        'Standardize field names across different data sources',
+                        'Create friendly names for dashboard display',
+                        'Prepare fields for lookup table matching'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Wildcard prefix change', spl: '... | rename SC_* AS StatusCode_*', explanation: 'Rename all SC_ prefixed fields' },
+                        { name: 'Swap field names', spl: '... | rename src AS temp, dest AS src, temp AS dest', explanation: 'Use temp field to swap' }
+                    ],
+                    performance: 'Rename is extremely fast — just metadata change, no data transformation.',
+                    internals: 'Rename modifies the field metadata table, not the actual event data. Original _raw is unchanged.',
+                    vsAlternatives: {
+                        'eval': 'Creates new field with value copy — use when you need both old and new',
+                        'fields': 'Use "fields - oldname" after rename if you want to remove original',
+                        'alias': 'Field aliases in props.conf for persistent renames at search time'
+                    }
+                }
+            },
+            relatedCommands: ['eval', 'fields', 'table', 'rex']
         }
     ],
 
@@ -288,21 +498,59 @@ const GLOSSARY_DATA = {
             category: 'functions',
             subcategory: 'conditional',
             difficulty: 'beginner',
-            takeaway: 'Conditional value selection',
-            what: 'Returns one value if the condition is true, another if false.',
-            why: 'Core function for conditional logic, data classification, and field creation based on criteria.',
-            syntax: 'if(condition, value_if_true, value_if_false)',
-            examples: [
-                { spl: '| eval status=if(code>=400, "error", "ok")', explanation: 'Classify by status code' },
-                { spl: '| eval size=if(bytes>1000000, "large", "small")', explanation: 'Categorize by size' },
-                { spl: '| eval risk=if(isnull(user), "unknown", "identified")', explanation: 'Handle nulls' }
-            ],
-            gotchas: [
-                'Condition must evaluate to boolean true/false',
-                'Nested if() statements can become hard to read - use case() instead',
-                'Both value expressions are evaluated - be careful with expensive functions'
-            ],
-            relatedCommands: ['case', 'coalesce', 'validate']
+            takeaway: 'Conditional value selection - returns one value if true, another if false',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Returns one value if a condition is true, or a different value if false. Like asking "if this, then that, otherwise something else."',
+                    why: 'Core function for conditional logic - classify data, create flags, handle missing values, and make decisions based on field values.',
+                    syntax: 'if(condition, value_if_true, value_if_false)',
+                    example: {
+                        spl: '| eval status=if(code>=400, "error", "ok")',
+                        explanation: 'Creates a status field: "error" for codes 400+, "ok" for anything else'
+                    }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| eval size=if(bytes>1000000, "large", "small")', explanation: 'Categorize by size threshold' },
+                        { spl: '| eval risk=if(isnull(user), "unknown", "identified")', explanation: 'Handle null values with conditional' },
+                        { spl: '| eval priority=if(severity>7 AND type="security", "critical", "normal")', explanation: 'Combine multiple conditions' }
+                    ],
+                    gotchas: [
+                        'Both value expressions are evaluated even if not used - avoid expensive functions in both branches',
+                        'Nested if() statements become hard to read - use case() for 3+ conditions',
+                        'Condition must evaluate to boolean - use comparison operators or functions like isnull()'
+                    ],
+                    commonUses: [
+                        'Creating binary flags from thresholds',
+                        'Handling null or missing values',
+                        'Simple classification (good/bad, yes/no)',
+                        'Conditional field creation for dashboards'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        {
+                            name: 'Nested Conditional',
+                            spl: '| eval tier=if(bytes>1000000, "large", if(bytes>1000, "medium", "small"))',
+                            explanation: 'Multiple tiers - but consider case() for cleaner code'
+                        },
+                        {
+                            name: 'Combined with Coalesce',
+                            spl: '| eval user=if(isnull(username), coalesce(email, "unknown"), username)',
+                            explanation: 'Fallback chain with null handling'
+                        }
+                    ],
+                    performance: 'Lightweight function. However, both true and false expressions are evaluated during parsing, so avoid placing expensive operations (like lookups or complex regex) in either branch unless necessary.',
+                    internals: 'if() is a true ternary operator evaluated at search time. Unlike some languages, SPL always evaluates both branches during the parse phase, though only one result is used.',
+                    vsAlternatives: {
+                        'case': 'Use case() for 3+ conditions - cleaner than nested if()',
+                        'coalesce': 'Use coalesce() when just picking the first non-null value',
+                        'validate': 'Use validate() when checking multiple conditions that must all be true'
+                    }
+                }
+            },
+            relatedCommands: ['case', 'coalesce', 'validate', 'isnull']
         },
         {
             id: 'case',
@@ -310,20 +558,59 @@ const GLOSSARY_DATA = {
             category: 'functions',
             subcategory: 'conditional',
             difficulty: 'intermediate',
-            takeaway: 'Multiple condition evaluation',
-            what: 'Evaluates multiple conditions and returns the value associated with the first true condition.',
-            why: 'Cleaner alternative to nested if() statements for multi-way conditionals.',
-            syntax: 'case(condition1, value1, condition2, value2, ..., true(), default_value)',
-            examples: [
-                { spl: '| eval severity=case(level<3,"low", level<7,"medium", level>=7,"high")', explanation: 'Multi-level classification' },
-                { spl: '| eval category=case(port=80,"web", port=443,"https", port=22,"ssh", true(),"other")', explanation: 'Port categorization with default' }
-            ],
-            gotchas: [
-                'Conditions are evaluated in order - first true wins',
-                'Use true() as last condition for default value',
-                'Returns null if no conditions match and no default provided'
-            ],
-            relatedCommands: ['if', 'coalesce', 'match']
+            takeaway: 'Multi-way conditional - first matching condition wins',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Evaluates multiple conditions in order and returns the value for the first condition that\'s true. Like a series of if/else-if statements.',
+                    why: 'Much cleaner than nested if() statements when you have 3+ possible outcomes. Essential for classification, severity levels, and categorization.',
+                    syntax: 'case(cond1, val1, cond2, val2, ..., true(), default)',
+                    example: {
+                        spl: '| eval severity=case(level<3,"low", level<7,"medium", level>=7,"high")',
+                        explanation: 'Creates three severity categories based on level thresholds'
+                    }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| eval category=case(port=80,"web", port=443,"https", port=22,"ssh", true(),"other")', explanation: 'Port-based service classification with default' },
+                        { spl: '| eval daytype=case(date_wday="saturday" OR date_wday="sunday","weekend", true(),"weekday")', explanation: 'Weekend vs weekday classification' },
+                        { spl: '| eval response=case(status<200,"info", status<300,"success", status<400,"redirect", status<500,"client_error", true(),"server_error")', explanation: 'HTTP status code categorization' }
+                    ],
+                    gotchas: [
+                        'Order matters! First true condition wins - put most specific conditions first',
+                        'Always include true() as last condition for a default, otherwise returns null',
+                        'All conditions must come in pairs (condition, value) - odd arguments cause errors'
+                    ],
+                    commonUses: [
+                        'Severity/priority classification',
+                        'Port or protocol categorization',
+                        'Status code grouping',
+                        'Time-based bucketing (morning/afternoon/evening)'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        {
+                            name: 'Complex Condition Grouping',
+                            spl: '| eval risk=case(src_ip="10.0.0.1" AND action="login_failed","high", match(user,"^admin"),"medium", true(),"low")',
+                            explanation: 'Combine multiple field checks in each condition'
+                        },
+                        {
+                            name: 'Null-Safe Classification',
+                            spl: '| eval category=case(isnull(field),"missing", field="","empty", len(field)<5,"short", true(),"valid")',
+                            explanation: 'Handle nulls, empty strings, and validation in one expression'
+                        }
+                    ],
+                    performance: 'Efficient for multiple conditions - stops evaluating after first match. However, Splunk may still parse all value expressions, so avoid expensive operations.',
+                    internals: 'case() uses short-circuit evaluation at runtime - once a condition matches, remaining conditions are not evaluated. Useful for performance with many branches.',
+                    vsAlternatives: {
+                        'if': 'Use if() for simple binary (true/false) decisions only',
+                        'match': 'Use match() when conditions are all regex patterns against one field',
+                        'lookup': 'Use lookup tables for large static mappings (100+ categories)'
+                    }
+                }
+            },
+            relatedCommands: ['if', 'coalesce', 'match', 'validate']
         },
         {
             id: 'coalesce',
@@ -331,20 +618,59 @@ const GLOSSARY_DATA = {
             category: 'functions',
             subcategory: 'conditional',
             difficulty: 'beginner',
-            takeaway: 'Return first non-null value',
-            what: 'Returns the first non-null value from a list of arguments.',
-            why: 'Essential for handling missing data, providing defaults, and merging fields.',
-            syntax: 'coalesce(value1, value2, ...)',
-            examples: [
-                { spl: '| eval user=coalesce(username, email, "unknown")', explanation: 'Fallback chain for user identity' },
-                { spl: '| eval ip=coalesce(src_ip, client_ip, source)', explanation: 'Merge multiple IP fields' }
-            ],
-            gotchas: [
-                'Empty string is not null - use nullif() to convert if needed',
-                'Order matters - put preferred fields first',
-                'All arguments evaluated - watch for expensive operations'
-            ],
-            relatedCommands: ['if', 'isnull', 'nullif', 'fillnull']
+            takeaway: 'Returns first non-null value from a list',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Returns the first value in its argument list that is not null. Useful for picking from multiple possible field sources.',
+                    why: 'Essential for handling missing data gracefully - merge similar fields, provide defaults, and normalize data that might be in different fields.',
+                    syntax: 'coalesce(value1, value2, value3, ...)',
+                    example: {
+                        spl: '| eval user=coalesce(username, email, "unknown")',
+                        explanation: 'Uses username if present, falls back to email, then "unknown" as last resort'
+                    }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| eval ip=coalesce(src_ip, client_ip, c_ip, source)', explanation: 'Merge IP fields from different log formats' },
+                        { spl: '| eval action=coalesce(event_action, action, "none")', explanation: 'Normalize action field with default' },
+                        { spl: '| eval timestamp=coalesce(_time, event_time, indextime)', explanation: 'Use best available time field' }
+                    ],
+                    gotchas: [
+                        'Empty string "" is NOT null - it will be returned! Use nullif() to convert empty to null first',
+                        'Order matters - put your preferred field first',
+                        'All arguments are evaluated, even if early ones aren\'t null'
+                    ],
+                    commonUses: [
+                        'Normalizing fields across different sourcetypes',
+                        'Providing sensible defaults for missing data',
+                        'Merging similar fields (user/username/userid)',
+                        'Creating unified fields for dashboards and reports'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        {
+                            name: 'Handle Empty Strings as Null',
+                            spl: '| eval user=coalesce(nullif(username,""), nullif(email,""), "unknown")',
+                            explanation: 'Treats empty strings as null for cleaner fallback logic'
+                        },
+                        {
+                            name: 'Chained with Transformation',
+                            spl: '| eval normalized_ip=coalesce(src_ip, if(isnotnull(xff), mvindex(split(xff,","),0), null()))',
+                            explanation: 'Fall back to first IP from X-Forwarded-For header'
+                        }
+                    ],
+                    performance: 'Lightweight function, but evaluates all arguments. Keep the list reasonably short (5-7 max) and avoid expensive transformations in the argument list.',
+                    internals: 'coalesce() evaluates arguments left-to-right but all are parsed before execution. At runtime, returns immediately upon finding non-null. Works with any data type.',
+                    vsAlternatives: {
+                        'fillnull': 'Use fillnull command to replace nulls across many fields at once',
+                        'if+isnull': 'if(isnull(a), b, a) is equivalent but coalesce() is cleaner',
+                        'eval with default': 'For single field: eval field=if(isnull(field), "default", field)'
+                    }
+                }
+            },
+            relatedCommands: ['if', 'isnull', 'nullif', 'fillnull', 'isnotnull']
         },
         {
             id: 'strftime',
@@ -352,25 +678,65 @@ const GLOSSARY_DATA = {
             category: 'functions',
             subcategory: 'datetime',
             difficulty: 'intermediate',
-            takeaway: 'Format timestamps as strings',
-            what: 'Converts epoch time to a formatted date/time string.',
-            why: 'Essential for human-readable time display, reporting, and time-based grouping.',
-            syntax: 'strftime(time, format)',
-            examples: [
-                { spl: '| eval date=strftime(_time, "%Y-%m-%d")', explanation: 'Format as YYYY-MM-DD' },
-                { spl: '| eval hour=strftime(_time, "%H")', explanation: 'Extract hour for analysis' },
-                { spl: '| eval day_of_week=strftime(_time, "%A")', explanation: 'Get day name' }
-            ],
-            gotchas: [
-                'Input must be epoch time (use strptime to convert strings first)',
-                'Format codes are case-sensitive (%H vs %I for 24h vs 12h)',
-                'Timezone is based on Splunk server unless specified'
-            ],
-            relatedCommands: ['strptime', 'now', 'relative_time'],
-            advancedPatterns: [
-                { pattern: 'Common formats', spl: '%Y-%m-%d %H:%M:%S (2024-01-15 14:30:00)' },
-                { pattern: 'ISO 8601', spl: '%Y-%m-%dT%H:%M:%S%z' }
-            ]
+            takeaway: 'Format epoch time as human-readable string',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Converts epoch time (seconds since 1970) into a formatted date/time string you can read and use in reports.',
+                    why: 'Essential for making timestamps human-readable, extracting time components (hour, day), and grouping events by time periods.',
+                    syntax: 'strftime(epoch_time, "format_string")',
+                    example: {
+                        spl: '| eval date=strftime(_time, "%Y-%m-%d")',
+                        explanation: 'Converts _time to readable date like "2024-01-15"'
+                    }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| eval hour=strftime(_time, "%H")', explanation: 'Extract hour (00-23) for hourly analysis' },
+                        { spl: '| eval day_of_week=strftime(_time, "%A")', explanation: 'Get day name (Monday, Tuesday, etc.)' },
+                        { spl: '| eval timestamp=strftime(_time, "%Y-%m-%d %H:%M:%S")', explanation: 'Full readable timestamp' },
+                        { spl: '| stats count by strftime(_time, "%Y-%m")', explanation: 'Group by month directly in stats' }
+                    ],
+                    gotchas: [
+                        'Input MUST be epoch time - use strptime() first if you have a string',
+                        'Format codes are case-sensitive: %H (24-hour) vs %I (12-hour)',
+                        'Timezone is Splunk server timezone unless you use %z to include offset'
+                    ],
+                    commonUses: [
+                        'Creating readable timestamps for reports',
+                        'Extracting hour/day for pattern analysis',
+                        'Grouping events by time periods (weekly, monthly)',
+                        'Formatting for dashboard displays'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        {
+                            name: 'Common Format Codes',
+                            spl: '%Y=year %m=month %d=day %H=hour24 %M=min %S=sec %A=dayname %B=monthname',
+                            explanation: 'Reference: %Y-%m-%d %H:%M:%S → 2024-01-15 14:30:00'
+                        },
+                        {
+                            name: 'ISO 8601 Format',
+                            spl: '| eval iso_time=strftime(_time, "%Y-%m-%dT%H:%M:%S%z")',
+                            explanation: 'Standard format for APIs and logs: 2024-01-15T14:30:00-0500'
+                        },
+                        {
+                            name: 'Business Hours Detection',
+                            spl: '| eval is_business=if(strftime(_time,"%H")>=9 AND strftime(_time,"%H")<17 AND NOT match(strftime(_time,"%A"),"Saturday|Sunday"), 1, 0)',
+                            explanation: 'Flag events during 9-5 on weekdays'
+                        }
+                    ],
+                    performance: 'Fast function, minimal overhead. Fine to use in stats by clauses. For heavy use, consider pre-extracting time fields at index time.',
+                    internals: 'strftime() wraps the C library strftime function. Uses server timezone by default. The %s format returns the original epoch (useful for round-tripping).',
+                    vsAlternatives: {
+                        'strptime': 'Opposite operation - parses string to epoch time',
+                        'relative_time': 'For time math (adding/subtracting time spans)',
+                        'now': 'For current time in epoch format'
+                    }
+                }
+            },
+            relatedCommands: ['strptime', 'now', 'relative_time', '_time']
         },
         {
             id: 'mvcount',
@@ -378,20 +744,59 @@ const GLOSSARY_DATA = {
             category: 'functions',
             subcategory: 'multivalue',
             difficulty: 'intermediate',
-            takeaway: 'Count values in multivalue field',
-            what: 'Returns the count of values in a multivalue field.',
-            why: 'Essential for analyzing multivalue fields like lists of users, IPs, or events.',
-            syntax: 'mvcount(multivalue_field)',
-            examples: [
-                { spl: '| eval ip_count=mvcount(src_ip)', explanation: 'Count IPs per event' },
-                { spl: '| where mvcount(user) > 1', explanation: 'Find events with multiple users' }
-            ],
-            gotchas: [
-                'Returns null if field is empty or null',
-                'Single value fields return 1',
-                'Use mvexpand to break apart multivalue fields'
-            ],
-            relatedCommands: ['mvindex', 'mvfilter', 'mvjoin', 'mvexpand']
+            takeaway: 'Count values in a multivalue field',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Counts how many individual values are in a multivalue field. Single values return 1, nulls return null.',
+                    why: 'Essential for analyzing multivalue fields - find events with multiple values, detect anomalies, or validate data completeness.',
+                    syntax: 'mvcount(multivalue_field)',
+                    example: {
+                        spl: '| eval ip_count=mvcount(src_ip)',
+                        explanation: 'Counts how many IPs are in the src_ip field for each event'
+                    }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| where mvcount(user) > 1', explanation: 'Find events with multiple users (potential shared sessions)' },
+                        { spl: '| eval has_many_ips=if(mvcount(dest_ip)>5, "suspicious", "normal")', explanation: 'Flag events contacting many destinations' },
+                        { spl: '| stats avg(mvcount(tags)) as avg_tags by sourcetype', explanation: 'Average number of tags per event by type' }
+                    ],
+                    gotchas: [
+                        'Returns null (not 0) if field is empty or null - use coalesce(mvcount(field), 0) for numeric comparison',
+                        'Single value fields return 1, not null',
+                        'Works on any multivalue field, including those created by makemv or split'
+                    ],
+                    commonUses: [
+                        'Detecting multi-value anomalies (too many IPs, users, etc.)',
+                        'Validating data has expected number of values',
+                        'Filtering for events with/without multiple values',
+                        'Analyzing tag or category distributions'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        {
+                            name: 'Null-Safe Count',
+                            spl: '| eval count=coalesce(mvcount(field), 0) | where count > 0',
+                            explanation: 'Safely handle null fields by defaulting to 0'
+                        },
+                        {
+                            name: 'Cardinality Check',
+                            spl: '| eval unique_count=mvcount(mvdedup(values)) | where unique_count != mvcount(values)',
+                            explanation: 'Find events with duplicate values in multivalue field'
+                        }
+                    ],
+                    performance: 'Very fast operation - O(1) lookup of field metadata. Use freely in where clauses and evals.',
+                    internals: 'Multivalue fields store a count internally, so mvcount() is a simple metadata lookup rather than iteration.',
+                    vsAlternatives: {
+                        'mvindex': 'Access specific position in multivalue field',
+                        'mvfilter': 'Filter values within multivalue field, then count result',
+                        'mvexpand': 'Expand multivalue to multiple events instead of counting'
+                    }
+                }
+            },
+            relatedCommands: ['mvindex', 'mvfilter', 'mvjoin', 'mvexpand', 'makemv']
         },
         {
             id: 'split',
@@ -399,20 +804,64 @@ const GLOSSARY_DATA = {
             category: 'functions',
             subcategory: 'string',
             difficulty: 'beginner',
-            takeaway: 'Split string into multivalue field',
-            what: 'Splits a string into a multivalue field based on a delimiter.',
-            why: 'Essential for parsing delimited data, breaking apart compound fields.',
-            syntax: 'split(string, delimiter)',
-            examples: [
-                { spl: '| eval parts=split(path, "/")', explanation: 'Split path into segments' },
-                { spl: '| eval tags=split(tag_list, ",")', explanation: 'Parse comma-separated tags' }
-            ],
-            gotchas: [
-                'Delimiter is literal, not regex',
-                'Empty strings between delimiters are preserved',
-                'Use mvindex() to access specific positions'
-            ],
-            relatedCommands: ['mvjoin', 'mvindex', 'rex']
+            takeaway: 'Split string into multivalue field by delimiter',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Breaks a string into multiple values based on a delimiter character. Creates a multivalue field from a single string.',
+                    why: 'Essential for parsing delimited data - split paths, comma-separated lists, or any compound field into individual values you can analyze.',
+                    syntax: 'split(string, "delimiter")',
+                    example: {
+                        spl: '| eval parts=split(path, "/")',
+                        explanation: 'Splits "/var/log/syslog" into ["", "var", "log", "syslog"]'
+                    }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| eval tags=split(tag_list, ",")', explanation: 'Parse comma-separated tags into multivalue field' },
+                        { spl: '| eval domain_parts=split(domain, ".") | eval tld=mvindex(domain_parts, -1)', explanation: 'Split domain and extract TLD' },
+                        { spl: '| eval filename=mvindex(split(path, "/"), -1)', explanation: 'Get filename from path (last segment)' }
+                    ],
+                    gotchas: [
+                        'Delimiter is literal, not regex - use rex for complex patterns',
+                        'Empty strings between delimiters are preserved (a,,b → ["a","","b"])',
+                        'Leading delimiter creates empty first value (/path → ["", "path"])'
+                    ],
+                    commonUses: [
+                        'Parsing comma or pipe-delimited fields',
+                        'Breaking apart file paths',
+                        'Splitting compound identifiers (user@domain)',
+                        'Preparing data for mvindex or mvfilter'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        {
+                            name: 'Extract Specific Position',
+                            spl: '| eval third=mvindex(split(field, ","), 2)',
+                            explanation: 'Get third value (0-indexed) from comma-separated field'
+                        },
+                        {
+                            name: 'Filter Split Results',
+                            spl: '| eval non_empty=mvfilter(split(field, ",") != "")',
+                            explanation: 'Split and remove empty values in one step'
+                        },
+                        {
+                            name: 'Count Segments',
+                            spl: '| eval depth=mvcount(split(path, "/"))-1',
+                            explanation: 'Count path depth (subtract 1 for leading slash)'
+                        }
+                    ],
+                    performance: 'Fast operation, but creates multivalue fields which consume more memory. For very long strings with many delimiters, consider processing limits.',
+                    internals: 'split() is a simple string tokenization. Unlike makemv, it works on field values rather than the entire field. Result is an in-memory multivalue array.',
+                    vsAlternatives: {
+                        'makemv': 'Use makemv command for splitting into separate field values',
+                        'rex': 'Use rex for complex regex-based extraction',
+                        'mvjoin': 'Opposite operation - joins multivalue back to string'
+                    }
+                }
+            },
+            relatedCommands: ['mvjoin', 'mvindex', 'mvfilter', 'rex', 'makemv']
         },
         {
             id: 'now',
@@ -420,21 +869,59 @@ const GLOSSARY_DATA = {
             category: 'functions',
             subcategory: 'datetime',
             difficulty: 'beginner',
-            takeaway: 'Current time as epoch',
-            what: 'Returns the current system time as an epoch timestamp.',
-            why: 'Essential for calculating time differences, age of events, and time-based logic.',
-            syntax: 'now()',
-            examples: [
-                { spl: '| eval age_seconds=now()-_time', explanation: 'Calculate event age' },
-                { spl: '| eval age_hours=(now()-_time)/3600', explanation: 'Event age in hours' },
-                { spl: '| where _time > now()-86400', explanation: 'Last 24 hours only' }
-            ],
-            gotchas: [
-                'Returns epoch time (seconds since 1970)',
-                'Fixed at search start time for consistency across the search',
-                'For current time in display format, combine with strftime()'
-            ],
-            relatedCommands: ['relative_time', 'strftime', 'strptime']
+            takeaway: 'Get current time as epoch timestamp',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Returns the current system time as an epoch timestamp (seconds since January 1, 1970). Takes no arguments.',
+                    why: 'Essential for calculating how old events are, creating time-based thresholds, and filtering by relative time.',
+                    syntax: 'now()',
+                    example: {
+                        spl: '| eval age_seconds=now()-_time',
+                        explanation: 'Calculate how many seconds ago each event occurred'
+                    }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| eval age_hours=(now()-_time)/3600', explanation: 'Event age in hours' },
+                        { spl: '| where _time > now()-86400', explanation: 'Keep only events from last 24 hours (86400 seconds)' },
+                        { spl: '| eval is_stale=if(now()-last_seen > 3600, "yes", "no")', explanation: 'Flag if over 1 hour since last seen' }
+                    ],
+                    gotchas: [
+                        'Returns epoch time (integer seconds), not a readable string',
+                        'Fixed at search start time - consistent across the entire search',
+                        'For readable format: strftime(now(), "%Y-%m-%d %H:%M:%S")'
+                    ],
+                    commonUses: [
+                        'Calculating event age or staleness',
+                        'Creating time-based thresholds',
+                        'Relative time filtering in eval/where',
+                        'Computing time until future events (expiration, SLA)'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        {
+                            name: 'SLA Monitoring',
+                            spl: '| eval sla_remaining=(created_time + 86400) - now() | eval sla_status=case(sla_remaining<0,"breached", sla_remaining<3600,"critical", true(),"ok")',
+                            explanation: 'Calculate remaining SLA time and classify status'
+                        },
+                        {
+                            name: 'Age Bucketing',
+                            spl: '| eval age_bucket=case((now()-_time)<3600,"last_hour", (now()-_time)<86400,"today", (now()-_time)<604800,"this_week", true(),"older")',
+                            explanation: 'Categorize events by age relative to now'
+                        }
+                    ],
+                    performance: 'Extremely lightweight - just returns a single value computed once at search start. No performance concerns.',
+                    internals: 'now() is evaluated once when the search starts and that value is reused throughout. This ensures consistent age calculations even for long-running searches.',
+                    vsAlternatives: {
+                        'relative_time': 'Use relative_time(now(), "-1d@d") for time math like "start of yesterday"',
+                        'strftime': 'Use strftime(now(), format) to display current time as string',
+                        '_time': '_time is the event timestamp, now() is the search time'
+                    }
+                }
+            },
+            relatedCommands: ['relative_time', 'strftime', 'strptime', '_time']
         }
     ],
 
@@ -1076,10 +1563,15 @@ function filterEntries(entries) {
 }
 
 function createCardHTML(entry) {
+    const experimentalBadge = entry.experimental
+        ? '<span class="experimental-badge">Test</span>'
+        : '';
+
     return `
         <div class="glossary-card" data-id="${entry.id}" data-category="${entry.category}">
             <div class="glossary-card-header">
                 <code class="glossary-name">${escapeHtml(entry.name)}</code>
+                ${experimentalBadge}
                 <span class="skill-badge ${entry.difficulty}">${entry.difficulty}</span>
             </div>
             <p class="glossary-takeaway">${escapeHtml(entry.takeaway)}</p>
@@ -1090,6 +1582,10 @@ function createCardHTML(entry) {
     `;
 }
 
+// Card navigation history
+let cardHistory = [];
+let currentCardEntry = null;
+
 function handleCardClick(e) {
     const card = e.target.closest('.glossary-card');
     if (!card) return;
@@ -1099,6 +1595,9 @@ function handleCardClick(e) {
     const entry = GLOSSARY_DATA[category]?.find(e => e.id === id);
 
     if (entry) {
+        // Clear history when opening from grid
+        cardHistory = [];
+        currentCardEntry = null;
         openDetailModal(entry);
     }
 }
@@ -1106,12 +1605,56 @@ function handleCardClick(e) {
 function openDetailModal(entry) {
     const title = document.getElementById('glossaryModalTitle');
     const content = document.getElementById('glossaryModalContent');
+    const backBtn = document.getElementById('glossaryModalBack');
+
+    // Track current entry
+    currentCardEntry = entry;
 
     title.textContent = entry.name;
-    content.innerHTML = createDetailHTML(entry);
 
-    // Populate SPL code blocks with raw content (textContent auto-escapes)
-    // Then highlighting will process them properly
+    // Update back button visibility
+    if (backBtn) {
+        backBtn.hidden = cardHistory.length === 0;
+    }
+
+    // Check for experimental card styles
+    if (entry.cardStyle === 'tabbed') {
+        content.innerHTML = createTabbedHTML(entry);
+        initTabbedModal(content);
+    } else if (entry.cardStyle === 'progressive') {
+        content.innerHTML = createProgressiveHTML(entry);
+        initProgressiveModal(content);
+    } else if (entry.cardStyle === 'layered') {
+        content.innerHTML = createLayeredHTML(entry);
+    } else {
+        // Standard rendering
+        content.innerHTML = createDetailHTML(entry);
+        populateStandardSPLBlocks(content, entry);
+    }
+
+    // Apply syntax highlighting to all SPL code blocks
+    SPLUNKed.applySPLHighlighting(content);
+
+    SPLUNKed.openModal('glossaryModal');
+}
+
+function goBackCard() {
+    if (cardHistory.length > 0) {
+        const previousEntry = cardHistory.pop();
+        openDetailModal(previousEntry, false);
+    }
+}
+
+// Initialize back button
+document.addEventListener('DOMContentLoaded', () => {
+    const backBtn = document.getElementById('glossaryModalBack');
+    if (backBtn) {
+        backBtn.addEventListener('click', goBackCard);
+    }
+});
+
+// Helper to populate SPL blocks for standard entries
+function populateStandardSPLBlocks(content, entry) {
     if (entry.syntax) {
         const syntaxEl = content.querySelector('.spl-example:not([data-pattern-index])');
         if (syntaxEl) syntaxEl.textContent = entry.syntax;
@@ -1130,11 +1673,697 @@ function openDetailModal(entry) {
             if (patternEl) patternEl.textContent = ap.spl;
         });
     }
+}
 
-    // Apply syntax highlighting to SPL code blocks
-    SPLUNKed.applySPLHighlighting(content);
+// ============================================
+// Tabbed Card Style (by skill level)
+// ============================================
+function createTabbedHTML(entry) {
+    const zones = entry.zones;
 
-    SPLUNKed.openModal('glossaryModal');
+    let html = `
+        <div class="zone-tabs" role="tablist">
+            <button class="zone-tab active" data-zone="essential" role="tab" aria-selected="true">Essential</button>
+            <button class="zone-tab" data-zone="practical" role="tab" aria-selected="false">Practical</button>
+            <button class="zone-tab" data-zone="deep" role="tab" aria-selected="false">Deep Dive</button>
+        </div>
+    `;
+
+    // Essential tab content
+    html += `<div class="zone-tab-content active" data-zone="essential">`;
+    html += renderEssentialZone(zones.essential);
+    html += `</div>`;
+
+    // Practical tab content
+    html += `<div class="zone-tab-content" data-zone="practical">`;
+    html += renderPracticalZone(zones.practical);
+    html += `</div>`;
+
+    // Deep Dive tab content
+    html += `<div class="zone-tab-content" data-zone="deep">`;
+    html += renderDeepZone(zones.deep);
+    html += `</div>`;
+
+    // Footer with Related commands
+    if (entry.relatedCommands && entry.relatedCommands.length > 0) {
+        html += `
+            <div class="tabbed-footer" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
+                <div class="detail-section">
+                    <div class="detail-label">Related</div>
+                    <div class="detail-content">
+                        ${entry.relatedCommands.map(c => `<code class="command-link" data-command="${escapeHtml(c)}">${escapeHtml(c)}</code>`).join(', ')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    return html;
+}
+
+// ============================================
+// Zone Render Functions
+// ============================================
+
+function renderEssentialZone(zone) {
+    let html = '<div class="zone-content">';
+
+    if (zone.what) {
+        html += `
+            <div class="tabbed-section section-what">
+                <div class="tabbed-section-header">WHAT</div>
+                <div class="tabbed-section-content">${escapeHtml(zone.what)}</div>
+            </div>
+        `;
+    }
+
+    if (zone.why) {
+        html += `
+            <div class="tabbed-section section-why">
+                <div class="tabbed-section-header">WHY</div>
+                <div class="tabbed-section-content">${escapeHtml(zone.why)}</div>
+            </div>
+        `;
+    }
+
+    if (zone.syntax) {
+        html += `
+            <div class="tabbed-section section-syntax">
+                <div class="tabbed-section-header">SYNTAX</div>
+                <div class="tabbed-section-content">
+                    <pre class="spl-example">${escapeHtml(zone.syntax)}</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    if (zone.example) {
+        html += `
+            <div class="example-pair">
+                <div class="spl-block">
+                    <pre class="spl-code"><code>${escapeHtml(zone.example.spl)}</code></pre>
+                </div>
+                <p class="example-explanation">${escapeHtml(zone.example.explanation)}</p>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function renderPracticalZone(zone) {
+    let html = '<div class="zone-content">';
+
+    if (zone.examples && zone.examples.length > 0) {
+        html += `
+            <div class="tabbed-section section-examples">
+                <div class="tabbed-section-header">MORE EXAMPLES</div>
+                <div class="tabbed-section-content">
+                    ${zone.examples.map(ex => `
+                        <div class="example-pair">
+                            <div class="spl-block">
+                                <pre class="spl-code"><code>${escapeHtml(ex.spl)}</code></pre>
+                            </div>
+                            <p class="example-explanation">${escapeHtml(ex.explanation)}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    if (zone.gotchas && zone.gotchas.length > 0) {
+        html += `
+            <div class="tabbed-section section-gotchas">
+                <div class="tabbed-section-header">WATCH OUT</div>
+                <div class="tabbed-section-content">
+                    <ul class="warning-list">
+                        ${zone.gotchas.map(g => `<li><span class="warning-icon">!</span> ${escapeHtml(g)}</li>`).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+
+    if (zone.commonUses && zone.commonUses.length > 0) {
+        html += `
+            <div class="tabbed-section section-uses">
+                <div class="tabbed-section-header">COMMON USES</div>
+                <div class="tabbed-section-content">
+                    <ul class="uses-list">
+                        ${zone.commonUses.map(u => `<li><span class="use-arrow">→</span> ${escapeHtml(u)}</li>`).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function renderDeepZone(zone) {
+    let html = '<div class="zone-content">';
+
+    if (zone.advancedPatterns && zone.advancedPatterns.length > 0) {
+        html += `
+            <div class="tabbed-section section-advanced">
+                <div class="tabbed-section-header">ADVANCED PATTERNS</div>
+                <div class="tabbed-section-content">
+                    ${zone.advancedPatterns.map(ap => `
+                        <div class="advanced-pattern">
+                            <div class="pattern-name">${escapeHtml(ap.name)}</div>
+                            <div class="spl-block">
+                                <pre class="spl-code"><code>${escapeHtml(ap.spl)}</code></pre>
+                            </div>
+                            <p class="example-explanation">${escapeHtml(ap.explanation)}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    if (zone.performance) {
+        html += `
+            <div class="tabbed-section section-performance">
+                <div class="tabbed-section-header">PERFORMANCE</div>
+                <div class="tabbed-section-content">${escapeHtml(zone.performance)}</div>
+            </div>
+        `;
+    }
+
+    if (zone.internals) {
+        html += `
+            <div class="tabbed-section section-internals">
+                <div class="tabbed-section-header">INTERNALS</div>
+                <div class="tabbed-section-content">${escapeHtml(zone.internals)}</div>
+            </div>
+        `;
+    }
+
+    if (zone.vsAlternatives) {
+        html += `
+            <div class="tabbed-section section-alternatives">
+                <div class="tabbed-section-header">VS. ALTERNATIVES</div>
+                <div class="tabbed-section-content">
+                    <ul class="alternatives-list">
+                        ${Object.entries(zone.vsAlternatives).map(([cmd, desc]) => `
+                            <li><code class="command-link" data-command="${escapeHtml(cmd)}">${escapeHtml(cmd)}</code> — ${escapeHtml(desc)}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function initTabbedModal(content) {
+    const tabs = content.querySelectorAll('.zone-tab');
+    const panels = content.querySelectorAll('.zone-tab-content');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const zone = tab.dataset.zone;
+
+            // Update tab states
+            tabs.forEach(t => {
+                t.classList.remove('active');
+                t.setAttribute('aria-selected', 'false');
+            });
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+
+            // Update panel visibility
+            panels.forEach(p => {
+                p.classList.toggle('active', p.dataset.zone === zone);
+            });
+
+            // Re-apply highlighting to newly visible content
+            SPLUNKed.applySPLHighlighting(content);
+        });
+    });
+
+    // Initialize command tooltips
+    initCommandTooltips(content);
+}
+
+// ============================================
+// Command Tooltips for Related Terms
+// ============================================
+let commandTooltip = null;
+let tooltipTimeout = null;
+
+function ensureTooltipElement() {
+    if (!commandTooltip) {
+        commandTooltip = document.createElement('div');
+        commandTooltip.className = 'command-tooltip';
+        commandTooltip.id = 'commandTooltip';
+        commandTooltip.hidden = true;
+        commandTooltip.innerHTML = '<div class="command-tooltip-content" id="commandTooltipContent"></div>';
+        document.body.appendChild(commandTooltip);
+
+        // Keep tooltip visible when hovering over it
+        commandTooltip.addEventListener('mouseenter', () => {
+            clearTimeout(tooltipTimeout);
+        });
+        commandTooltip.addEventListener('mouseleave', () => {
+            tooltipTimeout = setTimeout(hideCommandTooltip, 100);
+        });
+    }
+    return commandTooltip;
+}
+
+function findCommandData(commandName) {
+    // Search through all categories for the command
+    for (const category of Object.keys(GLOSSARY_DATA)) {
+        const entries = GLOSSARY_DATA[category];
+        const found = entries.find(e => e.name.toLowerCase() === commandName.toLowerCase());
+        if (found) return found;
+    }
+    return null;
+}
+
+function showCommandTooltip(element, commandName) {
+    const data = findCommandData(commandName);
+    const tooltip = ensureTooltipElement();
+    const tooltipContent = tooltip.querySelector('.command-tooltip-content');
+
+    if (!data) {
+        tooltipContent.innerHTML = `<h4>${escapeHtml(commandName)}</h4><p>No description available</p>`;
+    } else {
+        const description = data.takeaway || data.what || 'No description available';
+        tooltipContent.innerHTML = `<h4>${escapeHtml(data.name)}</h4><p>${escapeHtml(description)}</p>`;
+    }
+
+    // Position tooltip
+    const rect = element.getBoundingClientRect();
+    let left = rect.left + (rect.width / 2) - 160;
+    let top = rect.bottom + 8;
+
+    // Keep in viewport
+    if (left < 10) left = 10;
+    if (left + 320 > window.innerWidth - 10) {
+        left = window.innerWidth - 330;
+    }
+    if (top + 100 > window.innerHeight) {
+        top = rect.top - 100;
+    }
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.hidden = false;
+
+    requestAnimationFrame(() => {
+        tooltip.classList.add('visible');
+    });
+}
+
+function hideCommandTooltip() {
+    if (commandTooltip) {
+        commandTooltip.classList.remove('visible');
+        setTimeout(() => {
+            commandTooltip.hidden = true;
+        }, 150);
+    }
+}
+
+function initCommandTooltips(container) {
+    const links = container.querySelectorAll('.command-link:not([data-tooltip-init])');
+
+    links.forEach(link => {
+        link.dataset.tooltipInit = 'true';
+
+        link.addEventListener('mouseenter', () => {
+            clearTimeout(tooltipTimeout);
+            tooltipTimeout = setTimeout(() => {
+                showCommandTooltip(link, link.dataset.command);
+            }, 200);
+        });
+
+        link.addEventListener('mouseleave', () => {
+            clearTimeout(tooltipTimeout);
+            tooltipTimeout = setTimeout(hideCommandTooltip, 100);
+        });
+
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            hideCommandTooltip();
+            const data = findCommandData(link.dataset.command);
+            if (data) {
+                // Push current card to history before navigating
+                if (currentCardEntry) {
+                    cardHistory.push(currentCardEntry);
+                }
+                openDetailModal(data);
+            }
+        });
+    });
+}
+
+// ============================================
+// Progressive Card Style (staged reveal)
+// ============================================
+function createProgressiveHTML(entry) {
+    const stages = entry.stages;
+    let html = '<div class="progressive-container">';
+
+    stages.forEach((stage, index) => {
+        const isFirst = index === 0;
+        const stageClass = isFirst ? 'completed' : 'locked';
+
+        html += `
+            <div class="progressive-stage ${stageClass}" data-stage="${index}">
+                <div class="progressive-stage-header">
+                    <span class="progressive-stage-number">${index + 1}</span>
+                    <span class="progressive-stage-title">${escapeHtml(stage.title)}</span>
+                    ${isFirst
+                        ? '<span class="progressive-complete-indicator">✓</span>'
+                        : '<button class="progressive-unlock-btn">Unlock</button>'
+                    }
+                </div>
+                <div class="progressive-stage-content">
+                    ${renderStageContent(stage.content)}
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+
+    // Related commands
+    if (entry.relatedCommands && entry.relatedCommands.length > 0) {
+        html += `
+            <div class="detail-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
+                <div class="detail-label">Related</div>
+                <div class="detail-content">
+                    ${entry.relatedCommands.map(c => `<code>${escapeHtml(c)}</code>`).join(', ')}
+                </div>
+            </div>
+        `;
+    }
+
+    return html;
+}
+
+function renderStageContent(content) {
+    let html = '';
+
+    if (content.what) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label">What</div>
+                <div class="detail-content">${escapeHtml(content.what)}</div>
+            </div>
+        `;
+    }
+
+    if (content.why) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label">Why</div>
+                <div class="detail-content">${escapeHtml(content.why)}</div>
+            </div>
+        `;
+    }
+
+    if (content.syntax) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label">Syntax</div>
+                <pre class="spl-example">${escapeHtml(content.syntax)}</pre>
+            </div>
+        `;
+    }
+
+    if (content.advancedSyntax) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label">Full Syntax</div>
+                <pre class="spl-example">${escapeHtml(content.advancedSyntax)}</pre>
+            </div>
+        `;
+    }
+
+    if (content.examples && content.examples.length > 0) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label">Examples</div>
+                ${content.examples.map(ex => `
+                    <div class="spl-block">
+                        <pre class="spl-code"><code>${escapeHtml(ex.spl)}</code></pre>
+                    </div>
+                    <p class="detail-content" style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem;">${escapeHtml(ex.explanation)}</p>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    if (content.patterns && content.patterns.length > 0) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label">Common Patterns</div>
+                ${content.patterns.map(p => `
+                    <p style="font-weight: 600; margin-bottom: 0.25rem; font-size: 0.875rem;">${escapeHtml(p.name)}</p>
+                    <div class="spl-block">
+                        <pre class="spl-code"><code>${escapeHtml(p.spl)}</code></pre>
+                    </div>
+                    <p class="detail-content" style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.8rem;">${escapeHtml(p.explanation)}</p>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    if (content.gotchas && content.gotchas.length > 0) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label" style="color: var(--splunk-amber);">Watch Out</div>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    ${content.gotchas.map(g => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative; font-size: 0.875rem;"><span style="position: absolute; left: 0; color: var(--splunk-amber);">!</span>${escapeHtml(g)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    if (content.relatedTip) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-content" style="color: var(--splunk-teal); font-size: 0.875rem;">
+                    💡 ${escapeHtml(content.relatedTip)}
+                </div>
+            </div>
+        `;
+    }
+
+    if (content.performance) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label">Performance</div>
+                <div class="detail-content">${escapeHtml(content.performance)}</div>
+            </div>
+        `;
+    }
+
+    if (content.internals) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-label">Under the Hood</div>
+                <div class="detail-content" style="font-size: 0.8rem; color: var(--text-dim);">${escapeHtml(content.internals)}</div>
+            </div>
+        `;
+    }
+
+    if (content.securityPattern) {
+        const sp = content.securityPattern;
+        html += `
+            <div class="detail-section">
+                <div class="detail-label" style="color: var(--splunk-pink);">Security Pattern: ${escapeHtml(sp.name)}</div>
+                <div class="spl-block">
+                    <pre class="spl-code"><code>${escapeHtml(sp.spl)}</code></pre>
+                </div>
+                <p class="detail-content" style="margin-top: 0.5rem; font-size: 0.8rem;">${escapeHtml(sp.explanation)}</p>
+            </div>
+        `;
+    }
+
+    return html;
+}
+
+function initProgressiveModal(content) {
+    const stages = content.querySelectorAll('.progressive-stage');
+    const unlockBtns = content.querySelectorAll('.progressive-unlock-btn');
+
+    unlockBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const stage = btn.closest('.progressive-stage');
+            const stageIndex = parseInt(stage.dataset.stage);
+
+            // Unlock this stage
+            stage.classList.remove('locked');
+            stage.classList.add('completed');
+
+            // Replace button with checkmark
+            btn.replaceWith(Object.assign(document.createElement('span'), {
+                className: 'progressive-complete-indicator',
+                textContent: '✓'
+            }));
+
+            // Re-apply highlighting
+            SPLUNKed.applySPLHighlighting(content);
+        });
+    });
+}
+
+// ============================================
+// Layered Card Style (visual zones)
+// ============================================
+function createLayeredHTML(entry) {
+    const zones = entry.zones;
+    let html = '<div class="layered-container">';
+
+    // Core zone (most prominent)
+    html += `
+        <div class="layer-zone core" data-layer-label="${escapeHtml(zones.core.label)}">
+            <div class="layer-section">
+                <div class="detail-label">What</div>
+                <div class="detail-content">${escapeHtml(zones.core.what)}</div>
+            </div>
+            <div class="layer-section">
+                <div class="detail-label">Why</div>
+                <div class="detail-content">${escapeHtml(zones.core.why)}</div>
+            </div>
+            <div class="layer-section">
+                <div class="detail-label">Syntax</div>
+                <pre class="spl-example">${escapeHtml(zones.core.syntax)}</pre>
+            </div>
+            ${zones.core.example ? `
+                <div class="layer-section">
+                    <div class="spl-block">
+                        <pre class="spl-code"><code>${escapeHtml(zones.core.example.spl)}</code></pre>
+                    </div>
+                    <p class="detail-content" style="margin-top: 0.5rem; font-size: 0.875rem;">${escapeHtml(zones.core.example.explanation)}</p>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    // Practical zone (moderate prominence)
+    html += `
+        <div class="layer-zone practical" data-layer-label="${escapeHtml(zones.practical.label)}">
+    `;
+
+    if (zones.practical.examples && zones.practical.examples.length > 0) {
+        html += `
+            <div class="layer-section">
+                <div class="detail-label">More Examples</div>
+                ${zones.practical.examples.map(ex => `
+                    <div class="spl-block" style="margin-bottom: 0.5rem;">
+                        <pre class="spl-code"><code>${escapeHtml(ex.spl)}</code></pre>
+                    </div>
+                    <p class="detail-content" style="margin-top: 0.25rem; margin-bottom: 0.75rem;">${escapeHtml(ex.explanation)}</p>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    if (zones.practical.gotchas && zones.practical.gotchas.length > 0) {
+        html += `
+            <div class="layer-section">
+                <div class="detail-label">Watch Out</div>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    ${zones.practical.gotchas.map(g => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative;"><span style="position: absolute; left: 0; color: var(--splunk-amber);">!</span>${escapeHtml(g)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    if (zones.practical.commonUses && zones.practical.commonUses.length > 0) {
+        html += `
+            <div class="layer-section">
+                <div class="detail-label">Common Uses</div>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    ${zones.practical.commonUses.map(u => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative;"><span style="position: absolute; left: 0; color: var(--splunk-teal);">→</span>${escapeHtml(u)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    html += `</div>`;
+
+    // Deep zone (subtle)
+    html += `
+        <div class="layer-zone deep" data-layer-label="${escapeHtml(zones.deep.label)}">
+    `;
+
+    if (zones.deep.advancedPatterns && zones.deep.advancedPatterns.length > 0) {
+        html += `
+            <div class="layer-section">
+                <div class="detail-label">Advanced Patterns</div>
+                ${zones.deep.advancedPatterns.map(p => `
+                    <p style="font-weight: 500; margin-bottom: 0.25rem;">${escapeHtml(p.name)}</p>
+                    <div class="spl-block" style="margin-bottom: 0.25rem;">
+                        <pre class="spl-code"><code>${escapeHtml(p.spl)}</code></pre>
+                    </div>
+                    <p class="detail-content" style="margin-top: 0.25rem; margin-bottom: 0.75rem;">${escapeHtml(p.explanation)}</p>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    if (zones.deep.performance) {
+        html += `
+            <div class="layer-section">
+                <div class="detail-label">Performance</div>
+                <div class="detail-content">${escapeHtml(zones.deep.performance)}</div>
+            </div>
+        `;
+    }
+
+    if (zones.deep.internals) {
+        html += `
+            <div class="layer-section">
+                <div class="detail-label">Internals</div>
+                <div class="detail-content">${escapeHtml(zones.deep.internals)}</div>
+            </div>
+        `;
+    }
+
+    if (zones.deep.vsAlternatives) {
+        html += `
+            <div class="layer-section">
+                <div class="detail-label">vs. Alternatives</div>
+                ${Object.entries(zones.deep.vsAlternatives).map(([cmd, desc]) => `
+                    <div style="margin-bottom: 0.5rem;">
+                        <code>${escapeHtml(cmd)}</code>
+                        <span class="detail-content"> — ${escapeHtml(desc)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    html += `</div>`;
+
+    html += '</div>';
+
+    // Related commands
+    if (entry.relatedCommands && entry.relatedCommands.length > 0) {
+        html += `
+            <div class="detail-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
+                <div class="detail-label">Related</div>
+                <div class="detail-content">
+                    ${entry.relatedCommands.map(c => `<code>${escapeHtml(c)}</code>`).join(', ')}
+                </div>
+            </div>
+        `;
+    }
+
+    return html;
 }
 
 function createDetailHTML(entry) {

@@ -62,7 +62,8 @@ function initTabs(containerSelector, options = {}) {
     if (!container) return;
 
     const tabs = container.querySelectorAll('.category-tab');
-    const panels = container.querySelectorAll('.tab-panel');
+    // Panels are siblings of the container, not children, so search in document
+    const panels = document.querySelectorAll('.tab-panel');
     const storageKey = options.storageKey || null;
 
     // Restore saved tab if available
