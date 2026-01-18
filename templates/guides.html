@@ -20,8 +20,10 @@
         <div class="tabs-list" role="tablist">
             {{ category_tab('basics', 'Search Basics', active=true) }}
             {{ category_tab('summarizing', 'Counting & Summarizing') }}
-            {{ category_tab('investigating', 'Investigating Activity') }}
             {{ category_tab('refining', 'Filtering & Refining') }}
+            {{ category_tab('security', 'Security & Investigation') }}
+            {{ category_tab('datasources', 'Data Sources') }}
+            {{ category_tab('enriching', 'Enriching Data') }}
         </div>
     </div>
 
@@ -43,14 +45,26 @@
         </div>
     </div>
 
-    <div id="investigatingPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="guides-grid" id="investigatingGrid">
+    <div id="refiningPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="refiningGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="refiningPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="guides-grid" id="refiningGrid">
+    <div id="securityPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="securityGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="datasourcesPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="datasourcesGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="enrichingPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="enrichingGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>

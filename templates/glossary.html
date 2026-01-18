@@ -20,12 +20,13 @@
         <div class="tabs-list" role="tablist">
             {{ category_tab('commands', 'SPL Commands', active=true) }}
             {{ category_tab('functions', 'Eval Functions') }}
+            {{ category_tab('statsFunctions', 'Stats Functions') }}
             {{ category_tab('extractions', 'Field Extractions') }}
             {{ category_tab('fields', 'Common Fields') }}
             {{ category_tab('concepts', 'Splunk Concepts') }}
             {{ category_tab('cim', 'CIM/Data Models') }}
             {{ category_tab('macros', 'Macros & Lookups') }}
-            {{ category_tab('antipatterns', 'Anti-patterns') }}
+            {{ category_tab('antipatterns', 'Common Mistakes') }}
         </div>
     </div>
 
@@ -64,6 +65,13 @@
     <div id="functionsPanel" class="tab-panel" role="tabpanel" hidden>
         <div class="category-info" id="functionsInfo"></div>
         <div class="glossary-grid" id="functionsGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="statsFunctionsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="statsFunctionsInfo"></div>
+        <div class="glossary-grid" id="statsFunctionsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>

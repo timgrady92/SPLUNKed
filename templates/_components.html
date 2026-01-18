@@ -39,11 +39,18 @@
 {% macro sidebar() %}
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <h3 class="sidebar-title">Quick Reference</h3>
+        <h3 class="sidebar-title">Menu</h3>
         <button class="sidebar-close" id="sidebarClose" aria-label="Close sidebar">&times;</button>
     </div>
 
     <div class="sidebar-content">
+        <!-- Mobile Navigation -->
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('index') }}" class="sidebar-nav-link">Home</a>
+            <a href="{{ url_for('glossary') }}" class="sidebar-nav-link">Glossary</a>
+            <a href="{{ url_for('guides') }}" class="sidebar-nav-link">Guides</a>
+            <a href="{{ url_for('prompt_builder') }}" class="sidebar-nav-link">Prompt Builder</a>
+        </nav>
         <div class="sidebar-section">
             <h4 class="sidebar-section-title">Skill Levels</h4>
             <div class="skill-legend">

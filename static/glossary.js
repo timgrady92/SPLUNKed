@@ -10,43 +10,39 @@
 const CATEGORY_INFO = {
     commands: {
         title: 'SPL Commands',
-        description: 'Search Processing Language (SPL) commands are the building blocks of Splunk searches. Commands are chained together using the pipe (|) operator to form a search pipeline — each command takes input from the previous command, processes it, and passes results to the next. Commands fall into several types: searching commands filter events, transforming commands aggregate data into tables, and streaming commands process events one at a time as they flow through.',
-        tip: 'Start simple and build up. A well-constructed search typically begins with the most restrictive filters to reduce data volume early, then applies transformations and formatting at the end.'
+        description: 'Commands chained with pipes (|) to filter, transform, and format search results.'
     },
     functions: {
         title: 'Eval Functions',
-        description: 'Eval functions are used within the eval, where, and other commands to calculate values, manipulate strings, perform conditional logic, and transform data. Unlike commands which operate on the entire result set, functions operate on individual field values within each event. They can be nested and combined to create complex expressions.',
-        tip: 'Functions in eval create or modify fields; the same functions in where filter events. Master if(), case(), and coalesce() first — they handle 80% of common use cases.'
+        description: 'Functions for calculations, string manipulation, and conditional logic within eval and where commands.'
+    },
+    statsFunctions: {
+        title: 'Stats Functions',
+        description: 'Aggregation functions for stats, eventstats, streamstats, timechart, and chart commands.'
     },
     extractions: {
         title: 'Field Extractions',
-        description: 'Field extractions pull structured data out of raw event text. While Splunk automatically extracts some fields at index time, search-time extractions let you parse custom formats, pull values from unstructured logs, and create fields on the fly. Extractions can be defined inline with rex, configured in props.conf for automatic application, or created through the UI.',
-        tip: 'Use the Field Extractor UI to build and test regex patterns interactively. For high-volume data, consider index-time extractions to avoid repeated parsing costs.'
+        description: 'Techniques to parse structured data from raw event text using regex and built-in parsers.'
     },
     fields: {
         title: 'Common Fields',
-        description: 'Splunk maintains several internal fields (prefixed with underscore) that exist on every event, plus commonly extracted fields that appear across many data sources. Understanding these fields is essential for writing effective searches — _time for temporal analysis, _raw for full-text search, host/source/sourcetype for data categorization.',
-        tip: 'The _time field is your friend. Almost every security investigation starts with time-based filtering. Use earliest= and latest= in your base search for the best performance.'
+        description: 'Internal fields (_time, _raw) and standard fields (host, source, sourcetype) present across events.'
     },
     concepts: {
         title: 'Splunk Concepts',
-        description: 'Foundational concepts that every Splunk user should understand. Start with the basics — indexes, sourcetypes, events, and fields — then progress to how searches work, performance optimization, and customization. These concepts form the mental model for effective Splunk usage.',
-        tip: 'New to Splunk? Start with "Indexes", "Events", and "Fields" to understand how data is organized. Then learn "Search Pipeline" to understand how SPL commands work together.'
+        description: 'Core concepts: indexes, events, fields, search pipelines, and how Splunk processes data.'
     },
     cim: {
         title: 'CIM & Data Models',
-        description: 'The Common Information Model (CIM) is a standardized way to normalize data from different sources into consistent field names and formats. Data Models are hierarchical structures built on CIM that enable accelerated reporting and pivot-based analysis. When data is CIM-compliant, you can write searches that work across any vendor\'s logs — "Authentication" events look the same whether they come from Windows, Linux, or cloud services.',
-        tip: 'Use tstats with accelerated data models for dramatic performance improvements on large datasets. A tstats search over a data model can be 10-100x faster than a raw search.'
+        description: 'Normalize data across sources with Common Information Model fields and accelerated data models.'
     },
     macros: {
         title: 'Macros & Lookups',
-        description: 'Macros are reusable search snippets that can accept arguments, letting you standardize common search patterns and reduce repetition. Lookups enrich your events with external data — map IP addresses to hostnames, user IDs to departments, or status codes to descriptions. Together, they form the foundation of maintainable, scalable Splunk deployments.',
-        tip: 'Use lookups for reference data that changes slowly (asset lists, user directories). Use macros to encapsulate complex logic that you\'d otherwise copy-paste between searches.'
+        description: 'Reusable search snippets (macros) and external data enrichment (lookups).'
     },
     antipatterns: {
-        title: 'Anti-patterns',
-        description: 'Common mistakes and inefficient patterns that hurt search performance or produce incorrect results. These anti-patterns often work fine on small datasets but cause problems at scale — slow searches, memory exhaustion, or timeouts. Recognizing these patterns helps you write production-ready searches from the start.',
-        tip: 'When a search is slow, check for these anti-patterns first. The fix is often simple once you identify the problem — usually moving filters earlier or replacing an expensive command with a more efficient alternative.'
+        title: 'Common Mistakes',
+        description: 'Common mistakes that cause slow searches, memory issues, or incorrect results at scale.'
     }
 };
 
@@ -92,6 +88,7 @@ const GLOSSARY_DATA = {
             purpose: 'count',
             takeaway: 'Aggregate data with statistical functions',
             cardStyle: 'tabbed',
+            relatedSection: { category: 'statsFunctions', label: 'View Stats Functions', shortLabel: 'Functions' },
             zones: {
                 essential: {
                     what: 'Calculates aggregate statistics over search results, transforming events into a summary table.',
@@ -145,6 +142,7 @@ const GLOSSARY_DATA = {
             purpose: 'calculate',
             takeaway: 'Create or modify fields with expressions',
             cardStyle: 'tabbed',
+            relatedSection: { category: 'functions', label: 'View Eval Functions', shortLabel: 'Functions' },
             zones: {
                 essential: {
                     what: 'Calculates an expression and puts the resulting value into a new or existing field.',
@@ -512,15 +510,21 @@ const GLOSSARY_DATA = {
                 },
                 practical: {
                     examples: [
-                        { spl: '... | join type=left src_ip [search index=assets | table ip as src_ip, hostname]', explanation: 'Left join with asset data' },
-                        { spl: '... | join user [search earliest=-1h latest=now index=auth]', explanation: 'Time-windowed join' },
-                        { spl: '... | join type=outer host [search index=inventory | table host, owner, location]', explanation: 'Outer join to keep all events' }
+                        { spl: '... | join user [search index=hr | table user, department]', explanation: 'INNER (default): Only returns events where user exists in BOTH searches. Events without HR matches disappear.' },
+                        { spl: '... | join type=left src_ip [search index=assets | table ip as src_ip, hostname]', explanation: 'LEFT: Keeps ALL events from main search. Adds hostname where found, leaves it blank where not. Use when you want to enrich but not lose events.' },
+                        { spl: '... | join type=outer host [search index=inventory | table host, owner]', explanation: 'OUTER: Keeps ALL events from BOTH searches. Shows matches together, unmatched events appear separately. Use for "show me everything" comparisons.' }
+                    ],
+                    joinTypes: [
+                        { type: 'inner', title: 'INNER (default)', description: 'Only matching records survive', scenario: 'Alert on failed logins, but only for users who exist in HR system', result: 'If user not in HR → event dropped' },
+                        { type: 'left', title: 'LEFT', description: 'All main search events survive', scenario: 'Enrich firewall logs with asset info, keep all logs even if asset unknown', result: 'If asset not found → event kept, asset fields blank' },
+                        { type: 'outer', title: 'OUTER', description: 'All events from both sides survive', scenario: 'Compare active users vs licensed users to find orphans on either side', result: 'Shows matched pairs + unmatched from both searches' }
                     ],
                     gotchas: [
-                        'Subsearch must complete first - can be slow',
-                        'Default is inner join - non-matching events are dropped',
-                        'Consider using lookups for static data instead',
-                        'Subsearch results limited to 50K rows by default'
+                        'Default is INNER join — non-matching events silently disappear!',
+                        'Use type=left when enriching data you cannot afford to lose',
+                        'Subsearch must complete first — can be slow',
+                        'Subsearch results limited to 50K rows by default',
+                        'Consider using lookups for static data instead'
                     ],
                     commonUses: [
                         'Correlate events from different data sources',
@@ -4870,6 +4874,415 @@ const GLOSSARY_DATA = {
         }
     ],
 
+    statsFunctions: [
+        {
+            id: 'stats_count',
+            name: 'count()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Count events or non-null field values',
+            what: 'Returns the number of events, or if a field is specified, the number of events where that field has a value.',
+            why: 'The most fundamental aggregation - essential for understanding data volume, frequency, and distribution.',
+            syntax: 'count | count(field)',
+            examples: [
+                { spl: '| stats count', explanation: 'Total number of events' },
+                { spl: '| stats count by user', explanation: 'Events per user' },
+                { spl: '| stats count(dest_port) as ports_seen by src_ip', explanation: 'Count non-null port values per source IP' }
+            ],
+            gotchas: [
+                'count (no field) counts ALL events, even those with null values',
+                'count(field) only counts events where field is NOT null',
+                'For distinct counting, use dc() instead'
+            ],
+            relatedCommands: ['dc', 'sum', 'values']
+        },
+        {
+            id: 'stats_dc',
+            name: 'dc()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Count unique/distinct values',
+            what: 'Returns the count of distinct (unique) values for a field. Also known as "distinct count" or "cardinality".',
+            why: 'Essential for finding unique users, IPs, hosts, or any entity. Answers "how many different X are there?"',
+            syntax: 'dc(field)',
+            examples: [
+                { spl: '| stats dc(user) as unique_users', explanation: 'Count unique users' },
+                { spl: '| stats dc(src_ip) as sources by dest_port', explanation: 'Unique source IPs per destination port' },
+                { spl: '| stats count, dc(user) by host', explanation: 'Events and unique users per host' }
+            ],
+            gotchas: [
+                'Memory-intensive for high-cardinality fields (millions of unique values)',
+                'Null values are not counted',
+                'Approximation may occur with very large datasets (use estdc for explicit estimation)'
+            ],
+            performance: 'More expensive than count(). For very high cardinality, consider estdc() which uses HyperLogLog estimation.',
+            relatedCommands: ['count', 'values', 'estdc']
+        },
+        {
+            id: 'stats_sum',
+            name: 'sum()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Add up numeric values',
+            what: 'Returns the sum of all values for a numeric field.',
+            why: 'Essential for totaling bytes transferred, calculating total duration, summing costs, or any additive metric.',
+            syntax: 'sum(field)',
+            examples: [
+                { spl: '| stats sum(bytes) as total_bytes', explanation: 'Total bytes transferred' },
+                { spl: '| stats sum(bytes) by src_ip | sort -sum(bytes)', explanation: 'Total bytes per source, sorted descending' },
+                { spl: '| stats sum(bytes_in) as download, sum(bytes_out) as upload by user', explanation: 'Network usage per user' }
+            ],
+            gotchas: [
+                'Non-numeric values are ignored',
+                'Null values are ignored',
+                'Very large sums may need formatting: use fieldformat or eval to add commas'
+            ],
+            relatedCommands: ['avg', 'count', 'max', 'min']
+        },
+        {
+            id: 'stats_avg',
+            name: 'avg()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Calculate the mean average',
+            what: 'Returns the arithmetic mean (average) of numeric values for a field.',
+            why: 'Understand typical values, baseline metrics, identify anomalies that deviate from the average.',
+            syntax: 'avg(field)',
+            examples: [
+                { spl: '| stats avg(response_time) as avg_response', explanation: 'Average response time' },
+                { spl: '| stats avg(bytes) by host', explanation: 'Average bytes per host' },
+                { spl: '| stats avg(duration) as avg_dur, max(duration) as max_dur by user', explanation: 'Compare average vs maximum duration' }
+            ],
+            gotchas: [
+                'Sensitive to outliers - one huge value skews the average',
+                'Consider using median() for skewed distributions',
+                'Non-numeric and null values are ignored'
+            ],
+            relatedCommands: ['median', 'stdev', 'min', 'max']
+        },
+        {
+            id: 'stats_min',
+            name: 'min()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Find the smallest value',
+            what: 'Returns the minimum value for a field. Works with numbers, strings (alphabetical), and times.',
+            why: 'Find first occurrence, lowest value, earliest time, or baseline minimum.',
+            syntax: 'min(field)',
+            examples: [
+                { spl: '| stats min(_time) as first_seen by user', explanation: 'First time each user appeared' },
+                { spl: '| stats min(response_time) as fastest by endpoint', explanation: 'Fastest response per endpoint' },
+                { spl: '| stats min(severity) by host', explanation: 'Lowest severity per host (alphabetical for strings)' }
+            ],
+            gotchas: [
+                'For strings, returns alphabetically first value',
+                'For times, returns earliest',
+                'Null values are ignored'
+            ],
+            relatedCommands: ['max', 'earliest', 'first', 'range']
+        },
+        {
+            id: 'stats_max',
+            name: 'max()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Find the largest value',
+            what: 'Returns the maximum value for a field. Works with numbers, strings (alphabetical), and times.',
+            why: 'Find peak values, worst case, latest time, or upper bounds.',
+            syntax: 'max(field)',
+            examples: [
+                { spl: '| stats max(_time) as last_seen by user', explanation: 'Most recent time each user appeared' },
+                { spl: '| stats max(cpu_percent) as peak_cpu by host', explanation: 'Peak CPU usage per host' },
+                { spl: '| stats max(bytes) as largest_transfer by src_ip', explanation: 'Largest single transfer per source' }
+            ],
+            gotchas: [
+                'For strings, returns alphabetically last value',
+                'For times, returns latest',
+                'Null values are ignored'
+            ],
+            relatedCommands: ['min', 'latest', 'last', 'range']
+        },
+        {
+            id: 'stats_values',
+            name: 'values()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Collect unique values into a multivalue field',
+            what: 'Returns all distinct values for a field as a multivalue result, sorted alphabetically.',
+            why: 'See all unique values at a glance. Great for listing distinct IPs, users, or actions per group.',
+            syntax: 'values(field)',
+            examples: [
+                { spl: '| stats values(dest_port) as ports by src_ip', explanation: 'All unique destination ports per source' },
+                { spl: '| stats values(action) as actions by user', explanation: 'All actions performed by each user' },
+                { spl: '| stats dc(dest_ip) as count, values(dest_ip) as destinations by src_ip', explanation: 'Count and list destinations' }
+            ],
+            gotchas: [
+                'Results are DEDUPLICATED - each value appears only once',
+                'Results are SORTED alphabetically (not by occurrence order)',
+                'Use list() if you need all occurrences including duplicates',
+                'Memory-intensive for high-cardinality fields'
+            ],
+            relatedCommands: ['list', 'dc', 'earliest', 'latest']
+        },
+        {
+            id: 'stats_list',
+            name: 'list()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Collect all values including duplicates',
+            what: 'Returns all values for a field as a multivalue result, preserving duplicates and order of occurrence.',
+            why: 'See every value in sequence. Useful for transaction analysis or when duplicates matter.',
+            syntax: 'list(field)',
+            examples: [
+                { spl: '| stats list(action) as action_sequence by session_id', explanation: 'All actions in order per session' },
+                { spl: '| stats list(status_code) as responses by transaction_id', explanation: 'All status codes including repeated ones' },
+                { spl: '| stats list(_time) as times, list(action) as actions by user', explanation: 'Parallel lists of times and actions' }
+            ],
+            gotchas: [
+                'PRESERVES duplicates - same value can appear multiple times',
+                'NOT sorted - preserves order of occurrence',
+                'Can produce very large multivalue fields - use with caution',
+                'Memory-intensive for large result sets'
+            ],
+            relatedCommands: ['values', 'first', 'last']
+        },
+        {
+            id: 'stats_first',
+            name: 'first()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Get the first value encountered',
+            what: 'Returns the first value seen for a field based on processing order.',
+            why: 'Get a representative value quickly. Useful when you need any value and don\'t care which.',
+            syntax: 'first(field)',
+            examples: [
+                { spl: '| stats first(user) as sample_user by department', explanation: 'Get one user per department' },
+                { spl: '| stats first(src_ip) as example_source by dest_port', explanation: 'One source IP per destination port' }
+            ],
+            gotchas: [
+                'Order depends on search processing, NOT event time',
+                'Use earliest() if you need the value from the earliest event by _time',
+                'Non-deterministic if search order varies',
+                'Faster than earliest() as it doesn\'t need to compare times'
+            ],
+            relatedCommands: ['last', 'earliest', 'latest']
+        },
+        {
+            id: 'stats_last',
+            name: 'last()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Get the last value encountered',
+            what: 'Returns the last value seen for a field based on processing order.',
+            why: 'Get the most recently processed value. Useful for getting final state.',
+            syntax: 'last(field)',
+            examples: [
+                { spl: '| stats last(status) as final_status by transaction_id', explanation: 'Final status of each transaction' },
+                { spl: '| stats last(action) as last_action by user', explanation: 'Last action per user (by processing order)' }
+            ],
+            gotchas: [
+                'Order depends on search processing, NOT event time',
+                'Use latest() if you need the value from the latest event by _time',
+                'Non-deterministic if search order varies',
+                'Faster than latest() as it doesn\'t need to compare times'
+            ],
+            relatedCommands: ['first', 'earliest', 'latest']
+        },
+        {
+            id: 'stats_earliest',
+            name: 'earliest()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Get value from the earliest event by time',
+            what: 'Returns the value from the event with the earliest (oldest) _time timestamp.',
+            why: 'Get the first chronological value. Essential for seeing initial state or first occurrence.',
+            syntax: 'earliest(field)',
+            examples: [
+                { spl: '| stats earliest(status) as initial_status by user', explanation: 'First status for each user chronologically' },
+                { spl: '| stats earliest(src_ip) as first_source, latest(src_ip) as last_source by user', explanation: 'First and last source IP' },
+                { spl: '| stats earliest(_time) as first_seen by host', explanation: 'When each host first appeared' }
+            ],
+            gotchas: [
+                'Based on _time, not processing order - more reliable than first()',
+                'Slightly slower than first() due to time comparison',
+                'Returns value from earliest event, not earliest value',
+                'Use earliest_time() to get the actual timestamp'
+            ],
+            relatedCommands: ['latest', 'first', 'earliest_time', 'min']
+        },
+        {
+            id: 'stats_latest',
+            name: 'latest()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Get value from the latest event by time',
+            what: 'Returns the value from the event with the latest (newest) _time timestamp.',
+            why: 'Get the most recent chronological value. Essential for seeing current state.',
+            syntax: 'latest(field)',
+            examples: [
+                { spl: '| stats latest(status) as current_status by user', explanation: 'Current status for each user' },
+                { spl: '| stats latest(severity) as latest_severity by alert_name', explanation: 'Most recent severity per alert' },
+                { spl: '| stats latest(_time) as last_seen by host', explanation: 'When each host was last seen' }
+            ],
+            gotchas: [
+                'Based on _time, not processing order - more reliable than last()',
+                'Slightly slower than last() due to time comparison',
+                'Returns value from latest event, not latest value',
+                'Use latest_time() to get the actual timestamp'
+            ],
+            relatedCommands: ['earliest', 'last', 'latest_time', 'max']
+        },
+        {
+            id: 'stats_median',
+            name: 'median()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Find the middle value (50th percentile)',
+            what: 'Returns the median (middle value) of numeric values. Half the values are above, half are below.',
+            why: 'Better than avg() for skewed data. Not affected by extreme outliers.',
+            syntax: 'median(field)',
+            examples: [
+                { spl: '| stats median(response_time) as typical_response', explanation: 'Typical response time (not skewed by outliers)' },
+                { spl: '| stats median(bytes) as median_size, avg(bytes) as avg_size by host', explanation: 'Compare median vs average' },
+                { spl: '| stats median(duration) as median_dur, perc95(duration) as p95_dur by user', explanation: 'Typical vs worst-case duration' }
+            ],
+            gotchas: [
+                'More robust than avg() when outliers exist',
+                'Equivalent to perc50() or p50()',
+                'Requires sorting internally - more expensive than avg()'
+            ],
+            relatedCommands: ['avg', 'perc', 'mode']
+        },
+        {
+            id: 'stats_perc',
+            name: 'perc<N>() / p<N>()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Find the Nth percentile value',
+            what: 'Returns the value at the Nth percentile. perc95(field) means 95% of values are at or below this.',
+            why: 'Essential for SLAs and performance monitoring. "95% of requests complete in X ms."',
+            syntax: 'perc<N>(field) or p<N>(field) where N is 1-99',
+            examples: [
+                { spl: '| stats perc95(response_time) as p95_response', explanation: '95th percentile response time' },
+                { spl: '| stats perc50(duration) as median, perc90(duration) as p90, perc99(duration) as p99', explanation: 'Multiple percentiles' },
+                { spl: '| stats p99(bytes) as p99_bytes by endpoint', explanation: 'Short form: p99 instead of perc99' }
+            ],
+            gotchas: [
+                'perc50 = median',
+                'p95 and perc95 are equivalent',
+                'Higher percentiles (p99, p999) need more events to be meaningful',
+                'Memory-intensive as values must be sorted'
+            ],
+            relatedCommands: ['median', 'avg', 'max']
+        },
+        {
+            id: 'stats_mode',
+            name: 'mode()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Find the most common value',
+            what: 'Returns the most frequently occurring value for a field.',
+            why: 'Find the typical case, most common error, dominant user, or prevalent pattern.',
+            syntax: 'mode(field)',
+            examples: [
+                { spl: '| stats mode(status_code) as common_status by endpoint', explanation: 'Most common status code per endpoint' },
+                { spl: '| stats mode(user_agent) as typical_browser', explanation: 'Most frequently seen browser' },
+                { spl: '| stats mode(src_ip) as top_source, count by dest_port', explanation: 'Most common source per port' }
+            ],
+            gotchas: [
+                'If multiple values tie, returns one of them (non-deterministic)',
+                'For finding top N, use top command instead',
+                'Null values are ignored'
+            ],
+            relatedCommands: ['median', 'avg', 'top']
+        },
+        {
+            id: 'stats_stdev',
+            name: 'stdev()',
+            category: 'statsFunctions',
+            difficulty: 'advanced',
+            takeaway: 'Measure spread/variability of values',
+            what: 'Returns the sample standard deviation, measuring how spread out values are from the average.',
+            why: 'Detect anomalies, understand variability, identify when values deviate from normal.',
+            syntax: 'stdev(field)',
+            examples: [
+                { spl: '| stats avg(response_time) as avg_rt, stdev(response_time) as stdev_rt by host', explanation: 'Average and variability per host' },
+                { spl: '| stats stdev(bytes) as variability by user | where variability > 1000000', explanation: 'Find users with highly variable transfer sizes' }
+            ],
+            gotchas: [
+                'stdev() is sample standard deviation (N-1 denominator)',
+                'stdevp() is population standard deviation (N denominator)',
+                'Higher stdev = more variability = less predictable',
+                'Useful with avg() to define "normal" ranges'
+            ],
+            relatedCommands: ['avg', 'var', 'range']
+        },
+        {
+            id: 'stats_range',
+            name: 'range()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Difference between max and min',
+            what: 'Returns the difference between the maximum and minimum values.',
+            why: 'Quick measure of spread. See how wide the range of values is.',
+            syntax: 'range(field)',
+            examples: [
+                { spl: '| stats range(response_time) as response_spread by endpoint', explanation: 'Range of response times per endpoint' },
+                { spl: '| stats range(_time) as duration by session_id', explanation: 'Session duration (last - first event time)' },
+                { spl: '| stats min(bytes) as min_b, max(bytes) as max_b, range(bytes) as spread by user', explanation: 'Full range analysis' }
+            ],
+            gotchas: [
+                'Equivalent to max(field) - min(field)',
+                'Sensitive to outliers (one extreme value affects result)',
+                'For time fields, result is in seconds (epoch difference)'
+            ],
+            relatedCommands: ['min', 'max', 'stdev']
+        },
+        {
+            id: 'stats_earliest_time',
+            name: 'earliest_time() / latest_time()',
+            category: 'statsFunctions',
+            difficulty: 'advanced',
+            takeaway: 'Get the actual timestamp of earliest/latest event',
+            what: 'Returns the _time value of the earliest or latest event in each group.',
+            why: 'Get exact timestamps for first/last occurrence without needing to return _time as a value.',
+            syntax: 'earliest_time(field) | latest_time(field)',
+            examples: [
+                { spl: '| stats earliest_time(_time) as first_seen, latest_time(_time) as last_seen by user', explanation: 'When each user was first and last seen' },
+                { spl: '| stats earliest_time(status) as first_status_time, earliest(status) as first_status by host', explanation: 'Get both time and value' },
+                { spl: '| eval first_seen=strftime(earliest_time(_time), "%Y-%m-%d %H:%M:%S")', explanation: 'Format the timestamp' }
+            ],
+            gotchas: [
+                'Returns epoch time - use strftime() to format',
+                'The field argument is used to check for non-null values',
+                'earliest_time(_time) finds earliest event overall',
+                'earliest_time(status) finds earliest event where status is non-null'
+            ],
+            relatedCommands: ['earliest', 'latest', 'min', 'max']
+        },
+        {
+            id: 'stats_rate',
+            name: 'rate()',
+            category: 'statsFunctions',
+            difficulty: 'advanced',
+            takeaway: 'Calculate per-second rate of a counter',
+            what: 'Returns the rate of change per second for a cumulative counter field.',
+            why: 'Convert cumulative counters (like total bytes) to rates (bytes per second).',
+            syntax: 'rate(field)',
+            examples: [
+                { spl: '| stats rate(total_bytes) as bytes_per_sec by interface', explanation: 'Throughput rate per interface' },
+                { spl: '| stats rate(request_count) as requests_per_sec by endpoint', explanation: 'Request rate per endpoint' }
+            ],
+            gotchas: [
+                'Designed for monotonically increasing counters',
+                'May produce unexpected results if counter resets',
+                'Often used with timechart for rate visualization',
+                'Alternative: use delta and manual calculation'
+            ],
+            relatedCommands: ['sum', 'per_second']
+        }
+    ],
+
     extractions: [
         {
             id: 'rex_extraction',
@@ -5722,10 +6135,6 @@ function createCategoryInfoHTML(category) {
     return `
         <div class="category-info-content">
             <p class="category-description">${escapeHtml(info.description)}</p>
-            <div class="category-tip">
-                <span class="tip-label">Tip:</span>
-                <span class="tip-text">${escapeHtml(info.tip)}</span>
-            </div>
         </div>
     `;
 }
@@ -5773,7 +6182,7 @@ function createCardHTML(entry) {
         ? '<span class="experimental-badge">Test</span>'
         : '';
 
-    // Use purpose badge for commands/functions, difficulty badge for others
+    // Use purpose badge for commands/functions
     let badge = '';
     if (entry.purpose) {
         if (PURPOSE_LABELS[entry.purpose]) {
@@ -5781,8 +6190,6 @@ function createCardHTML(entry) {
         } else if (FUNCTION_PURPOSE_LABELS[entry.purpose]) {
             badge = `<span class="purpose-badge fn-${entry.purpose}">${FUNCTION_PURPOSE_LABELS[entry.purpose]}</span>`;
         }
-    } else if (entry.difficulty) {
-        badge = `<span class="skill-badge ${entry.difficulty}">${entry.difficulty}</span>`;
     }
 
     return `
@@ -5824,6 +6231,7 @@ function openDetailModal(entry) {
     const title = document.getElementById('glossaryModalTitle');
     const content = document.getElementById('glossaryModalContent');
     const backBtn = document.getElementById('glossaryModalBack');
+    const modalHeader = document.querySelector('#glossaryModal .modal-header');
 
     // Track current entry
     currentCardEntry = entry;
@@ -5835,8 +6243,32 @@ function openDetailModal(entry) {
         backBtn.hidden = cardHistory.length === 0;
     }
 
-    // Check for experimental card styles
+    // Handle "View Functions" button in header
+    const existingBtn = modalHeader.querySelector('.view-functions-btn');
+    if (existingBtn) {
+        existingBtn.remove();
+    }
+
+    if (entry.relatedSection) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-secondary view-functions-btn';
+        btn.dataset.category = entry.relatedSection.category;
+        const shortLabel = entry.relatedSection.shortLabel || 'Functions';
+        btn.innerHTML = `<span class="full-label">${entry.relatedSection.label}</span><span class="short-label">${shortLabel}</span> <span class="btn-arrow">→</span>`;
+        btn.addEventListener('click', () => {
+            SPLUNKed.closeModal('glossaryModal');
+            const targetTab = document.querySelector(`.category-tab[data-category="${entry.relatedSection.category}"]`);
+            if (targetTab) {
+                targetTab.click();
+            }
+        });
+        // Insert after title
+        title.insertAdjacentElement('afterend', btn);
+    }
+
+    // Check for card styles
     if (entry.cardStyle === 'tabbed') {
+        // Tabbed style for commands and functions
         content.innerHTML = createTabbedHTML(entry);
         initTabbedModal(content);
     } else if (entry.cardStyle === 'progressive') {
@@ -5844,14 +6276,10 @@ function openDetailModal(entry) {
         initProgressiveModal(content);
     } else if (entry.cardStyle === 'layered') {
         content.innerHTML = createLayeredHTML(entry);
-    } else if (entry.category === 'concepts') {
-        // Concepts use flat format with tabbed styling
+    } else {
+        // Concept-style format for all other categories
         content.innerHTML = createConceptHTML(entry);
         initConceptLinks(content);
-    } else {
-        // Standard rendering
-        content.innerHTML = createDetailHTML(entry);
-        populateStandardSPLBlocks(content, entry);
     }
 
     // Apply syntax highlighting to all SPL code blocks
@@ -5905,9 +6333,15 @@ function createTabbedHTML(entry) {
 
     let html = `
         <div class="zone-tabs" role="tablist">
-            <button class="zone-tab active" data-zone="essential" role="tab" aria-selected="true">Essential</button>
-            <button class="zone-tab" data-zone="practical" role="tab" aria-selected="false">Practical</button>
-            <button class="zone-tab" data-zone="deep" role="tab" aria-selected="false">Deep Dive</button>
+            <button class="zone-tab active" data-zone="essential" role="tab" aria-selected="true">
+                <span class="full-label">Essential</span><span class="short-label">Core</span>
+            </button>
+            <button class="zone-tab" data-zone="practical" role="tab" aria-selected="false">
+                <span class="full-label">Practical</span><span class="short-label">Use</span>
+            </button>
+            <button class="zone-tab" data-zone="deep" role="tab" aria-selected="false">
+                <span class="full-label">Deep Dive</span><span class="short-label">Deep</span>
+            </button>
         </div>
     `;
 
@@ -5979,6 +6413,18 @@ function createConceptHTML(entry) {
         `;
     }
 
+    // SYNTAX section (for extractions, macros, etc.)
+    if (entry.syntax) {
+        html += `
+            <div class="tabbed-section section-syntax">
+                <div class="tabbed-section-header">SYNTAX</div>
+                <div class="tabbed-section-content">
+                    <pre class="spl-example">${escapeHtml(entry.syntax)}</pre>
+                </div>
+            </div>
+        `;
+    }
+
     // EXAMPLES section
     if (entry.examples && entry.examples.length > 0) {
         html += `
@@ -6012,7 +6458,31 @@ function createConceptHTML(entry) {
         `;
     }
 
+    // PERFORMANCE section
+    if (entry.performance) {
+        html += `
+            <div class="tabbed-section section-perf">
+                <div class="tabbed-section-header">PERFORMANCE</div>
+                <div class="tabbed-section-content">${escapeHtml(entry.performance)}</div>
+            </div>
+        `;
+    }
+
     html += '</div>';
+
+    // Footer with Related commands (for non-concepts)
+    if (entry.relatedCommands && entry.relatedCommands.length > 0) {
+        html += `
+            <div class="tabbed-footer" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
+                <div class="detail-section">
+                    <div class="detail-label">Related</div>
+                    <div class="detail-content">
+                        ${entry.relatedCommands.map(cmd => `<code>${escapeHtml(cmd)}</code>`).join(', ')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 
     // Footer with Related concepts
     if (entry.relatedConcepts && entry.relatedConcepts.length > 0) {
@@ -6120,6 +6590,30 @@ function renderPracticalZone(zone) {
                             <p class="example-explanation">${escapeHtml(ex.explanation)}</p>
                         </div>
                     `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    if (zone.joinTypes && zone.joinTypes.length > 0) {
+        html += `
+            <div class="tabbed-section section-join-types">
+                <div class="tabbed-section-header">JOIN TYPES EXPLAINED</div>
+                <div class="tabbed-section-content">
+                    <div class="join-types-grid">
+                        ${zone.joinTypes.map(jt => `
+                            <div class="join-type-card join-type-${jt.type}">
+                                <div class="join-type-header">${escapeHtml(jt.title)}</div>
+                                <div class="join-type-desc">${escapeHtml(jt.description)}</div>
+                                <div class="join-type-scenario">
+                                    <strong>Scenario:</strong> ${escapeHtml(jt.scenario)}
+                                </div>
+                                <div class="join-type-result">
+                                    <strong>Result:</strong> ${escapeHtml(jt.result)}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             </div>
         `;

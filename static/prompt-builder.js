@@ -45,6 +45,7 @@
     function cacheElements() {
         // Main tabs
         elements.builderTabs = document.querySelectorAll('.builder-tab');
+        elements.manageObjectsBtn = document.querySelector('.manage-objects-btn');
         elements.buildPanel = document.getElementById('buildPanel');
         elements.managePanel = document.getElementById('managePanel');
 
@@ -102,6 +103,12 @@
         elements.deleteModalOverlay = document.getElementById('deleteModalOverlay');
         elements.cancelDelete = document.getElementById('cancelDelete');
         elements.confirmDelete = document.getElementById('confirmDelete');
+
+        // Table of Contents
+        elements.toc = document.getElementById('pbToc');
+        elements.tocToggle = document.getElementById('pbTocToggle');
+        elements.tocLinks = document.querySelectorAll('.pb-toc-link');
+        elements.tocItems = document.querySelectorAll('.pb-toc-item');
     }
 
     async function loadMappings() {
@@ -120,6 +127,9 @@
         elements.builderTabs.forEach(tab => {
             tab.addEventListener('click', () => switchMainTab(tab.dataset.tab));
         });
+
+        // Manage Objects icon button
+        elements.manageObjectsBtn?.addEventListener('click', () => switchMainTab('manage'));
 
         // Filter type tabs (patterns/field values)
         elements.filterTypeTabs.forEach(tab => {
@@ -207,6 +217,107 @@
                 closeDeleteModal();
             }
         });
+
+        // Table of Contents
+        setupTocListeners();
+    }
+
+    // Table of Contents Functions
+    function setupTocListeners() {
+        // TOC toggle for mobile
+        elements.tocToggle?.addEventListener('click', () => {
+            elements.toc?.classList.toggle('expanded');
+        });
+
+        // TOC link clicks
+        elements.tocLinks?.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                handleTocClick(link);
+            });
+        });
+
+        // Close TOC on mobile when clicking outside
+        document.addEventListener('click', (e) => {
+            if (elements.toc?.classList.contains('expanded') &&
+                !elements.toc.contains(e.target)) {
+                elements.toc.classList.remove('expanded');
+            }
+        });
+    }
+
+    function handleTocClick(link) {
+        const href = link.getAttribute('href');
+        const targetId = href?.replace('#', '');
+        const filterType = link.dataset.filter;
+        const objectType = link.dataset.objectType;
+        const tocItem = link.closest('.pb-toc-item');
+        const section = tocItem?.dataset.section;
+
+        // Determine if we need to switch main tabs
+        const isBuildSection = ['build', 'dataSources', 'includes', 'patterns', 'fieldValues', 'excludes', 'timeRange', 'outputShape', 'splPreview'].includes(section);
+        const isManageSection = section?.startsWith('manage');
+
+        if (isBuildSection) {
+            switchMainTab('build');
+        } else if (isManageSection || objectType) {
+            switchMainTab('manage');
+        }
+
+        // Handle filter type switching
+        if (filterType) {
+            const filterTab = document.querySelector(`.filter-type-tab[data-filter-type="${filterType}"]`);
+            if (filterTab) {
+                state.currentFilterType = filterType;
+                elements.filterTypeTabs.forEach(t => t.classList.remove('active'));
+                filterTab.classList.add('active');
+                renderIncludeChips();
+            }
+        }
+
+        // Handle object type switching in manage panel
+        if (objectType) {
+            const objectTab = document.querySelector(`.object-tab[data-object-type="${objectType}"]`);
+            if (objectTab) {
+                state.currentObjectType = objectType;
+                elements.objectTabs.forEach(t => t.classList.remove('active'));
+                objectTab.classList.add('active');
+                renderObjectsGrid();
+            }
+        }
+
+        // Scroll to target element
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            setTimeout(() => {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        // Update TOC active state
+        updateTocActiveState(section);
+
+        // Close mobile TOC
+        elements.toc?.classList.remove('expanded');
+    }
+
+    function updateTocActiveState(activeSection) {
+        elements.tocItems?.forEach(item => {
+            item.classList.remove('active');
+        });
+
+        // Activate the clicked item
+        const activeItem = document.querySelector(`.pb-toc-item[data-section="${activeSection}"]`);
+        if (activeItem) {
+            activeItem.classList.add('active');
+
+            // Also activate parent items
+            let parent = activeItem.parentElement?.closest('.pb-toc-item');
+            while (parent) {
+                parent.classList.add('active');
+                parent = parent.parentElement?.closest('.pb-toc-item');
+            }
+        }
     }
 
     // Tab Management
@@ -214,10 +325,16 @@
         elements.builderTabs.forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
+        // Toggle active state on manage objects icon button
+        elements.manageObjectsBtn?.classList.toggle('active', tabName === 'manage');
+
         elements.buildPanel.classList.toggle('active', tabName === 'build');
         elements.buildPanel.hidden = tabName !== 'build';
         elements.managePanel.classList.toggle('active', tabName === 'manage');
         elements.managePanel.hidden = tabName !== 'manage';
+
+        // Update TOC active state for main sections
+        updateTocActiveState(tabName);
     }
 
     // Render Functions

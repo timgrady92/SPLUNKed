@@ -22,16 +22,121 @@
                 <span class="tab-icon">&#9881;</span>
                 Build Query
             </button>
-            <button class="builder-tab" data-tab="manage" role="tab" aria-selected="false">
-                <span class="tab-icon">&#9776;</span>
-                Manage Objects
-            </button>
         </div>
+        <button class="manage-objects-btn" data-tab="manage" role="tab" aria-selected="false" title="Manage Objects">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+        </button>
     </div>
 
     <!-- Build Query Tab Panel -->
     <div id="buildPanel" class="builder-panel active" role="tabpanel">
-        <div class="builder-layout">
+        <div class="builder-layout pb-with-toc">
+            <!-- Table of Contents Sidebar -->
+            <aside class="pb-toc" id="pbToc">
+                <div class="pb-toc-header">
+                    <span class="pb-toc-title">Contents</span>
+                    <button class="pb-toc-toggle" id="pbTocToggle" aria-label="Toggle table of contents">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                </div>
+                <nav class="pb-toc-nav" aria-label="Page contents">
+                    <ul class="pb-toc-tree">
+                        <li class="pb-toc-item active" data-section="dataSources">
+                            <a href="#dataSourceChips" class="pb-toc-link">
+                                <span class="pb-toc-marker">1</span>
+                                <span class="pb-toc-text">Data Sources</span>
+                            </a>
+                        </li>
+                        <li class="pb-toc-item pb-toc-parent" data-section="includes">
+                            <a href="#includeChips" class="pb-toc-link">
+                                <span class="pb-toc-marker">2</span>
+                                <span class="pb-toc-text">Include Filters</span>
+                            </a>
+                            <ul class="pb-toc-children">
+                                <li class="pb-toc-item" data-section="patterns">
+                                    <a href="#includeChips" class="pb-toc-link" data-filter="patterns">
+                                        <span class="pb-toc-text">Patterns</span>
+                                    </a>
+                                </li>
+                                <li class="pb-toc-item" data-section="fieldValues">
+                                    <a href="#includeChips" class="pb-toc-link" data-filter="fieldValues">
+                                        <span class="pb-toc-text">Field Values</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="pb-toc-item" data-section="excludes">
+                            <a href="#excludeChips" class="pb-toc-link">
+                                <span class="pb-toc-marker">3</span>
+                                <span class="pb-toc-text">Exclude Filters</span>
+                            </a>
+                        </li>
+                        <li class="pb-toc-item" data-section="timeRange">
+                            <a href="#timePresets" class="pb-toc-link">
+                                <span class="pb-toc-marker">4</span>
+                                <span class="pb-toc-text">Time Range</span>
+                            </a>
+                        </li>
+                        <li class="pb-toc-item" data-section="outputShape">
+                            <a href="#outputShapeChips" class="pb-toc-link">
+                                <span class="pb-toc-marker">5</span>
+                                <span class="pb-toc-text">Output Shape</span>
+                            </a>
+                        </li>
+                        <li class="pb-toc-item" data-section="splPreview">
+                            <a href="#splOutput" class="pb-toc-link">
+                                <span class="pb-toc-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="16 18 22 12 16 6"/>
+                                        <polyline points="8 6 2 12 8 18"/>
+                                    </svg>
+                                </span>
+                                <span class="pb-toc-text">Generated SPL</span>
+                            </a>
+                        </li>
+                        <li class="pb-toc-divider"></li>
+                        <li class="pb-toc-item pb-toc-parent" data-section="manage">
+                            <a href="#managePanel" class="pb-toc-link">
+                                <span class="pb-toc-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="3"/>
+                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                                    </svg>
+                                </span>
+                                <span class="pb-toc-text">Manage Objects</span>
+                            </a>
+                            <ul class="pb-toc-children">
+                                <li class="pb-toc-item" data-section="manage-dataSources">
+                                    <a href="#managePanel" class="pb-toc-link" data-object-type="dataSources">
+                                        <span class="pb-toc-text">Data Sources</span>
+                                    </a>
+                                </li>
+                                <li class="pb-toc-item" data-section="manage-fieldValues">
+                                    <a href="#managePanel" class="pb-toc-link" data-object-type="fieldValues">
+                                        <span class="pb-toc-text">Field Values</span>
+                                    </a>
+                                </li>
+                                <li class="pb-toc-item" data-section="manage-patterns">
+                                    <a href="#managePanel" class="pb-toc-link" data-object-type="patterns">
+                                        <span class="pb-toc-text">Patterns</span>
+                                    </a>
+                                </li>
+                                <li class="pb-toc-item" data-section="manage-outputShapes">
+                                    <a href="#managePanel" class="pb-toc-link" data-object-type="outputShapes">
+                                        <span class="pb-toc-text">Output Shapes</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+            </aside>
+
             <!-- Left Side: Query Composer -->
             <div class="query-composer">
                 <!-- Data Sources Section -->

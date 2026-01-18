@@ -583,7 +583,7 @@ const GUIDES_DATA = {
         }
     ],
 
-    investigating: [
+    security: [
         {
             id: 'investigate-user',
             title: 'How to see what a user did',
@@ -816,6 +816,313 @@ const GUIDES_DATA = {
                         </div>
                         <p class="guide-explanation">Users who had failures then succeeded - possible compromised credentials.</p>
                     </div>
+                </div>
+            `
+        },
+        {
+            id: 'find-brute-force',
+            title: 'How to find brute force attacks',
+            description: 'Detect repeated failed login attempts that indicate password guessing or credential stuffing.',
+            keywords: 'brute force attack failed login password security detection',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to find patterns indicating brute force attacks - many failed logins from one source, or against one account.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Failed Logins Per Source IP</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Find sources with many failures</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security action=failure
+| stats count as failures, dc(user) as targeted_users by src_ip
+| where failures > 10
+| sort - failures</code></pre>
+                        </div>
+                        <p class="guide-explanation">Sources with >10 failures. High failures + many targeted users = likely attack.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Failed Logins Per User</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Find targeted accounts</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security action=failure
+| stats count as failures, dc(src_ip) as attack_sources by user
+| where failures > 5
+| sort - failures</code></pre>
+                        </div>
+                        <p class="guide-explanation">Users receiving failed logins. Multiple sources = distributed attack or credential stuffing.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Failure Spikes Over Time</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Visualize attack patterns</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security action=failure
+| timechart span=5m count by src_ip limit=10</code></pre>
+                        </div>
+                        <p class="guide-explanation">See when attacks happen and which sources are most active. Spikes indicate active attacks.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Success After Many Failures</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Detect successful brute force</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security
+| stats count(eval(action="failure")) as failures,
+        count(eval(action="success")) as successes by src_ip, user
+| where failures > 5 AND successes > 0
+| sort - failures</code></pre>
+                        </div>
+                        <p class="guide-explanation">Most critical - successful login after many failures means the attack worked!</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Alert Priority</div>
+                    <p>Many failures = investigate. Failures followed by success = respond immediately. This pattern indicates a compromised account.</p>
+                </div>
+            `
+        },
+        {
+            id: 'find-impossible-travel',
+            title: 'How to find impossible travel',
+            description: 'Detect when a user logs in from geographically impossible locations in a short time.',
+            keywords: 'impossible travel geography location login security anomaly',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to detect when a user authenticates from two locations that are too far apart to travel between in the time elapsed - a strong indicator of credential compromise.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Prerequisites</div>
+                    <div class="guide-detail-section">
+                        <p>This detection requires GeoIP enrichment on your authentication logs. The examples assume you have <code>City</code> or <code>Country</code> fields from iplocation.</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | iplocation src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">If not already enriched, add iplocation to get City, Country, lat, lon fields.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Find Users in Multiple Countries</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Quick check for multi-country logins</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security action=success
+| iplocation src_ip
+| stats dc(Country) as countries, values(Country) as country_list by user
+| where countries > 1</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find users logging in from multiple countries. Not always malicious, but worth investigating.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Time-Based Impossible Travel</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Detect rapid location changes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security action=success
+| iplocation src_ip
+| sort user, _time
+| streamstats current=f last(City) as prev_city, last(_time) as prev_time by user
+| eval time_diff_hours = (_time - prev_time) / 3600
+| where City != prev_city AND time_diff_hours < 2
+| table _time, user, prev_city, City, time_diff_hours, src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Users who changed cities within 2 hours. Adjust threshold based on your geography.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Known Good Locations</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Exclude expected countries</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security action=success
+| iplocation src_ip
+| search NOT Country IN ("United States", "Canada", "United Kingdom")
+| stats count, values(Country) as countries by user</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find logins from unexpected countries. Customize the list for your organization.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Consider VPN usage - legitimate users might appear to "travel" when connecting through different VPN endpoints. Correlate with VPN logs if available.</p>
+                </div>
+            `
+        },
+        {
+            id: 'privileged-account-usage',
+            title: 'How to find privileged account usage',
+            description: 'Monitor admin and service account activity for unauthorized use.',
+            keywords: 'admin privileged account root service security monitoring',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to monitor how privileged accounts (admin, root, service accounts) are being used and detect potential misuse.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Track All Admin Activity</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Find all admin user events</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user IN (admin, administrator, root, sa)
+| stats count by user, action, src_ip
+| sort - count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Overview of privileged account usage. Add your known admin accounts to the list.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Pattern-based admin detection</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security (user=*admin* OR user=svc_* OR user=srv*)
+| stats count, values(action) as actions by user, src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find accounts matching admin/service naming patterns.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Unusual Admin Behavior</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Admin logins from new sources</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=admin action=success
+| stats earliest(_time) as first_seen, latest(_time) as last_seen, count by src_ip
+| where first_seen > relative_time(now(), "-24h")
+| convert ctime(first_seen), ctime(last_seen)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Admin logins from IPs first seen in the last 24 hours - potential compromise.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Off-hours admin activity</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user IN (admin, administrator)
+| eval hour = strftime(_time, "%H")
+| where hour < 6 OR hour > 20
+| stats count by user, src_ip, date_wday</code></pre>
+                        </div>
+                        <p class="guide-explanation">Admin activity outside business hours (adjust hours for your timezone).</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Service Account Anomalies</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Interactive service account logins</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=svc_* LogonType=2
+| stats count by user, src_ip, dest
+| sort - count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Service accounts shouldn't have interactive logins (LogonType 2). This is suspicious.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Alert Priority</div>
+                    <p>Service accounts logging in interactively, or admin accounts from new locations are high-priority alerts. These often indicate credential theft.</p>
+                </div>
+            `
+        },
+        {
+            id: 'baseline-behavior',
+            title: 'How to baseline normal behavior',
+            description: 'Establish what normal looks like so you can detect anomalies.',
+            keywords: 'baseline normal behavior anomaly average statistics',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to understand what "normal" looks like in your environment so you can identify when something is abnormal.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Volume Baselines</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Average events per hour</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security earliest=-7d
+| timechart span=1h count
+| stats avg(count) as avg_hourly, stdev(count) as stdev_hourly, max(count) as peak</code></pre>
+                        </div>
+                        <p class="guide-explanation">Baseline event volume. Anything beyond avg + 2*stdev is unusual.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Per-user activity baseline</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security earliest=-7d
+| stats count by user, date_mday
+| stats avg(count) as avg_daily, stdev(count) as stdev_daily by user</code></pre>
+                        </div>
+                        <p class="guide-explanation">Each user's normal daily activity level. Compare current day to baseline.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Time-of-Day Patterns</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Activity by hour</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security earliest=-7d
+| eval hour = strftime(_time, "%H")
+| stats count by hour
+| sort hour</code></pre>
+                        </div>
+                        <p class="guide-explanation">See when activity normally occurs. Activity outside these hours is worth investigating.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Weekend vs weekday</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security earliest=-30d
+| eval is_weekend = if(date_wday="saturday" OR date_wday="sunday", "weekend", "weekday")
+| stats count by is_weekend
+| eval daily_avg = count / if(is_weekend="weekend", 8, 22)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Compare weekend to weekday volume. Significant weekend activity might be suspicious.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Detect Anomalies from Baseline</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Find unusual spikes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security
+| timechart span=1h count
+| eventstats avg(count) as avg_count, stdev(count) as stdev_count
+| eval threshold = avg_count + (2 * stdev_count)
+| where count > threshold
+| eval deviation = round((count - avg_count) / stdev_count, 2)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Hours where activity exceeds 2 standard deviations from average.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Build baselines from at least 7 days of data (30 days is better). Exclude known anomalies like holidays or maintenance windows when calculating your baseline.</p>
                 </div>
             `
         }
@@ -1115,6 +1422,841 @@ const GUIDES_DATA = {
                 <div class="guide-callout tip">
                     <div class="guide-callout-title">Pro Tip</div>
                     <p>Use <code>head 1000</code> during development to test your search quickly. Remove it when you're ready for full results. Just remember that stats on limited data may not be representative!</p>
+                </div>
+            `
+        },
+        {
+            id: 'boolean-logic',
+            title: 'How to use AND, OR, NOT',
+            description: 'Combine search conditions with boolean logic to find exactly what you need.',
+            keywords: 'and or not boolean logic combine conditions filter',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to combine multiple conditions - find events that match this AND that, this OR that, or everything EXCEPT something.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">AND - All Conditions Must Match</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Implicit AND (just use spaces)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=admin action=failure</code></pre>
+                        </div>
+                        <p class="guide-explanation">Finds events where user is admin AND action is failure. Spaces between conditions mean AND.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Explicit AND</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=admin AND action=failure</code></pre>
+                        </div>
+                        <p class="guide-explanation">Same result. Explicit AND is optional but can improve readability.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">OR - Any Condition Can Match</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Match any of several values</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security (user=admin OR user=root OR user=system)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Finds events where user is admin OR root OR system. Use parentheses to group OR conditions.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">IN operator (cleaner syntax)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user IN (admin, root, system)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Same result, cleaner syntax. Best when checking one field against multiple values.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">NOT - Exclude Matches</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Exclude specific values</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security NOT user=serviceaccount</code></pre>
+                        </div>
+                        <p class="guide-explanation">All events EXCEPT those where user is serviceaccount.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Using != (not equal)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user!=serviceaccount action!=success</code></pre>
+                        </div>
+                        <p class="guide-explanation">User is not serviceaccount AND action is not success.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Combining Them</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Complex conditions</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security (action=failure OR action=error) user!=serviceaccount earliest=-1h</code></pre>
+                        </div>
+                        <p class="guide-explanation">Failed or error events, excluding service accounts, from last hour. Parentheses control grouping.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Watch Out</div>
+                    <p>OR without parentheses can give unexpected results. <code>user=admin OR user=root action=failure</code> means "admin OR (root AND failure)" - probably not what you wanted!</p>
+                </div>
+            `
+        },
+        {
+            id: 'eval-basics',
+            title: 'How to create calculated fields',
+            description: 'Use eval to create new fields, do math, or transform values.',
+            keywords: 'eval calculate field create math transform convert',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to create a new field based on existing data - calculate a value, convert units, combine fields, or apply conditional logic.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Basic Calculations</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Convert bytes to megabytes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | eval size_mb = bytes / 1024 / 1024</code></pre>
+                        </div>
+                        <p class="guide-explanation">Creates a new field <code>size_mb</code> from the existing <code>bytes</code> field.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Calculate duration</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | eval duration_mins = (end_time - start_time) / 60</code></pre>
+                        </div>
+                        <p class="guide-explanation">Subtract times and convert seconds to minutes.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Conditional Logic</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">If-then-else</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | eval status = if(code >= 400, "error", "ok")</code></pre>
+                        </div>
+                        <p class="guide-explanation">If code is 400 or higher, status is "error", otherwise "ok".</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Multiple conditions (case)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | eval severity = case(
+    code >= 500, "critical",
+    code >= 400, "error",
+    code >= 300, "warning",
+    true(), "ok"
+)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Check conditions in order, return first match. <code>true()</code> is the default/else case.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Text Manipulation</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Combine fields</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | eval full_name = first_name . " " . last_name</code></pre>
+                        </div>
+                        <p class="guide-explanation">Concatenate fields with <code>.</code> (dot). Creates "John Smith" from "John" and "Smith".</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Convert to lowercase</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | eval user = lower(user)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Normalize case for consistent matching. Also: <code>upper()</code>, <code>trim()</code>.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Handle Missing Values</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Use coalesce for defaults</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | eval user = coalesce(user, src_user, "unknown")</code></pre>
+                        </div>
+                        <p class="guide-explanation">Use first non-null value. If user is empty, try src_user, otherwise use "unknown".</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Create multiple fields in one eval: <code>| eval size_mb = bytes/1024/1024, duration_mins = duration/60</code></p>
+                </div>
+            `
+        },
+        {
+            id: 'sort-results',
+            title: 'How to sort results',
+            description: 'Order your results by any field - highest to lowest, alphabetically, or by time.',
+            keywords: 'sort order ascending descending alphabetical top bottom',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to order your results - show the biggest first, the most recent first, or alphabetically.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Basic Sorting</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Sort descending (highest first)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats count by user | sort - count</code></pre>
+                        </div>
+                        <p class="guide-explanation">The <code>-</code> means descending. Shows users with most events first.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Sort ascending (lowest first)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats count by user | sort + count</code></pre>
+                        </div>
+                        <p class="guide-explanation">The <code>+</code> means ascending (default). Shows users with fewest events first.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Sort alphabetically</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats count by user | sort user</code></pre>
+                        </div>
+                        <p class="guide-explanation">Sort by username A-Z. Use <code>- user</code> for Z-A.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Multiple Sort Fields</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Sort by multiple columns</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats count by department, user | sort department, - count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Sort by department A-Z first, then by count descending within each department.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Sort by Time</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Most recent first</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | sort - _time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Show newest events first. This is usually the default for raw events.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Oldest first</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | sort + _time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Show oldest events first. Useful for timeline analysis.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Limit After Sorting</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Get top 10</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats sum(bytes) as total by user | sort - total | head 10</code></pre>
+                        </div>
+                        <p class="guide-explanation">Top 10 users by bytes transferred.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Use <code>sort 0</code> to sort ALL results (removes default 10,000 limit), or <code>sort 100</code> to only return the first 100 after sorting.</p>
+                </div>
+            `
+        },
+        {
+            id: 'compare-values',
+            title: 'How to compare values',
+            description: 'Filter events using greater than, less than, equals, and other comparisons.',
+            keywords: 'compare greater less than equal threshold filter where',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to find events where a value is above a threshold, below a limit, or within a range.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using WHERE for Comparisons</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Greater than / Less than</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | where bytes > 1000000</code></pre>
+                        </div>
+                        <p class="guide-explanation">Events where bytes is greater than 1MB. Also: <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code></p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Equals (exact match)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | where status = 200</code></pre>
+                        </div>
+                        <p class="guide-explanation">Numeric comparison with single <code>=</code> or <code>==</code> in where.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Not equals</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | where status != 200</code></pre>
+                        </div>
+                        <p class="guide-explanation">All events where status is anything except 200.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Range Checks</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Between two values</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | where bytes >= 1000 AND bytes <= 10000</code></pre>
+                        </div>
+                        <p class="guide-explanation">Events where bytes is between 1KB and 10KB (inclusive).</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Outside a range</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | where response_time < 100 OR response_time > 5000</code></pre>
+                        </div>
+                        <p class="guide-explanation">Very fast OR very slow responses (outliers).</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Comparing After Aggregation</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Filter aggregated results</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats count by user | where count > 100</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find users with more than 100 events.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Compare averages to threshold</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats avg(response_time) as avg_time by endpoint | where avg_time > 1000</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find endpoints with average response time over 1 second.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Watch Out</div>
+                    <p>Use <code>where</code> for numeric comparisons. The search command (field>100) sometimes works but is less reliable. <code>where</code> always evaluates numerically.</p>
+                </div>
+            `
+        },
+        {
+            id: 'rename-fields',
+            title: 'How to rename fields',
+            description: 'Give fields clearer names for better readability in reports and dashboards.',
+            keywords: 'rename field name as alias column header',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to give fields better names - more readable for reports, or consistent naming across different data sources.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using AS in Stats</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Name your aggregations</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats count as "Total Events", dc(user) as "Unique Users"</code></pre>
+                        </div>
+                        <p class="guide-explanation">Use <code>as</code> to name stats results. Quotes allow spaces in names.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Simple naming</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | stats sum(bytes) as total_bytes by src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Without quotes for simple names (no spaces).</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using the Rename Command</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Rename a single field</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | rename src_ip as "Source IP"</code></pre>
+                        </div>
+                        <p class="guide-explanation">Changes <code>src_ip</code> to "Source IP" for display.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Rename multiple fields</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | rename src_ip as "Source IP", dest_ip as "Destination IP", _time as "Timestamp"</code></pre>
+                        </div>
+                        <p class="guide-explanation">Rename several fields at once, comma-separated.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Rename with wildcards</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | rename *_ip as *_address</code></pre>
+                        </div>
+                        <p class="guide-explanation">Rename src_ip to src_address, dest_ip to dest_address, etc.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Practical Example</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Clean report output</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security
+| stats count as "Failed Attempts", dc(src_ip) as "Unique Sources" by user
+| rename user as "Username"
+| sort - "Failed Attempts"</code></pre>
+                        </div>
+                        <p class="guide-explanation">Produces a clean, readable report with proper column headers.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Use <code>as</code> in stats when creating fields, use <code>rename</code> when cleaning up existing fields. Both work - pick what's cleaner for your search.</p>
+                </div>
+            `
+        }
+    ],
+
+    datasources: [
+        {
+            id: 'windows-event-logs',
+            title: 'How to work with Windows Event Logs',
+            description: 'Navigate Windows Security, System, and Application event logs effectively.',
+            keywords: 'windows event log eventcode security 4624 4625 4688',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to search and analyze Windows Event Logs - the primary source for Windows security monitoring.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Finding Windows Logs</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Common sourcetypes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=windows sourcetype="WinEventLog:Security"</code></pre>
+                        </div>
+                        <p class="guide-explanation">Security events. Also: <code>WinEventLog:System</code>, <code>WinEventLog:Application</code>, <code>XmlWinEventLog</code>.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Key Security Event Codes</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Authentication events</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=windows sourcetype="WinEventLog:Security" EventCode IN (4624, 4625, 4634, 4647)
+| stats count by EventCode
+| eval description = case(
+    EventCode=4624, "Successful login",
+    EventCode=4625, "Failed login",
+    EventCode=4634, "Logoff",
+    EventCode=4647, "User initiated logoff"
+)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Core authentication events. 4624=success, 4625=failure.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Process execution</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=windows EventCode=4688
+| stats count by New_Process_Name, Creator_Process_Name
+| sort - count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Process creation events - essential for endpoint detection.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Account management</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=windows EventCode IN (4720, 4722, 4724, 4728, 4732, 4756)
+| stats count by EventCode, TargetUserName, SubjectUserName</code></pre>
+                        </div>
+                        <p class="guide-explanation">User/group changes: created (4720), enabled (4722), password reset (4724), group membership changes.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Logon Types</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Understand how users connected</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=windows EventCode=4624
+| stats count by Logon_Type
+| eval type_name = case(
+    Logon_Type=2, "Interactive (console)",
+    Logon_Type=3, "Network",
+    Logon_Type=4, "Batch",
+    Logon_Type=5, "Service",
+    Logon_Type=7, "Unlock",
+    Logon_Type=10, "RemoteInteractive (RDP)",
+    Logon_Type=11, "CachedInteractive"
+)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Type 10 = RDP, Type 3 = network shares/remote access, Type 2 = local keyboard.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Filter out noise: <code>NOT user="*$"</code> removes computer accounts (they end in $). <code>NOT Logon_Type=3</code> removes noisy network logons if focusing on interactive sessions.</p>
+                </div>
+            `
+        },
+        {
+            id: 'firewall-logs',
+            title: 'How to work with firewall logs',
+            description: 'Analyze network traffic, blocked connections, and security events from firewalls.',
+            keywords: 'firewall network traffic blocked allowed connection palo cisco',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to analyze firewall logs to understand network traffic, find blocked threats, and investigate connections.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Finding Firewall Logs</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Common sourcetypes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network sourcetype IN (pan:traffic, cisco:asa, fortinet_traffic)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Depends on your firewall. Check with <code>| stats count by sourcetype</code> in your network index.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Using CIM-normalized fields</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network tag=network tag=communicate
+| stats count by action, src_ip, dest_ip, dest_port</code></pre>
+                        </div>
+                        <p class="guide-explanation">CIM fields work across vendors: src_ip, dest_ip, dest_port, action, bytes_in, bytes_out.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Traffic Analysis</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Top talkers (by volume)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network
+| stats sum(bytes) as total_bytes by src_ip
+| sort - total_bytes
+| head 20
+| eval total_gb = round(total_bytes/1024/1024/1024, 2)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Who's sending the most data? Large outbound = potential exfiltration.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Top destinations</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network action=allowed
+| stats sum(bytes) as bytes, dc(src_ip) as sources by dest_ip
+| sort - bytes
+| head 20</code></pre>
+                        </div>
+                        <p class="guide-explanation">Most accessed destinations. Many sources to one dest might indicate C2 or popular service.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Security Analysis</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Blocked connections</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network action IN (blocked, denied, drop)
+| stats count by src_ip, dest_ip, dest_port
+| sort - count
+| head 50</code></pre>
+                        </div>
+                        <p class="guide-explanation">What's being blocked? High counts might indicate attacks or misconfigurations.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Unusual ports</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network dest_port > 1024 NOT dest_port IN (3389, 8080, 8443, 443)
+| stats dc(src_ip) as sources, sum(bytes) as bytes by dest_port
+| where sources > 5
+| sort - bytes</code></pre>
+                        </div>
+                        <p class="guide-explanation">High ports used by multiple sources - possible C2 or unauthorized services.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Use <code>| iplocation dest_ip</code> to add geographic context. Outbound traffic to unexpected countries is worth investigating.</p>
+                </div>
+            `
+        },
+        {
+            id: 'proxy-web-logs',
+            title: 'How to work with proxy and web logs',
+            description: 'Analyze web traffic, detect threats, and investigate user browsing activity.',
+            keywords: 'proxy web traffic http url browsing squid bluecoat zscaler',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to analyze web/proxy logs to investigate browsing activity, detect malicious sites, and find data exfiltration.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Finding Proxy Logs</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Common sourcetypes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy sourcetype IN (bluecoat:proxysg, squid, zscalernss-web)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Varies by vendor. Use CIM tag <code>tag=web</code> for normalized access.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">CIM-normalized web data</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy tag=web
+| stats count by user, url, status, action</code></pre>
+                        </div>
+                        <p class="guide-explanation">Common CIM fields: url, uri_path, user, src_ip, dest, status, action, bytes_in, bytes_out.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">User Activity Analysis</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Sites visited by user</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy user=jsmith
+| rex field=url "https?://(?<domain>[^/]+)"
+| stats count, sum(bytes_out) as uploaded by domain
+| sort - count</code></pre>
+                        </div>
+                        <p class="guide-explanation">What sites did this user visit? How much data did they upload?</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Top bandwidth users</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy
+| stats sum(bytes_in) as download, sum(bytes_out) as upload by user
+| eval total = download + upload
+| sort - total
+| head 20</code></pre>
+                        </div>
+                        <p class="guide-explanation">Who's using the most bandwidth? High upload = potential exfiltration.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Threat Detection</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Blocked malicious sites</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy action=blocked category IN (malware, phishing, "command-and-control")
+| stats count by user, url, category
+| sort - count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Users hitting blocked threat categories. Multiple hits = possible infection.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Uploads to file sharing sites</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy http_method=POST bytes_out > 1000000
+| rex field=url "https?://(?<domain>[^/]+)"
+| search domain IN (*dropbox*, *drive.google*, *onedrive*, *wetransfer*, *mega.nz*)
+| stats sum(bytes_out) as uploaded by user, domain</code></pre>
+                        </div>
+                        <p class="guide-explanation">Large uploads to file sharing - potential data exfiltration.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Watch For</div>
+                    <p>Repeated connections to newly registered domains, raw IP URLs, or unusual TLDs (.tk, .top, .xyz). These are common in phishing and malware infrastructure.</p>
+                </div>
+            `
+        }
+    ],
+
+    enriching: [
+        {
+            id: 'use-lookups',
+            title: 'How to use lookups',
+            description: 'Enrich your events with external data like asset info, user details, or threat intelligence.',
+            keywords: 'lookup enrich context asset user threat intel csv',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to add context to your events - turn IP addresses into hostnames, user IDs into names, or match against threat intelligence.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Basic Lookup</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Add fields from a lookup</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security
+| lookup user_info.csv user OUTPUT department, manager, title</code></pre>
+                        </div>
+                        <p class="guide-explanation">For each event, look up the <code>user</code> in user_info.csv and add department, manager, and title fields.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Map field names with AS</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network
+| lookup assets.csv ip AS src_ip OUTPUT hostname, owner, criticality</code></pre>
+                        </div>
+                        <p class="guide-explanation">Match src_ip in events to the "ip" column in the lookup. Add hostname, owner, criticality.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Lookup Options</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Only add if field doesn't exist</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | lookup assets.csv ip AS src_ip OUTPUTNEW hostname</code></pre>
+                        </div>
+                        <p class="guide-explanation"><code>OUTPUTNEW</code> only adds the field if it doesn't already exist in the event.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Output all lookup fields</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>... | lookup assets.csv ip AS src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Without OUTPUT, adds all fields from the matching lookup row.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Threat Intelligence Matching</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Check IPs against threat list</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network
+| lookup threat_intel.csv ip AS dest_ip OUTPUTNEW threat_type, confidence
+| where isnotnull(threat_type)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Match destination IPs against threat intel. Only keep events that matched.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Query a Lookup Directly</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">See what's in the lookup</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| inputlookup assets.csv
+| head 100</code></pre>
+                        </div>
+                        <p class="guide-explanation">View lookup contents. Useful for understanding available fields.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Lookups are fast because they're loaded into memory. For large reference data (millions of rows), consider KV Store collections instead of CSV lookups.</p>
+                </div>
+            `
+        },
+        {
+            id: 'join-data-sources',
+            title: 'How to join data from different sources',
+            description: 'Combine events from different indexes or sourcetypes based on a common field.',
+            keywords: 'join combine correlate multiple sources subsearch',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to correlate data from different sources - like matching authentication logs with VPN logs, or combining user activity with HR data.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using Join</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Basic join</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=*
+| join user [search index=hr | table user, department, manager]</code></pre>
+                        </div>
+                        <p class="guide-explanation">Add HR info to security events by matching on user. INNER join - events without matches are dropped.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Left join (keep all main events)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=*
+| join type=left user [search index=hr | table user, department]</code></pre>
+                        </div>
+                        <p class="guide-explanation"><code>type=left</code> keeps all security events, even if no HR match. Unmatched fields are empty.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using Stats (Often Better)</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Append and combine with stats</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security action=failure
+| append [search index=security action=success]
+| stats count(eval(action="failure")) as failures,
+        count(eval(action="success")) as successes by user</code></pre>
+                        </div>
+                        <p class="guide-explanation">Append combines result sets. Stats then aggregates across both. More flexible than join.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Multiple indexes, same stats</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>(index=auth OR index=vpn) user=*
+| stats count by user, index
+| xyseries user index count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Search multiple indexes at once, then pivot the results.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Subsearch for Filtering</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Find events for users in another list</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security
+    [search index=hr status=terminated | fields user | format]
+| stats count by user, action</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find security events for terminated users. Subsearch returns a list of users to match.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Watch Out</div>
+                    <p>Join holds the subsearch results in memory - limited to 50,000 rows by default. For large datasets, consider using <code>lookup</code> (for reference data) or <code>append + stats</code> (for combining search results).</p>
                 </div>
             `
         }
