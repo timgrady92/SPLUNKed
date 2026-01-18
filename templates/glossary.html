@@ -20,7 +20,6 @@
         <div class="tabs-list" role="tablist">
             {{ category_tab('commands', 'Commands', active=true) }}
             {{ category_tab('functions', 'Functions') }}
-            {{ category_tab('fields', 'Fields') }}
             {{ category_tab('reference', 'Reference') }}
             {{ category_tab('antipatterns', 'Pitfalls') }}
         </div>
@@ -29,26 +28,41 @@
     <!-- Controls Bar -->
     <div class="controls-bar">
         {{ search_input(placeholder='Search commands, functions...', id='glossarySearch') }}
-
-        <div class="filter-dropdown">
-            <label for="purposeFilter" class="filter-label">Pipeline stage:</label>
-            <select id="purposeFilter" class="filter-select">
-                <option value="all">All stages</option>
-                <option value="get">Get data</option>
-                <option value="filter">Filter</option>
-                <option value="transform">Transform</option>
-                <option value="aggregate">Aggregate</option>
-                <option value="combine">Combine</option>
-                <option value="output">Output</option>
-            </select>
-        </div>
-
         {{ view_toggle(id='glossaryView') }}
     </div>
 
     <!-- Tab Panels -->
     <div id="commandsPanel" class="tab-panel active" role="tabpanel">
         <div class="category-info" id="commandsInfo"></div>
+        <div class="icon-filter" id="commandsFilter">
+            <button class="icon-filter-btn active" data-filter="all">
+                <span>All</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="get">
+                <span class="filter-icon">↓</span>
+                <span>Get data</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="filter">
+                <span class="filter-icon">⧩</span>
+                <span>Filter</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="transform">
+                <span class="filter-icon">⟳</span>
+                <span>Transform</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="aggregate">
+                <span class="filter-icon">Σ</span>
+                <span>Aggregate</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="combine">
+                <span class="filter-icon">⊕</span>
+                <span>Combine</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="output">
+                <span class="filter-icon">▤</span>
+                <span>Output</span>
+            </button>
+        </div>
         <div class="glossary-grid" id="commandsGrid">
             <!-- Populated by JavaScript -->
         </div>
@@ -56,25 +70,55 @@
 
     <div id="functionsPanel" class="tab-panel" role="tabpanel" hidden>
         <div class="category-info" id="functionsInfo"></div>
-        <div class="function-type-filter" id="functionTypeFilter">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="eval">Eval</button>
-            <button class="filter-btn" data-filter="stats">Stats</button>
+        <div class="icon-filter" id="functionsFilter">
+            <button class="icon-filter-btn active" data-filter="all">
+                <span>All</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="eval">
+                <span class="filter-icon">ƒ</span>
+                <span>Eval</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="stats">
+                <span class="filter-icon">∑</span>
+                <span>Stats</span>
+            </button>
         </div>
         <div class="glossary-grid" id="functionsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="fieldsPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="fieldsInfo"></div>
-        <div class="glossary-grid" id="fieldsGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
     <div id="referencePanel" class="tab-panel" role="tabpanel" hidden>
         <div class="category-info" id="referenceInfo"></div>
+        <div class="icon-filter" id="referenceFilter">
+            <button class="icon-filter-btn active" data-filter="all">
+                <span>All</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="fields">
+                <span class="filter-icon">⬚</span>
+                <span>Fields</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="concepts">
+                <span class="filter-icon">◆</span>
+                <span>Concepts</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="cim">
+                <span class="filter-icon">⧉</span>
+                <span>CIM</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="extractions">
+                <span class="filter-icon">⋔</span>
+                <span>Extractions</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="macros">
+                <span class="filter-icon">{ }</span>
+                <span>Macros</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="engineering">
+                <span class="filter-icon">⚙</span>
+                <span>Engineering</span>
+            </button>
+        </div>
         <div class="glossary-grid" id="referenceGrid">
             <!-- Populated by JavaScript -->
         </div>

@@ -77,8 +77,7 @@ const FUNCTION_PURPOSE_LABELS = {
 const TAB_CATEGORY_MAP = {
     commands: ['commands'],
     functions: ['functions', 'statsFunctions'],
-    fields: ['fields'],
-    reference: ['cim', 'concepts', 'extractions', 'macros'],
+    reference: ['fields', 'concepts', 'cim', 'extractions', 'macros', 'engineering'],
     antipatterns: ['antipatterns']
 };
 
@@ -88,13 +87,9 @@ const TAB_INFO = {
         title: 'Functions',
         description: 'Eval functions for calculations and string manipulation, plus aggregation functions for stats commands.'
     },
-    fields: {
-        title: 'Fields',
-        description: 'Common Splunk fields including index-time metadata (_time, _raw, host, source, sourcetype) and frequently-used extracted fields.'
-    },
     reference: {
         title: 'Reference',
-        description: 'CIM data models, Splunk concepts, field extraction techniques, and macros & lookups.'
+        description: 'Fields, concepts, CIM data models, extraction techniques, macros, and Splunk engineering fundamentals.'
     },
     antipatterns: CATEGORY_INFO.antipatterns
 };
@@ -113,7 +108,8 @@ const SUBCATEGORY_LABELS = {
     cim: 'CIM/Data Model',
     concepts: 'Concept',
     extractions: 'Extraction',
-    macros: 'Macro/Lookup'
+    macros: 'Macro/Lookup',
+    engineering: 'Engineering'
 };
 
 // ============================================
@@ -6769,6 +6765,270 @@ const GLOSSARY_DATA = {
                 'Use transaction only when you need the grouped events themselves'
             ]
         }
+    ],
+
+    engineering: [
+        {
+            id: 'eng-props-conf',
+            name: 'props.conf',
+            category: 'engineering',
+            takeaway: 'Configure field extractions, timestamps, and line breaking per sourcetype',
+            what: 'The primary configuration file for defining how Splunk parses and extracts data at index time and search time. Controls timestamp recognition, line breaking, field extractions, and source type definitions.',
+            why: 'Essential for proper data parsing. Without correct props.conf settings, events may be merged incorrectly, timestamps may be wrong, and fields may not extract properly.',
+            examples: [
+                { spl: '[myapp:logs]\nTIME_FORMAT = %Y-%m-%d %H:%M:%S\nTIME_PREFIX = timestamp=\nLINE_BREAKER = ([\\r\\n]+)\nSHOULD_LINEMERGE = false', explanation: 'Basic sourcetype definition with timestamp and line breaking' },
+                { spl: '[myapp:logs]\nEXTRACT-user = user=(?<user>\\w+)\nEXTRACT-action = action=(?<action>\\w+)', explanation: 'Search-time field extractions using regex' },
+                { spl: '[myapp:logs]\nTRANSFORMS-routing = route_to_index\nTRANSFORMS-mask = mask_credit_cards', explanation: 'Reference transforms.conf for routing and masking' }
+            ],
+            gotchas: [
+                'Index-time vs search-time: EXTRACT- is search-time, REPORT- references transforms for index-time',
+                'Changes to index-time settings require re-indexing data',
+                'Line breaking issues are the most common data onboarding problem',
+                'Test with btool: ./splunk btool props list myapp:logs --debug'
+            ],
+            relatedCommands: ['transforms.conf', 'inputs.conf']
+        },
+        {
+            id: 'eng-transforms-conf',
+            name: 'transforms.conf',
+            category: 'engineering',
+            takeaway: 'Define complex extractions, lookups, routing, and data masking rules',
+            what: 'Works with props.conf to define reusable extraction rules, lookup table definitions, index-time routing, and sensitive data masking. More powerful than inline extractions.',
+            why: 'Needed for complex regex extractions, routing data to different indexes, masking sensitive data like credit cards or SSNs, and defining automatic lookups.',
+            examples: [
+                { spl: '[extract_fields]\nREGEX = user=(?<user>\\w+).*status=(?<status>\\d+)\nFORMAT = user::$1 status::$2', explanation: 'Named extraction stanza' },
+                { spl: '[route_to_index]\nREGEX = severity=ERROR\nDEST_KEY = _MetaData:Index\nFORMAT = error_index', explanation: 'Route matching events to a different index' },
+                { spl: '[mask_credit_cards]\nREGEX = \\b(\\d{4})[- ]?(\\d{4})[- ]?(\\d{4})[- ]?(\\d{4})\\b\nFORMAT = XXXX-XXXX-XXXX-$4\nDEST_KEY = _raw', explanation: 'Mask credit card numbers, keeping last 4 digits' }
+            ],
+            gotchas: [
+                'Stanza names in transforms.conf are referenced by TRANSFORMS- or REPORT- in props.conf',
+                'DEST_KEY = _raw modifies the raw event (use carefully)',
+                'Index-time transforms are more efficient but require re-indexing to change',
+                'Lookup definitions here enable automatic lookup in props.conf'
+            ],
+            relatedCommands: ['props.conf', 'lookup']
+        },
+        {
+            id: 'eng-inputs-conf',
+            name: 'inputs.conf',
+            category: 'engineering',
+            takeaway: 'Configure data inputs: files, network ports, scripts, and APIs',
+            what: 'Defines what data Splunk collects and how. Configures file monitoring, network inputs (TCP/UDP), scripted inputs, HTTP Event Collector (HEC), and modular inputs.',
+            why: 'The starting point for all data ingestion. Without inputs.conf, Splunk has no data to index.',
+            examples: [
+                { spl: '[monitor:///var/log/myapp/*.log]\nindex = main\nsourcetype = myapp:logs\ndisabled = false', explanation: 'Monitor a directory for log files' },
+                { spl: '[tcp://514]\nconnection_host = dns\nsourcetype = syslog\nindex = network', explanation: 'Listen for syslog on TCP port 514' },
+                { spl: '[script://./bin/myinput.py]\ninterval = 300\nsourcetype = custom:metrics\nindex = metrics', explanation: 'Run a script every 5 minutes' },
+                { spl: '[http://mytoken]\ntoken = your-hec-token-here\nindex = main\nsourcetype = httpevent', explanation: 'HTTP Event Collector input' }
+            ],
+            gotchas: [
+                'Use forwarders for production data collection, not indexers directly',
+                'disabled = false is required to enable the input',
+                'File inputs track position in fishbucket - delete to re-index',
+                'Network inputs on ports below 1024 require root/admin privileges'
+            ],
+            relatedCommands: ['props.conf', 'outputs.conf']
+        },
+        {
+            id: 'eng-outputs-conf',
+            name: 'outputs.conf',
+            category: 'engineering',
+            takeaway: 'Configure where forwarders send data: indexers, load balancing, SSL',
+            what: 'Defines forwarding behavior for Universal and Heavy Forwarders. Configures target indexers, load balancing, SSL encryption, and data routing.',
+            why: 'Critical for distributed Splunk deployments. Controls data flow from forwarders to indexers and ensures high availability.',
+            examples: [
+                { spl: '[tcpout]\ndefaultGroup = indexers\n\n[tcpout:indexers]\nserver = idx1:9997, idx2:9997, idx3:9997\nautoLBFrequency = 30', explanation: 'Load balance across three indexers' },
+                { spl: '[tcpout:indexers]\nserver = idx1:9997, idx2:9997\nuseSSL = true\nsslCertPath = $SPLUNK_HOME/etc/auth/server.pem\nsslPassword = password', explanation: 'SSL-encrypted forwarding' },
+                { spl: '[indexAndForward]\nindex = true\n\n[tcpout:remote]\nserver = remote-idx:9997', explanation: 'Heavy forwarder: index locally AND forward' }
+            ],
+            gotchas: [
+                'autoLB (automatic load balancing) switches between indexers periodically',
+                'useACK = true ensures data delivery confirmation (slower but safer)',
+                'Forwarders queue data locally if indexers are unavailable',
+                'Check forwarder queue sizes during outages to prevent data loss'
+            ],
+            relatedCommands: ['inputs.conf', 'server.conf']
+        },
+        {
+            id: 'eng-indexes-conf',
+            name: 'indexes.conf',
+            category: 'engineering',
+            takeaway: 'Define indexes with storage paths, retention policies, and sizing',
+            what: 'Creates and configures Splunk indexes. Controls storage locations, retention periods, bucket sizes, and data model acceleration settings.',
+            why: 'Indexes are the fundamental storage unit in Splunk. Proper configuration affects search performance, storage costs, and compliance requirements.',
+            examples: [
+                { spl: '[security]\nhomePath = $SPLUNK_DB/security/db\ncoldPath = $SPLUNK_DB/security/colddb\nthawedPath = $SPLUNK_DB/security/thaweddb\nfrozenTimePeriodInSecs = 31536000', explanation: 'Create security index with 1-year retention' },
+                { spl: '[security]\nmaxTotalDataSizeMB = 500000\nmaxDataSize = auto_high_volume\ncoldToFrozenDir = /archive/security', explanation: 'Size limits and archiving' },
+                { spl: '[metrics]\ndatatype = metric\nmaxTotalDataSizeMB = 100000', explanation: 'Metrics index (optimized for metric data)' }
+            ],
+            gotchas: [
+                'Default retention is 6 years - usually too long, costs storage',
+                'frozenTimePeriodInSecs defines retention; coldToFrozenDir archives instead of deletes',
+                'Metrics indexes require datatype = metric and different storage',
+                'Index changes require restart; adding new index is safe, changing existing is risky'
+            ],
+            relatedCommands: ['props.conf', 'data-onboarding']
+        },
+        {
+            id: 'eng-architecture',
+            name: 'Splunk Architecture',
+            category: 'engineering',
+            takeaway: 'Understand indexers, search heads, forwarders, and deployment patterns',
+            what: 'Splunk deployments consist of forwarders (collect data), indexers (store and search), and search heads (user interface). Can scale from single instance to distributed clusters.',
+            why: 'Understanding architecture is essential for troubleshooting, capacity planning, and designing resilient deployments.',
+            examples: [
+                { spl: 'Single Instance: All roles on one server. Good for labs, small deployments (<50GB/day).', explanation: 'Simplest deployment' },
+                { spl: 'Distributed: Separate search heads and indexers. Forwarders send to indexer cluster. 50-500GB/day.', explanation: 'Mid-size production' },
+                { spl: 'Clustered: Search head cluster + indexer cluster + deployment server. High availability, 500GB+/day.', explanation: 'Enterprise deployment' }
+            ],
+            gotchas: [
+                'Universal Forwarder = lightweight, no parsing. Heavy Forwarder = can parse, filter, route',
+                'License is based on daily indexed volume, not stored volume',
+                'Search heads need fast disks for search artifacts, indexers need lots of storage',
+                'Network bandwidth between forwarders and indexers is critical'
+            ],
+            relatedCommands: ['deployment-server', 'indexer-cluster', 'search-head-cluster']
+        },
+        {
+            id: 'eng-data-onboarding',
+            name: 'Data Onboarding',
+            category: 'engineering',
+            takeaway: 'The process of getting data into Splunk correctly parsed and indexed',
+            what: 'Data onboarding involves identifying data sources, installing forwarders, configuring inputs, defining sourcetypes, setting up parsing rules, and validating data quality.',
+            why: 'Garbage in, garbage out. Poor data onboarding leads to broken timestamps, merged events, missing fields, and frustrated analysts.',
+            examples: [
+                { spl: '1. Identify source → 2. Sample data → 3. Create sourcetype → 4. Configure inputs → 5. Test parsing → 6. Deploy to production', explanation: 'Basic onboarding workflow' },
+                { spl: 'Common sourcetypes: syslog, WinEventLog:Security, access_combined, aws:cloudtrail, pan:traffic', explanation: 'Splunk has built-in parsing for common formats' },
+                { spl: '| metadata type=sourcetypes index=main | table sourcetype, totalCount, firstTime, lastTime', explanation: 'Check what sourcetypes exist in an index' }
+            ],
+            gotchas: [
+                'Always test with sample data before production deployment',
+                'Check _time is correct - wrong timestamps break time-based searches',
+                'Verify event boundaries - look for events that should be multi-line',
+                'Add Technology Add-ons (TAs) for common data sources instead of custom parsing'
+            ],
+            relatedCommands: ['props.conf', 'inputs.conf', 'transforms.conf']
+        },
+        {
+            id: 'eng-forwarder-types',
+            name: 'Universal vs Heavy Forwarder',
+            category: 'engineering',
+            takeaway: 'Choose the right forwarder type based on parsing, filtering, and routing needs',
+            what: 'Universal Forwarder (UF) is lightweight, sends raw data. Heavy Forwarder (HF) can parse, filter, route, and modify data before forwarding. Both forward to indexers.',
+            why: 'UFs are easier to deploy and manage at scale. HFs provide flexibility for complex data manipulation before indexing.',
+            examples: [
+                { spl: 'Universal Forwarder: 50MB install, minimal CPU/memory, no local parsing, no web UI, ideal for endpoints', explanation: 'Use for most data collection' },
+                { spl: 'Heavy Forwarder: Full Splunk install with forwarding enabled, can run searches, parse data, apply transforms', explanation: 'Use for aggregation points, parsing, filtering' },
+                { spl: 'Use case: UFs on 1000 servers → 2 HFs for aggregation/parsing → Indexer cluster', explanation: 'Tiered forwarding architecture' }
+            ],
+            gotchas: [
+                'UF cannot modify _raw, apply complex transforms, or run searches',
+                'HF requires more resources and a Splunk license (forwarder license is free)',
+                'Intermediate HF adds latency but reduces indexer parsing load',
+                'Consider Splunk Connect for Syslog for high-volume syslog aggregation'
+            ],
+            relatedCommands: ['outputs.conf', 'inputs.conf', 'architecture']
+        },
+        {
+            id: 'eng-deployment-server',
+            name: 'Deployment Server',
+            category: 'engineering',
+            takeaway: 'Centrally manage forwarder configurations with server classes and apps',
+            what: 'Deployment server pushes configuration apps to forwarders based on server classes. Forwarders check in periodically (deployment clients) to receive updates.',
+            why: 'Managing hundreds or thousands of forwarders individually is impossible. Deployment server enables centralized, consistent configuration management.',
+            examples: [
+                { spl: '[serverClass:windows_servers]\nwhitelist.0 = *.windows.domain.com\n\n[serverClass:windows_servers:app:Splunk_TA_windows]\nrestartSplunkd = true', explanation: 'serverclass.conf - deploy Windows TA to Windows hosts' },
+                { spl: '$SPLUNK_HOME/etc/deployment-apps/\n├── Splunk_TA_windows/\n├── Splunk_TA_nix/\n├── custom_outputs/\n└── custom_inputs/', explanation: 'Deployment apps directory structure' },
+                { spl: './splunk reload deploy-server', explanation: 'Reload after changing deployment apps' }
+            ],
+            gotchas: [
+                'Deployment server is NOT for deploying to indexers or search heads (use deployer/master)',
+                'Forwarders must be configured as deployment clients with deploymentclient.conf',
+                'Changes require reload: splunk reload deploy-server',
+                'Test with a small server class before deploying broadly'
+            ],
+            relatedCommands: ['architecture', 'forwarder-types']
+        },
+        {
+            id: 'eng-indexer-cluster',
+            name: 'Indexer Clustering',
+            category: 'engineering',
+            takeaway: 'Replicate data across indexers for high availability and disaster recovery',
+            what: 'Indexer cluster replicates data across multiple indexers (peers) managed by a cluster manager. Provides data redundancy and search availability even when indexers fail.',
+            why: 'Production Splunk deployments need data protection. Indexer clustering prevents data loss and maintains search availability during failures.',
+            examples: [
+                { spl: 'Replication Factor (RF) = 3: Each bucket stored on 3 indexers. Survive 2 indexer failures.', explanation: 'Data redundancy setting' },
+                { spl: 'Search Factor (SF) = 2: Searchable copies on 2 indexers. Faster searches, more storage.', explanation: 'Search availability setting' },
+                { spl: '[clustering]\nmode = manager\nreplication_factor = 3\nsearch_factor = 2\npass4SymmKey = your_secret_key', explanation: 'Cluster manager server.conf' }
+            ],
+            gotchas: [
+                'RF and SF require that many indexers minimum (RF=3 needs 3+ peers)',
+                'Storage multiplies by RF - plan capacity accordingly',
+                'Cluster manager is single point of failure for cluster management (not searching)',
+                'Rolling restart required for many configuration changes'
+            ],
+            relatedCommands: ['architecture', 'search-head-cluster']
+        },
+        {
+            id: 'eng-search-head-cluster',
+            name: 'Search Head Clustering',
+            category: 'engineering',
+            takeaway: 'Replicate knowledge objects and provide search high availability',
+            what: 'Search head cluster replicates saved searches, dashboards, and knowledge objects across multiple search heads. Provides user-facing high availability.',
+            why: 'Single search head is a bottleneck and single point of failure. Clustering enables horizontal scaling and continuous availability.',
+            examples: [
+                { spl: 'Captain: Elected leader that coordinates replication and scheduling', explanation: 'One SH is captain at any time' },
+                { spl: 'Deployer: Pushes apps to all cluster members (like deployment server for SHs)', explanation: 'Centralized app management' },
+                { spl: '[shclustering]\npass4SymmKey = your_secret_key\nreplication_factor = 2\nshcluster_label = shcluster1', explanation: 'Search head server.conf' }
+            ],
+            gotchas: [
+                'Minimum 3 search heads for proper captain election',
+                'Use deployer for apps, not individual SH configuration',
+                'Some apps are not cluster-compatible - check before deploying',
+                'Load balancer in front of SHC for user access'
+            ],
+            relatedCommands: ['architecture', 'indexer-cluster']
+        },
+        {
+            id: 'eng-btool',
+            name: 'btool',
+            category: 'engineering',
+            takeaway: 'Debug and validate Splunk configuration files',
+            what: 'Command-line tool to check effective configuration after layering (default → system/local → app). Shows which file provides each setting.',
+            why: 'Configuration problems are common. btool helps identify which file is setting (or overriding) a value and validates syntax.',
+            examples: [
+                { spl: './splunk btool props list myapp:logs --debug', explanation: 'Show all props.conf settings for a sourcetype with file locations' },
+                { spl: './splunk btool inputs list --debug | grep monitor', explanation: 'Find all monitor inputs and their source files' },
+                { spl: './splunk btool check', explanation: 'Validate all configuration files for syntax errors' }
+            ],
+            gotchas: [
+                '--debug shows file paths, essential for troubleshooting',
+                'btool shows effective config, not what you expect - helps find overrides',
+                'Run as splunk user to see correct file permissions',
+                'btool check finds syntax errors but not logic errors'
+            ],
+            relatedCommands: ['props.conf', 'transforms.conf', 'inputs.conf']
+        },
+        {
+            id: 'eng-license',
+            name: 'License Management',
+            category: 'engineering',
+            takeaway: 'Understand Splunk licensing based on daily indexed volume',
+            what: 'Splunk licenses are based on daily ingestion volume (GB/day). License manager tracks usage. Violations occur when you exceed your license for multiple days.',
+            why: 'License violations disable searching until resolved. Understanding licensing prevents unexpected outages and helps with capacity planning.',
+            examples: [
+                { spl: 'index=_internal source=*license_usage.log type=Usage | timechart span=1d sum(b) as bytes | eval GB=bytes/1024/1024/1024', explanation: 'Track daily license usage' },
+                { spl: 'License pools: Group licenses together. Stacking: Add multiple licenses for more capacity.', explanation: 'License management concepts' },
+                { spl: 'Violation: 5 warnings in 30-day window = search disabled until admin resets', explanation: 'Violation consequences' }
+            ],
+            gotchas: [
+                'Forwarder license is free (no indexing), Enterprise license required for indexers',
+                'Internal indexes (_internal, _audit) count toward license',
+                'Dev/Test licenses have lower limits - dont use in production',
+                'Monitor license usage trends to predict when you need more capacity'
+            ],
+            relatedCommands: ['architecture', 'indexes.conf']
+        }
     ]
 };
 
@@ -6781,10 +7041,13 @@ Object.keys(GLOSSARY_DATA).forEach((category) => {
 // ============================================
 
 let currentCategory = 'commands';
-let currentFilter = 'all';
-let currentFunctionFilter = 'all';
 let currentSearch = '';
 let currentView = 'categorized';
+
+// Multi-select filter states (empty Set = show all)
+let commandFilters = new Set();
+let functionFilters = new Set();
+let referenceFilters = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
     initGlossary();
@@ -6832,14 +7095,6 @@ function initGlossary() {
         }
     });
 
-    // Initialize filter
-    SPLUNKed.initFilter('purposeFilter', {
-        onChange: (value) => {
-            currentFilter = value;
-            renderGlossary();
-        }
-    });
-
     // Initialize view toggle
     SPLUNKed.initViewToggle('glossaryView', {
         storageKey: 'splunked-glossary-view',
@@ -6849,8 +7104,10 @@ function initGlossary() {
         }
     });
 
-    // Initialize function type filter
-    initFunctionTypeFilter();
+    // Initialize icon filters for each tab
+    initIconFilter('commandsFilter', commandFilters);
+    initIconFilter('functionsFilter', functionFilters);
+    initIconFilter('referenceFilter', referenceFilters);
 
     // Initialize modal
     SPLUNKed.initModal('glossaryModal');
@@ -6871,20 +7128,47 @@ function initGlossary() {
     }
 }
 
-function initFunctionTypeFilter() {
-    const filterContainer = document.getElementById('functionTypeFilter');
+// Unified icon filter initialization - supports multi-select toggle with "All" option
+function initIconFilter(containerId, filterSet) {
+    const filterContainer = document.getElementById(containerId);
     if (!filterContainer) return;
 
+    const allBtn = filterContainer.querySelector('[data-filter="all"]');
+
     filterContainer.addEventListener('click', (e) => {
-        const btn = e.target.closest('.filter-btn');
+        const btn = e.target.closest('.icon-filter-btn');
         if (!btn) return;
 
-        // Update active state
-        filterContainer.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        const filterValue = btn.dataset.filter;
 
-        // Update filter and re-render
-        currentFunctionFilter = btn.dataset.filter;
+        if (filterValue === 'all') {
+            // "All" clicked - clear all filters and activate only "All"
+            filterSet.clear();
+            filterContainer.querySelectorAll('.icon-filter-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.filter === 'all');
+            });
+        } else {
+            // Specific filter clicked - toggle it
+            if (filterSet.has(filterValue)) {
+                filterSet.delete(filterValue);
+                btn.classList.remove('active');
+            } else {
+                filterSet.add(filterValue);
+                btn.classList.add('active');
+            }
+
+            // Update "All" button state
+            if (allBtn) {
+                if (filterSet.size === 0) {
+                    // No filters selected - activate "All"
+                    allBtn.classList.add('active');
+                } else {
+                    // Some filters selected - deactivate "All"
+                    allBtn.classList.remove('active');
+                }
+            }
+        }
+
         renderGlossary();
     });
 }
@@ -6961,30 +7245,34 @@ function createCategoryInfoHTML(tab) {
 
 function filterEntries(entries) {
     return entries.filter(entry => {
-        // Filter by function type (for Functions tab)
-        if (currentCategory === 'functions' && currentFunctionFilter !== 'all') {
-            const entryCategory = entry._sourceCategory || entry.category;
-            if (currentFunctionFilter === 'eval' && entryCategory !== 'functions') {
-                return false;
-            }
-            if (currentFunctionFilter === 'stats' && entryCategory !== 'statsFunctions') {
+        // Multi-select filtering based on current tab
+        // Empty filter set = show all
+
+        // Commands tab: filter by pipeline stage (purpose)
+        if (currentCategory === 'commands' && commandFilters.size > 0) {
+            if (!entry.purpose || !commandFilters.has(entry.purpose)) {
                 return false;
             }
         }
 
-        // Filter by purpose (for commands) or show all (for other categories)
-        if (currentFilter !== 'all') {
-            if (entry.purpose) {
-                // If this is a command purpose, filter by it
-                if (PURPOSE_LABELS[entry.purpose]) {
-                    if (entry.purpose !== currentFilter) {
-                        return false;
-                    }
-                }
-                // If this is a function purpose, pass through when command filter is active
-                // (functions have different purpose categories than commands)
+        // Functions tab: filter by function type (eval/stats)
+        if (currentCategory === 'functions' && functionFilters.size > 0) {
+            const entryCategory = entry._sourceCategory || entry.category;
+            // Map filter values to source categories
+            const filterMatches =
+                (functionFilters.has('eval') && entryCategory === 'functions') ||
+                (functionFilters.has('stats') && entryCategory === 'statsFunctions');
+            if (!filterMatches) {
+                return false;
             }
-            // Entries without purpose pass through
+        }
+
+        // Reference tab: filter by subcategory
+        if (currentCategory === 'reference' && referenceFilters.size > 0) {
+            const entryCategory = entry._sourceCategory || entry.category;
+            if (!referenceFilters.has(entryCategory)) {
+                return false;
+            }
         }
 
         // Filter by search
@@ -7008,40 +7296,63 @@ function filterEntries(entries) {
     });
 }
 
+// Unified icon mapping for all card categories
+const CARD_ICONS = {
+    // Command pipeline stages
+    get: { icon: '↓', label: 'Get data' },
+    filter: { icon: '⧩', label: 'Filter' },
+    transform: { icon: '⟳', label: 'Transform' },
+    aggregate: { icon: 'Σ', label: 'Aggregate' },
+    combine: { icon: '⊕', label: 'Combine' },
+    output: { icon: '▤', label: 'Output' },
+    // Function types
+    functions: { icon: 'ƒ', label: 'Eval Function' },
+    statsFunctions: { icon: '∑', label: 'Stats Function' },
+    // Reference categories
+    fields: { icon: '⬚', label: 'Field' },
+    concepts: { icon: '◆', label: 'Concept' },
+    cim: { icon: '⧉', label: 'CIM' },
+    extractions: { icon: '⋔', label: 'Extraction' },
+    macros: { icon: '{ }', label: 'Macro' },
+    engineering: { icon: '⚙', label: 'Engineering' },
+    // Antipatterns
+    antipatterns: { icon: '⚠', label: 'Pitfall' }
+};
+
 function createCardHTML(entry, showSubcategory = false) {
     const experimentalBadge = entry.experimental
         ? '<span class="experimental-badge">Test</span>'
         : '';
 
-    // Use purpose badge for commands only (not functions - they cause overflow)
-    let badge = '';
-    if (entry.purpose && PURPOSE_LABELS[entry.purpose]) {
-        badge = `<span class="purpose-badge ${entry.purpose}">${PURPOSE_LABELS[entry.purpose]}</span>`;
-    }
-
-    // Show function type badge for functions
-    let fnTypeBadge = '';
+    // Determine the icon key based on entry type
     const entryCategory = entry._sourceCategory || entry.category;
-    if (entryCategory === 'functions') {
-        fnTypeBadge = '<span class="fn-type-badge eval">Eval</span>';
-    } else if (entryCategory === 'statsFunctions') {
-        fnTypeBadge = '<span class="fn-type-badge stats">Stats</span>';
+    let iconKey = null;
+    let iconClass = '';
+
+    // Commands use purpose (pipeline stage)
+    if (entry.purpose && CARD_ICONS[entry.purpose]) {
+        iconKey = entry.purpose;
+        iconClass = entry.purpose;
+    }
+    // Other categories use source category
+    else if (CARD_ICONS[entryCategory]) {
+        iconKey = entryCategory;
+        iconClass = entryCategory;
     }
 
-    // Show subcategory badge for reference tab items (not functions - they have fn-type-badge)
-    let subcategoryBadge = '';
-    if (showSubcategory && !fnTypeBadge && entry._sourceCategory && SUBCATEGORY_LABELS[entry._sourceCategory]) {
-        subcategoryBadge = `<span class="subcategory-badge">${SUBCATEGORY_LABELS[entry._sourceCategory]}</span>`;
+    // Build the card icon (positioned absolutely in top-right)
+    let cardIcon = '';
+    if (iconKey && CARD_ICONS[iconKey]) {
+        const { icon, label } = CARD_ICONS[iconKey];
+        cardIcon = `<span class="card-icon ${iconClass}" title="${label}">${icon}</span>`;
     }
 
     return `
         <div class="glossary-card" data-id="${entry.id}" data-category="${entry.category}">
+            ${cardIcon}
             <div class="glossary-card-header">
                 <code class="glossary-name">${escapeHtml(entry.name)}</code>
                 ${experimentalBadge}
-                ${subcategoryBadge}
-                ${badge}
-                ${fnTypeBadge}
             </div>
             <p class="glossary-takeaway">${escapeHtml(entry.takeaway)}</p>
         </div>

@@ -66,6 +66,233 @@ const TRAINING_DATA = {
             }
         },
         {
+            id: 'found-006',
+            title: 'Indexes, Sourcetypes, and Finding Your Data',
+            type: 'tutorial',
+            difficulty: 'beginner',
+            duration: '15 min',
+            objectives: [
+                'Understand how Splunk organizes data',
+                'Choose the right index and sourcetype for your search',
+                'Use metadata commands to explore available data'
+            ],
+            tags: ['basics', 'indexes', 'sourcetypes', 'metadata'],
+            description: 'Learn how Splunk organizes data so you know where to look before you search.',
+            content: {
+                sections: [
+                    {
+                        title: 'The Data Hierarchy',
+                        body: `<p>Splunk organizes data in a hierarchy:</p>
+                        <ul>
+                            <li><strong>Index</strong> — A repository of data (like a database). Examples: security, web, firewall</li>
+                            <li><strong>Sourcetype</strong> — The format/type of data. Examples: syslog, access_combined, WinEventLog</li>
+                            <li><strong>Source</strong> — Where the data came from. Examples: /var/log/messages, UDP:514</li>
+                            <li><strong>Host</strong> — The machine that generated the data</li>
+                        </ul>
+                        <p>Every event has these four metadata fields. Using them makes searches faster and more accurate.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'Why Indexes Matter',
+                        body: `<p>Indexes are the most important search filter. Specifying an index:</p>
+                        <ul>
+                            <li><strong>Speeds up searches</strong> — Splunk only looks in that index</li>
+                            <li><strong>Reduces noise</strong> — You won't see unrelated events</li>
+                            <li><strong>Respects permissions</strong> — You may only have access to certain indexes</li>
+                        </ul>
+                        <p><span style="color: #e74c3c;">Never use</span> <code>index=*</code> in production — it's slow and returns overwhelming results.</p>`,
+                        spl: 'index=security earliest=-1h | stats count by sourcetype',
+                        explanation: 'Searches only the security index and shows what sourcetypes are present in the last hour.'
+                    },
+                    {
+                        title: 'Common Security Indexes',
+                        body: `<p>Typical index organization in a SOC environment:</p>
+                        <table style="width:100%; border-collapse: collapse; margin: 10px 0;">
+                            <tr style="background: rgba(255,255,255,0.1);"><td style="padding:8px; border:1px solid #444;"><strong>Index</strong></td><td style="padding:8px; border:1px solid #444;"><strong>Contains</strong></td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">wineventlog</td><td style="padding:8px; border:1px solid #444;">Windows Security, System, Application logs</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">linux_secure</td><td style="padding:8px; border:1px solid #444;">Linux authentication, sudo, SSH</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">firewall</td><td style="padding:8px; border:1px solid #444;">Network traffic, blocked/allowed connections</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">proxy</td><td style="padding:8px; border:1px solid #444;">Web proxy logs, URL filtering</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">web</td><td style="padding:8px; border:1px solid #444;">Web server access logs</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">dns</td><td style="padding:8px; border:1px solid #444;">DNS queries and responses</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">sysmon</td><td style="padding:8px; border:1px solid #444;">Endpoint process, network, file events</td></tr>
+                        </table>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'Sourcetypes Identify Format',
+                        body: `<p>The sourcetype tells Splunk how to parse the data. Different sourcetypes have different fields automatically extracted:</p>
+                        <ul>
+                            <li><code>WinEventLog:Security</code> — Has EventCode, TargetUserName, LogonType</li>
+                            <li><code>access_combined</code> — Has status, uri_path, method, bytes</li>
+                            <li><code>syslog</code> — Has facility, severity, process</li>
+                        </ul>`,
+                        spl: 'index=wineventlog sourcetype="WinEventLog:Security" EventCode=4625 | head 5 | table _time, EventCode, TargetUserName, IpAddress',
+                        explanation: 'Using both index and sourcetype focuses on Windows Security events, where EventCode and TargetUserName are pre-extracted.'
+                    },
+                    {
+                        title: 'Discovering Available Indexes',
+                        body: `<p>Use the <code>eventcount</code> command or <code>| metadata</code> to explore what data exists:</p>`,
+                        spl: '| eventcount summarize=false index=* | table index, count | sort -count',
+                        explanation: 'Shows all indexes you have access to and how many events are in each.'
+                    },
+                    {
+                        title: 'Exploring Sourcetypes',
+                        body: `<p>Once you pick an index, see what sourcetypes it contains:</p>`,
+                        spl: '| metadata type=sourcetypes index=security | table sourcetype, totalCount, recentTime | sort -totalCount',
+                        explanation: 'Lists all sourcetypes in the security index with event counts and last event time.'
+                    },
+                    {
+                        title: 'Discovering Fields',
+                        body: `<p>When you encounter a new sourcetype, explore what fields are available:</p>
+                        <ul>
+                            <li><code>| fieldsummary</code> — Shows all fields with statistics</li>
+                            <li><code>| fields</code> — Lists available fields</li>
+                            <li>Click "All Fields" in the Splunk UI sidebar</li>
+                        </ul>`,
+                        spl: 'index=firewall sourcetype=pan:traffic | head 1000 | fieldsummary | where count > 500 | table field, count, distinct_count | sort -count',
+                        explanation: 'Analyzes 1000 firewall events to find commonly-populated fields. Fields appearing in most events are likely the most useful.'
+                    },
+                    {
+                        title: 'The _raw and _time Fields',
+                        body: `<p>Two special fields exist in every event:</p>
+                        <ul>
+                            <li><code>_raw</code> — The complete original event text</li>
+                            <li><code>_time</code> — The timestamp (in epoch seconds)</li>
+                        </ul>
+                        <p>When automatic field extraction fails, you can always parse <code>_raw</code> with rex.</p>`,
+                        spl: 'index=linux_secure | head 1 | table _time, _raw',
+                        explanation: 'Shows the raw event exactly as it was ingested, plus the parsed timestamp.'
+                    },
+                    {
+                        title: 'Building Your Search Strategy',
+                        body: `<p>When starting an investigation:</p>
+                        <ol>
+                            <li><strong>Identify the data type</strong> — Authentication? Network? Endpoint?</li>
+                            <li><strong>Find the index</strong> — Use eventcount or ask your Splunk admin</li>
+                            <li><strong>Check the sourcetype</strong> — Different vendors have different formats</li>
+                            <li><strong>Explore the fields</strong> — Use fieldsummary to understand what's available</li>
+                            <li><strong>Write your search</strong> — Start specific: index + sourcetype + key fields</li>
+                        </ol>`,
+                        spl: 'index=wineventlog sourcetype="WinEventLog:Security" | stats count by EventCode | sort -count | head 20',
+                        explanation: 'A good first search: pick your index and sourcetype, then see what event types are most common.'
+                    }
+                ]
+            }
+        },
+        {
+            id: 'found-007',
+            title: 'Search Syntax Essentials',
+            type: 'tutorial',
+            difficulty: 'beginner',
+            duration: '15 min',
+            objectives: [
+                'Combine search terms with AND, OR, NOT correctly',
+                'Use wildcards and quotes for precise matching',
+                'Avoid common syntax mistakes that return wrong results'
+            ],
+            tags: ['basics', 'syntax', 'boolean', 'search'],
+            description: 'Master the fundamentals of SPL search syntax to write accurate, efficient queries.',
+            content: {
+                sections: [
+                    {
+                        title: 'Implicit AND',
+                        body: `<p>When you write multiple terms in a search, Splunk treats them as AND by default:</p>
+                        <pre>index=security failed password</pre>
+                        <p>This finds events containing "failed" AND "password". Both terms must appear.</p>
+                        <p><strong>Important:</strong> Spaces between terms mean AND. You don't need to write it explicitly.</p>`,
+                        spl: 'index=security failed login | head 10',
+                        explanation: 'Finds events containing both "failed" AND "login" in the security index.'
+                    },
+                    {
+                        title: 'Using OR',
+                        body: `<p>Use OR to match any of several terms. <strong>Critical:</strong> OR has lower precedence than AND, so use parentheses!</p>
+                        <p><span style="color: #e74c3c;">✗ Wrong:</span> <code>index=web status=404 OR 500</code> — This means (index=web AND status=404) OR (500 anywhere)</p>
+                        <p><span style="color: #27ae60;">✓ Right:</span> <code>index=web (status=404 OR status=500)</code> — This correctly finds 404 or 500 status codes</p>`,
+                        spl: 'index=web (status=404 OR status=500 OR status=503) | stats count by status',
+                        explanation: 'Parentheses group the OR conditions, so all three status codes are checked against the status field.'
+                    },
+                    {
+                        title: 'Using NOT',
+                        body: `<p>Exclude events with NOT. You can also use != for field values:</p>
+                        <ul>
+                            <li><code>NOT error</code> — Exclude events containing "error"</li>
+                            <li><code>status!=200</code> — Exclude status code 200</li>
+                            <li><code>NOT (status=200 OR status=304)</code> — Exclude successful responses</li>
+                        </ul>`,
+                        spl: 'index=web NOT status=200 NOT status=304 | stats count by status | sort -count',
+                        explanation: 'Shows all non-successful HTTP responses by excluding 200 (OK) and 304 (Not Modified).'
+                    },
+                    {
+                        title: 'Wildcards',
+                        body: `<p>The asterisk <code>*</code> matches any characters:</p>
+                        <ul>
+                            <li><code>fail*</code> — Matches fail, failed, failure, failing</li>
+                            <li><code>*.exe</code> — Matches any .exe filename</li>
+                            <li><code>10.0.0.*</code> — Matches any IP in the 10.0.0.x subnet</li>
+                            <li><code>*admin*</code> — Matches anything containing "admin"</li>
+                        </ul>
+                        <p><strong>Performance tip:</strong> Leading wildcards (<code>*admin</code>) are slower than trailing wildcards (<code>admin*</code>).</p>`,
+                        spl: 'index=wineventlog user=*admin* | stats count by user',
+                        explanation: 'Finds all events where the user field contains "admin" anywhere in the value.'
+                    },
+                    {
+                        title: 'Exact Phrases with Quotes',
+                        body: `<p>Use double quotes to search for exact phrases:</p>
+                        <ul>
+                            <li><code>"failed login"</code> — Exact phrase match</li>
+                            <li><code>"192.168.1.1"</code> — Treats dots as literal (not wildcards)</li>
+                            <li><code>error message</code> — Two separate words (both must appear, any order)</li>
+                            <li><code>"error message"</code> — Exact phrase in that order</li>
+                        </ul>`,
+                        spl: 'index=linux_secure "authentication failure" | stats count by host',
+                        explanation: 'Finds the exact phrase "authentication failure" — not events with just "authentication" or just "failure".'
+                    },
+                    {
+                        title: 'Field-Value Syntax',
+                        body: `<p>Always use <code>field=value</code> when searching specific fields. This is faster and more accurate than free-text search.</p>
+                        <ul>
+                            <li><code>status=404</code> — Field equals value</li>
+                            <li><code>status!=404</code> — Field not equal to value</li>
+                            <li><code>status>399</code> — Numeric comparison</li>
+                            <li><code>status IN (400, 401, 403, 404)</code> — Match any in list</li>
+                        </ul>`,
+                        spl: 'index=firewall action=blocked dest_port IN (22, 23, 3389) | stats count by src_ip, dest_port',
+                        explanation: 'Finds blocked connections to sensitive ports (SSH, Telnet, RDP) using field=value syntax and IN operator.'
+                    },
+                    {
+                        title: 'Case Sensitivity',
+                        body: `<p>By default, Splunk searches are <strong>case-insensitive</strong> for text matching:</p>
+                        <ul>
+                            <li><code>error</code> matches "Error", "ERROR", "error"</li>
+                            <li>Field names are always case-sensitive: <code>Status</code> ≠ <code>status</code></li>
+                            <li>Use <code>| where</code> for case-sensitive matching if needed</li>
+                        </ul>`,
+                        spl: 'index=app_logs | where match(message, "ERROR") | head 10',
+                        explanation: 'The where command with match() provides case-sensitive searching when needed.'
+                    },
+                    {
+                        title: 'Common Mistakes to Avoid',
+                        body: `<p><strong>Mistake 1:</strong> Forgetting parentheses with OR</p>
+                        <pre style="color: #e74c3c;">index=web status=200 OR status=404</pre>
+                        <p>This actually means: (index=web AND status=200) OR (status=404 in any index)</p>
+
+                        <p><strong>Mistake 2:</strong> Using AND explicitly when not needed</p>
+                        <pre>index=web AND status=404 AND host=web01</pre>
+                        <p>Works, but <code>index=web status=404 host=web01</code> is cleaner.</p>
+
+                        <p><strong>Mistake 3:</strong> Wildcards in quotes</p>
+                        <pre style="color: #e74c3c;">"user=admin*"</pre>
+                        <p>The * is treated literally inside quotes. Use: <code>user=admin*</code></p>`,
+                        spl: null,
+                        explanation: null
+                    }
+                ]
+            }
+        },
+        {
             id: 'found-002',
             title: 'Understanding Time in Splunk',
             type: 'tutorial',
@@ -116,6 +343,198 @@ const TRAINING_DATA = {
                         body: `<p>Compare current data to historical baselines using time modifiers in subsearches or append.</p>`,
                         spl: 'index=web | timechart span=1h count | appendcols [search index=web earliest=-7d@d latest=-6d@d | timechart span=1h count | rename count as "Last Week"]',
                         explanation: 'Compare current hourly traffic to the same period last week.'
+                    }
+                ]
+            }
+        },
+        {
+            id: 'found-008',
+            title: 'Creating Fields with Eval',
+            type: 'tutorial',
+            difficulty: 'beginner',
+            duration: '20 min',
+            objectives: [
+                'Create calculated fields from existing data',
+                'Use conditional logic with if and case',
+                'Apply common eval functions for data transformation'
+            ],
+            tags: ['basics', 'eval', 'calculated-fields', 'functions'],
+            description: 'Learn to transform, calculate, and enrich your data using the versatile eval command.',
+            content: {
+                sections: [
+                    {
+                        title: 'What is Eval?',
+                        body: `<p>The <code>eval</code> command creates new fields or modifies existing ones using expressions. It's one of the most frequently used SPL commands.</p>
+                        <pre>| eval new_field = expression</pre>
+                        <p>The expression can include math, string operations, conditionals, and functions.</p>`,
+                        spl: 'index=firewall | eval total_bytes = bytes_in + bytes_out | table src_ip, bytes_in, bytes_out, total_bytes',
+                        explanation: 'Creates a new field "total_bytes" by adding bytes_in and bytes_out together.'
+                    },
+                    {
+                        title: 'Basic Math Operations',
+                        body: `<p>Eval supports standard arithmetic:</p>
+                        <ul>
+                            <li><code>+</code> Addition</li>
+                            <li><code>-</code> Subtraction</li>
+                            <li><code>*</code> Multiplication</li>
+                            <li><code>/</code> Division</li>
+                            <li><code>%</code> Modulo (remainder)</li>
+                        </ul>`,
+                        spl: 'index=firewall | eval mb_out = round(bytes_out / 1024 / 1024, 2) | eval transfer_ratio = round(bytes_out / bytes_in, 2) | table src_ip, mb_out, transfer_ratio',
+                        explanation: 'Converts bytes to megabytes and calculates the ratio of outbound to inbound traffic.'
+                    },
+                    {
+                        title: 'The if() Function',
+                        body: `<p>Create conditional values with <code>if(condition, true_value, false_value)</code>:</p>`,
+                        spl: 'index=web | eval status_type = if(status >= 400, "error", "success") | stats count by status_type',
+                        explanation: 'Labels each request as "error" or "success" based on HTTP status code, then counts each category.'
+                    },
+                    {
+                        title: 'The case() Function',
+                        body: `<p>For multiple conditions, use <code>case()</code> instead of nested if statements:</p>
+                        <pre>case(condition1, value1, condition2, value2, ..., true(), default)</pre>
+                        <p>Conditions are evaluated in order. Use <code>true()</code> as the final condition for a default value.</p>`,
+                        spl: 'index=web | eval status_category = case(status < 300, "success", status < 400, "redirect", status < 500, "client_error", status >= 500, "server_error", true(), "unknown") | stats count by status_category',
+                        explanation: 'Categorizes HTTP status codes into descriptive groups using multiple conditions.'
+                    },
+                    {
+                        title: 'String Functions',
+                        body: `<p>Common string manipulation functions:</p>
+                        <ul>
+                            <li><code>lower(x)</code> / <code>upper(x)</code> — Change case</li>
+                            <li><code>len(x)</code> — String length</li>
+                            <li><code>substr(x, start, length)</code> — Extract substring</li>
+                            <li><code>replace(x, old, new)</code> — Replace text</li>
+                            <li><code>split(x, delim)</code> — Split into multivalue</li>
+                            <li><code>trim(x)</code> / <code>ltrim(x)</code> / <code>rtrim(x)</code> — Remove whitespace</li>
+                        </ul>`,
+                        spl: 'index=web | eval domain = lower(host) | eval short_uri = substr(uri_path, 1, 30) | table domain, short_uri, status',
+                        explanation: 'Normalizes hostname to lowercase and truncates long URIs for cleaner output.'
+                    },
+                    {
+                        title: 'Working with Time',
+                        body: `<p>Time functions are essential for SOC analysis:</p>
+                        <ul>
+                            <li><code>now()</code> — Current timestamp</li>
+                            <li><code>strftime(_time, format)</code> — Format timestamp as string</li>
+                            <li><code>strptime(string, format)</code> — Parse string to timestamp</li>
+                            <li><code>relative_time(time, modifier)</code> — Calculate relative time</li>
+                        </ul>`,
+                        spl: 'index=vpn | eval hour = strftime(_time, "%H") | eval day = strftime(_time, "%A") | eval age_hours = round((now() - _time) / 3600, 1) | table user, day, hour, age_hours',
+                        explanation: 'Extracts the hour and day name from event time, and calculates how many hours ago the event occurred.'
+                    },
+                    {
+                        title: 'Null and Coalesce',
+                        body: `<p>Handle missing values gracefully:</p>
+                        <ul>
+                            <li><code>isnull(x)</code> — Returns true if field is null</li>
+                            <li><code>isnotnull(x)</code> — Returns true if field has a value</li>
+                            <li><code>coalesce(x, y, z)</code> — Returns first non-null value</li>
+                            <li><code>nullif(x, y)</code> — Returns null if x equals y</li>
+                        </ul>`,
+                        spl: 'index=firewall | eval src_host = coalesce(src_hostname, src_ip, "unknown") | stats count by src_host',
+                        explanation: 'Uses hostname if available, falls back to IP, then to "unknown" if both are missing.'
+                    },
+                    {
+                        title: 'Multiple Eval Statements',
+                        body: `<p>You can chain multiple assignments in one eval using commas, or use separate eval commands:</p>`,
+                        spl: 'index=firewall | eval mb_in = round(bytes_in/1024/1024, 2), mb_out = round(bytes_out/1024/1024, 2), direction = if(mb_out > mb_in, "outbound", "inbound") | table src_ip, mb_in, mb_out, direction',
+                        explanation: 'Creates three new fields in a single eval command, with the third field depending on the first two.'
+                    },
+                    {
+                        title: 'Type Conversion',
+                        body: `<p>Convert between types when needed:</p>
+                        <ul>
+                            <li><code>tonumber(x)</code> — Convert to number</li>
+                            <li><code>tostring(x)</code> — Convert to string</li>
+                            <li><code>tostring(x, "hex")</code> — Convert to hexadecimal</li>
+                            <li><code>tostring(x, "commas")</code> — Number with comma separators</li>
+                        </ul>`,
+                        spl: 'index=firewall | stats sum(bytes_out) as total_bytes by src_ip | eval formatted = tostring(total_bytes, "commas") | eval hex_bytes = tostring(total_bytes, "hex") | table src_ip, formatted, hex_bytes',
+                        explanation: 'Demonstrates formatting numbers with commas for readability and converting to hexadecimal.'
+                    }
+                ]
+            }
+        },
+        {
+            id: 'found-009',
+            title: 'Extracting Fields with Rex',
+            type: 'tutorial',
+            difficulty: 'beginner',
+            duration: '25 min',
+            objectives: [
+                'Write basic regex patterns for common data types',
+                'Use rex to create new fields from raw events',
+                'Handle multiple captures and optional matches'
+            ],
+            tags: ['basics', 'rex', 'regex', 'field-extraction'],
+            description: 'Learn to parse unstructured log data and extract the fields you need using regular expressions.',
+            content: {
+                sections: [
+                    {
+                        title: 'Why Field Extraction Matters',
+                        body: `<p>Not all data arrives with neat, pre-defined fields. Many logs come as raw text that Splunk can't automatically parse. The <code>rex</code> command lets you extract specific values using regular expressions (regex).</p>
+                        <p>As a SOC analyst, you'll encounter logs from custom applications, legacy systems, and edge devices that require manual field extraction. Mastering rex is essential.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'Basic Rex Syntax',
+                        body: `<p>The rex command uses named capture groups to create fields:</p>
+                        <pre>| rex field=_raw "(?&lt;field_name&gt;pattern)"</pre>
+                        <p>The <code>(?&lt;name&gt;...)</code> syntax captures whatever matches the pattern inside and assigns it to a field called "name".</p>`,
+                        spl: 'index=web | rex field=_raw "(?<client_ip>\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})" | table _time, client_ip, _raw',
+                        explanation: 'This extracts an IP address pattern (4 groups of 1-3 digits separated by dots) into a field called client_ip.'
+                    },
+                    {
+                        title: 'Common Extraction Patterns',
+                        body: `<p>Memorize these building blocks:</p>
+                        <ul>
+                            <li><code>\\d+</code> — One or more digits</li>
+                            <li><code>\\w+</code> — One or more word characters (letters, digits, underscore)</li>
+                            <li><code>[^\\s]+</code> — One or more non-whitespace characters</li>
+                            <li><code>[^"]+</code> — Everything until a quote (useful for quoted strings)</li>
+                            <li><code>.*?</code> — Any characters (non-greedy)</li>
+                        </ul>`,
+                        spl: 'index=linux_secure | rex field=_raw "user=(?<username>\\w+)" | rex field=_raw "src=(?<source_ip>[^\\s]+)" | stats count by username, source_ip',
+                        explanation: 'Extracts username after "user=" and source IP after "src=" from Linux auth logs.'
+                    },
+                    {
+                        title: 'Extracting from Structured Patterns',
+                        body: `<p>Most logs follow patterns. Use literal text as anchors to find what you need:</p>
+                        <p>Example log: <code>2024-01-15 10:23:45 ERROR [AuthService] Failed login for user "jsmith" from 192.168.1.50</code></p>`,
+                        spl: 'index=app_logs | rex field=_raw "\\[(?<service>\\w+)\\].*user \\"(?<user>[^\\"]+)\\".*from (?<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)" | table _time, service, user, src_ip',
+                        explanation: 'We anchor on "[" for service name, "user \\"" for username (note the escaped quotes), and "from " for the IP address.'
+                    },
+                    {
+                        title: 'Multiple Captures in One Rex',
+                        body: `<p>You can capture multiple fields in a single rex command. This is more efficient than multiple rex commands.</p>`,
+                        spl: 'index=firewall | rex field=_raw "src=(?<src_ip>[^\\s]+)\\s+dst=(?<dst_ip>[^\\s]+)\\s+proto=(?<protocol>\\w+)\\s+action=(?<action>\\w+)" | stats count by src_ip, dst_ip, protocol, action',
+                        explanation: 'Extracts four fields in one pass: source IP, destination IP, protocol, and action from firewall logs.'
+                    },
+                    {
+                        title: 'Handling Optional Fields',
+                        body: `<p>Some fields may not appear in every event. Use <code>?</code> to make parts optional:</p>
+                        <ul>
+                            <li><code>(?:pattern)?</code> — Makes an entire group optional</li>
+                            <li><code>pattern*</code> — Zero or more occurrences</li>
+                        </ul>`,
+                        spl: 'index=web | rex field=_raw "status=(?<status>\\d+)(?:\\s+bytes=(?<bytes>\\d+))?" | table status, bytes',
+                        explanation: 'Status is always captured, but bytes is optional — it will be null if not present in the event.'
+                    },
+                    {
+                        title: 'Rex in sed Mode',
+                        body: `<p>Rex can also replace text using <code>mode=sed</code>. This is useful for masking sensitive data or cleaning up fields:</p>`,
+                        spl: 'index=app_logs | rex field=_raw mode=sed "s/password=\\S+/password=REDACTED/g" | table _raw',
+                        explanation: 'Replaces any password value with "REDACTED" using sed-style substitution.'
+                    },
+                    {
+                        title: 'Practice: Parse a Complex Log',
+                        body: `<p>Given this Apache access log format:</p>
+                        <pre>192.168.1.50 - jsmith [15/Jan/2024:10:23:45 -0500] "GET /api/users HTTP/1.1" 200 1234</pre>
+                        <p>Extract: client IP, username, HTTP method, URI path, status code, and response size.</p>`,
+                        spl: 'index=web sourcetype=access_combined | rex field=_raw "^(?<client_ip>\\S+)\\s+\\S+\\s+(?<user>\\S+)\\s+\\[[^\\]]+\\]\\s+\\"(?<method>\\w+)\\s+(?<uri>\\S+)[^\\"]*\\"\\s+(?<status>\\d+)\\s+(?<bytes>\\d+)" | table client_ip, user, method, uri, status, bytes',
+                        explanation: 'A complete Apache log parser. Each field is anchored by the known log structure: IP first, then dash, username, bracketed timestamp, quoted request line, status, and bytes.'
                     }
                 ]
             }
@@ -252,6 +671,55 @@ const TRAINING_DATA = {
                     {
                         description: 'Find connections lasting longer than 1 hour (3600 seconds):',
                         spl: 'index=firewall | where duration > 3600'
+                    }
+                ]
+            }
+        },
+        {
+            id: 'found-010',
+            title: 'Formatting Results with Table and Fields',
+            type: 'challenge',
+            difficulty: 'beginner',
+            duration: '10 min',
+            objectives: [
+                'Select specific fields for output',
+                'Rename fields for clarity',
+                'Remove unwanted fields and control display order'
+            ],
+            tags: ['basics', 'table', 'fields', 'output', 'rename'],
+            description: 'Learn to present your search results clearly using table, fields, and rename.',
+            content: {
+                problem: 'You\'ve found suspicious VPN logins and need to create a clean report for your manager. Starting with VPN events, create a table showing: the time (formatted nicely), username, source country, source IP, and connection duration in minutes. Rename the columns to be human-readable.',
+                hints: [
+                    'Use | table to select and order specific fields',
+                    'Use | rename to change field names (rename old AS new)',
+                    'Use | eval to format time with strftime() and calculate duration',
+                    'The fields command can also remove unwanted fields with a minus sign'
+                ],
+                solution: {
+                    spl: `index=vpn action=connect
+| eval login_time = strftime(_time, "%Y-%m-%d %H:%M")
+| eval duration_min = round(duration / 60, 1)
+| table login_time, user, src_country, src_ip, duration_min
+| rename login_time AS "Login Time", user AS "Username", src_country AS "Country", src_ip AS "Source IP", duration_min AS "Duration (min)"`,
+                    explanation: 'First, we format the timestamp and calculate duration in minutes using eval. Then table selects exactly which fields to show and in what order. Finally, rename gives each column a business-friendly name for the report.'
+                },
+                variations: [
+                    {
+                        description: 'Keep only specific fields and remove all others (for performance):',
+                        spl: 'index=firewall | fields src_ip, dest_ip, dest_port, action, bytes_out | head 100'
+                    },
+                    {
+                        description: 'Remove specific fields while keeping everything else:',
+                        spl: 'index=web | fields - _raw, _time, linecount, splunk_server | head 100'
+                    },
+                    {
+                        description: 'Rename multiple fields in one command:',
+                        spl: 'index=firewall | stats sum(bytes_in) as bytes_in, sum(bytes_out) as bytes_out by src_ip | rename bytes_in AS "Bytes Received", bytes_out AS "Bytes Sent", src_ip AS "Source IP"'
+                    },
+                    {
+                        description: 'Combine sort, head, and table for a "Top N" report:',
+                        spl: 'index=web status>=400 | stats count as errors by uri_path, status | sort -errors | head 10 | rename uri_path AS "URL Path", errors AS "Error Count", status AS "HTTP Status"'
                     }
                 ]
             }
@@ -1210,10 +1678,21 @@ index=* | eval threat_indicator=if(match(src_ip, "185\\.220\\..*") OR match(dest
 // ============================================
 
 let currentTab = 'foundations';
-let currentFilters = { type: 'all', domain: 'all', search: '' };
+let currentSearch = '';
 let currentModalData = null;
 let currentScenarioStep = 0;
 let revealedHints = new Set();
+
+// Multi-select filter states (empty Set = show all)
+let typeFilters = new Set();
+let domainFilters = new Set();
+
+// Unified icon mapping for training cards
+const CARD_ICONS = {
+    tutorial: { icon: '▷', label: 'Tutorial' },
+    scenario: { icon: '◎', label: 'Scenario' },
+    challenge: { icon: '★', label: 'Challenge' }
+};
 
 // ============================================
 // Initialization
@@ -1279,29 +1758,62 @@ function updatePanelVisibility() {
 // ============================================
 
 function initFilters() {
-    const typeFilter = document.getElementById('typeFilter');
-    const domainFilter = document.getElementById('domainFilter');
+    // Initialize type filter
+    initIconFilter('typeFilter', typeFilters);
+    // Initialize domain filter
+    initIconFilter('domainFilter', domainFilters);
+}
 
-    if (typeFilter) {
-        typeFilter.addEventListener('change', (e) => {
-            currentFilters.type = e.target.value;
-            renderCurrentTab();
-        });
-    }
+// Unified icon filter initialization - supports multi-select toggle with "All" option
+function initIconFilter(containerId, filterSet) {
+    const filterContainer = document.getElementById(containerId);
+    if (!filterContainer) return;
 
-    if (domainFilter) {
-        domainFilter.addEventListener('change', (e) => {
-            currentFilters.domain = e.target.value;
-            renderCurrentTab();
-        });
-    }
+    const allBtn = filterContainer.querySelector('[data-filter="all"]');
+
+    filterContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.icon-filter-btn');
+        if (!btn) return;
+
+        const filterValue = btn.dataset.filter;
+
+        if (filterValue === 'all') {
+            // "All" clicked - clear all filters and activate only "All"
+            filterSet.clear();
+            filterContainer.querySelectorAll('.icon-filter-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.filter === 'all');
+            });
+        } else {
+            // Specific filter clicked - toggle it
+            if (filterSet.has(filterValue)) {
+                filterSet.delete(filterValue);
+                btn.classList.remove('active');
+            } else {
+                filterSet.add(filterValue);
+                btn.classList.add('active');
+            }
+
+            // Update "All" button state
+            if (allBtn) {
+                if (filterSet.size === 0) {
+                    // No filters selected - activate "All"
+                    allBtn.classList.add('active');
+                } else {
+                    // Some filters selected - deactivate "All"
+                    allBtn.classList.remove('active');
+                }
+            }
+        }
+
+        renderCurrentTab();
+    });
 }
 
 function initSearch() {
     const searchInput = document.getElementById('trainingSearch');
     if (searchInput) {
         searchInput.addEventListener('input', debounce((e) => {
-            currentFilters.search = e.target.value.toLowerCase();
+            currentSearch = e.target.value.toLowerCase();
             renderCurrentTab();
         }, 200));
     }
@@ -1351,23 +1863,30 @@ function renderCurrentTab() {
 
 function filterModules(modules) {
     return modules.filter(module => {
-        // Type filter
-        if (currentFilters.type !== 'all' && module.type !== currentFilters.type) {
+        // Type filter (multi-select: empty = show all)
+        if (typeFilters.size > 0 && !typeFilters.has(module.type)) {
             return false;
         }
 
-        // Domain filter
-        if (currentFilters.domain !== 'all') {
-            const hasTag = module.tags.some(tag =>
-                tag.toLowerCase().includes(currentFilters.domain.toLowerCase())
-            );
-            if (!hasTag) return false;
+        // Domain filter (multi-select: empty = show all)
+        if (domainFilters.size > 0) {
+            // Check if any of the module's tags match any selected domain
+            const hasMatchingDomain = module.tags.some(tag => {
+                const tagLower = tag.toLowerCase();
+                for (const domain of domainFilters) {
+                    if (tagLower.includes(domain.toLowerCase())) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            if (!hasMatchingDomain) return false;
         }
 
         // Search filter
-        if (currentFilters.search) {
+        if (currentSearch) {
             const searchText = `${module.title} ${module.description} ${module.tags.join(' ')}`.toLowerCase();
-            if (!searchText.includes(currentFilters.search)) {
+            if (!searchText.includes(currentSearch)) {
                 return false;
             }
         }
@@ -1381,10 +1900,17 @@ function renderTrainingCard(module) {
         `<span class="training-tag">${tag}</span>`
     ).join('');
 
+    // Build card icon (positioned top-right like glossary cards)
+    let cardIcon = '';
+    if (CARD_ICONS[module.type]) {
+        const { icon, label } = CARD_ICONS[module.type];
+        cardIcon = `<span class="card-icon ${module.type}" title="${label}">${icon}</span>`;
+    }
+
     return `
         <div class="training-card" data-id="${module.id}" data-type="${module.type}" data-difficulty="${module.difficulty}">
+            ${cardIcon}
             <div class="training-card-header">
-                <span class="training-type-badge ${module.type}">${module.type}</span>
                 <span class="training-difficulty ${module.difficulty}">${capitalize(module.difficulty)}</span>
             </div>
             <h3 class="training-card-title">${module.title}</h3>

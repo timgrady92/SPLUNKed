@@ -814,52 +814,74 @@ kbd {
     background: rgba(var(--splunk-pink-rgb), 0.1);
 }
 
-/* Purpose Badges (for SPL Commands) */
-.purpose-badge {
-    display: inline-block;
-    padding: 0.2em 0.6em;
-    font-size: var(--text-xs);
-    font-weight: 500;
-    border-radius: var(--radius-full);
-    border: 1px solid;
-    white-space: nowrap;
+/* Unified Card Icons - positioned top-right of cards */
+.card-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    font-size: 20px;
+    font-weight: 600;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
 }
 
-.purpose-badge.get {
-    color: #60a5fa;
-    border-color: #60a5fa;
-    background: rgba(96, 165, 250, 0.1);
+.glossary-card:hover .card-icon,
+.training-card:hover .card-icon {
+    opacity: 1;
 }
 
-.purpose-badge.filter {
-    color: #f472b6;
-    border-color: #f472b6;
-    background: rgba(244, 114, 182, 0.1);
+/* Command pipeline stage colors */
+.card-icon.get { color: #60a5fa; background: rgba(96, 165, 250, 0.15); }
+.card-icon.filter { color: #f472b6; background: rgba(244, 114, 182, 0.15); }
+.card-icon.transform { color: var(--splunk-orange); background: rgba(var(--splunk-orange-rgb), 0.15); }
+.card-icon.aggregate { color: #a78bfa; background: rgba(167, 139, 250, 0.15); }
+.card-icon.combine { color: var(--splunk-amber); background: rgba(var(--splunk-amber-rgb), 0.15); }
+.card-icon.output { color: var(--splunk-teal); background: rgba(var(--splunk-teal-rgb), 0.15); }
+
+/* Function type colors */
+.card-icon.functions { color: #c084fc; background: rgba(192, 132, 252, 0.15); }
+.card-icon.statsFunctions { color: #2dd4bf; background: rgba(45, 212, 191, 0.15); }
+
+/* Reference category colors */
+.card-icon.fields { color: #fb923c; background: rgba(251, 146, 60, 0.15); }
+.card-icon.concepts { color: #facc15; background: rgba(250, 204, 21, 0.15); }
+.card-icon.cim { color: #4ade80; background: rgba(74, 222, 128, 0.15); }
+.card-icon.extractions { color: #f87171; background: rgba(248, 113, 113, 0.15); }
+.card-icon.macros { color: #818cf8; background: rgba(129, 140, 248, 0.15); }
+.card-icon.engineering { color: #94a3b8; background: rgba(148, 163, 184, 0.15); }
+
+/* Antipatterns/Pitfalls color */
+.card-icon.antipatterns { color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+
+/* Training type colors */
+.card-icon.tutorial { color: #38bdf8; background: rgba(56, 189, 248, 0.15); }
+.card-icon.scenario { color: #fb7185; background: rgba(251, 113, 133, 0.15); }
+.card-icon.challenge { color: #fbbf24; background: rgba(251, 191, 36, 0.15); }
+
+/* Legacy support - will be removed */
+.legend-icon {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    font-size: 18px;
+    font-weight: 600;
 }
 
-.purpose-badge.transform {
-    color: var(--splunk-orange);
-    border-color: var(--splunk-orange);
-    background: rgba(var(--splunk-orange-rgb), 0.1);
-}
-
-.purpose-badge.aggregate {
-    color: #a78bfa;
-    border-color: #a78bfa;
-    background: rgba(167, 139, 250, 0.1);
-}
-
-.purpose-badge.combine {
-    color: var(--splunk-amber);
-    border-color: var(--splunk-amber);
-    background: rgba(var(--splunk-amber-rgb), 0.1);
-}
-
-.purpose-badge.output {
-    color: var(--splunk-teal);
-    border-color: var(--splunk-teal);
-    background: rgba(var(--splunk-teal-rgb), 0.1);
-}
+.legend-icon.get { color: #60a5fa; background: rgba(96, 165, 250, 0.15); }
+.legend-icon.filter { color: #f472b6; background: rgba(244, 114, 182, 0.15); }
+.legend-icon.transform { color: var(--splunk-orange); background: rgba(var(--splunk-orange-rgb), 0.15); }
+.legend-icon.aggregate { color: #a78bfa; background: rgba(167, 139, 250, 0.15); }
+.legend-icon.combine { color: var(--splunk-amber); background: rgba(var(--splunk-amber-rgb), 0.15); }
+.legend-icon.output { color: var(--splunk-teal); background: rgba(var(--splunk-teal-rgb), 0.15); }
 
 /* Function Purpose Badges (for Eval Functions) */
 .purpose-badge.fn-decide {
@@ -1009,23 +1031,22 @@ kbd {
     border-color: var(--splunk-orange);
 }
 
-/* Function Type Filter */
-.function-type-filter {
+/* Unified Icon Filter Component */
+.icon-filter {
     display: flex;
-    gap: 2px;
-    background: rgba(10, 10, 10, 0.6);
-    padding: 3px;
-    border-radius: var(--radius-md);
+    flex-wrap: wrap;
+    gap: var(--space-xs);
     margin-bottom: var(--space-md);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    width: fit-content;
 }
 
-.function-type-filter .filter-btn {
-    padding: var(--space-xs) var(--space-md);
-    background: transparent;
-    border: none;
-    border-radius: calc(var(--radius-md) - 2px);
+.icon-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--bg-elevated);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
     color: var(--text-muted);
     font-size: var(--text-sm);
     font-weight: 500;
@@ -1033,14 +1054,150 @@ kbd {
     transition: all 0.2s ease;
 }
 
-.function-type-filter .filter-btn:hover {
+.icon-filter-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
     color: var(--text-main);
-    background: rgba(255, 255, 255, 0.05);
 }
 
-.function-type-filter .filter-btn.active {
+.icon-filter-btn.active {
+    border-color: currentColor;
+}
+
+/* "All" button styling */
+.icon-filter-btn[data-filter="all"].active {
     background: var(--splunk-orange);
+    border-color: var(--splunk-orange);
     color: var(--text-inverse);
+    font-weight: 600;
+}
+
+.icon-filter-btn .filter-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+/* Command pipeline stage colors */
+.icon-filter-btn[data-filter="get"] { color: #60a5fa; }
+.icon-filter-btn[data-filter="get"] .filter-icon { background: rgba(96, 165, 250, 0.15); }
+.icon-filter-btn[data-filter="get"].active { background: rgba(96, 165, 250, 0.15); border-color: #60a5fa; }
+
+.icon-filter-btn[data-filter="filter"] { color: #f472b6; }
+.icon-filter-btn[data-filter="filter"] .filter-icon { background: rgba(244, 114, 182, 0.15); }
+.icon-filter-btn[data-filter="filter"].active { background: rgba(244, 114, 182, 0.15); border-color: #f472b6; }
+
+.icon-filter-btn[data-filter="transform"] { color: var(--splunk-orange); }
+.icon-filter-btn[data-filter="transform"] .filter-icon { background: rgba(var(--splunk-orange-rgb), 0.15); }
+.icon-filter-btn[data-filter="transform"].active { background: rgba(var(--splunk-orange-rgb), 0.15); border-color: var(--splunk-orange); }
+
+.icon-filter-btn[data-filter="aggregate"] { color: #a78bfa; }
+.icon-filter-btn[data-filter="aggregate"] .filter-icon { background: rgba(167, 139, 250, 0.15); }
+.icon-filter-btn[data-filter="aggregate"].active { background: rgba(167, 139, 250, 0.15); border-color: #a78bfa; }
+
+.icon-filter-btn[data-filter="combine"] { color: var(--splunk-amber); }
+.icon-filter-btn[data-filter="combine"] .filter-icon { background: rgba(var(--splunk-amber-rgb), 0.15); }
+.icon-filter-btn[data-filter="combine"].active { background: rgba(var(--splunk-amber-rgb), 0.15); border-color: var(--splunk-amber); }
+
+.icon-filter-btn[data-filter="output"] { color: var(--splunk-teal); }
+.icon-filter-btn[data-filter="output"] .filter-icon { background: rgba(var(--splunk-teal-rgb), 0.15); }
+.icon-filter-btn[data-filter="output"].active { background: rgba(var(--splunk-teal-rgb), 0.15); border-color: var(--splunk-teal); }
+
+/* Function type colors */
+.icon-filter-btn[data-filter="eval"] { color: #c084fc; }
+.icon-filter-btn[data-filter="eval"] .filter-icon { background: rgba(192, 132, 252, 0.15); }
+.icon-filter-btn[data-filter="eval"].active { background: rgba(192, 132, 252, 0.15); border-color: #c084fc; }
+
+.icon-filter-btn[data-filter="stats"] { color: #2dd4bf; }
+.icon-filter-btn[data-filter="stats"] .filter-icon { background: rgba(45, 212, 191, 0.15); }
+.icon-filter-btn[data-filter="stats"].active { background: rgba(45, 212, 191, 0.15); border-color: #2dd4bf; }
+
+/* Reference category colors */
+.icon-filter-btn[data-filter="fields"] { color: #fb923c; }
+.icon-filter-btn[data-filter="fields"] .filter-icon { background: rgba(251, 146, 60, 0.15); }
+.icon-filter-btn[data-filter="fields"].active { background: rgba(251, 146, 60, 0.15); border-color: #fb923c; }
+
+.icon-filter-btn[data-filter="concepts"] { color: #facc15; }
+.icon-filter-btn[data-filter="concepts"] .filter-icon { background: rgba(250, 204, 21, 0.15); }
+.icon-filter-btn[data-filter="concepts"].active { background: rgba(250, 204, 21, 0.15); border-color: #facc15; }
+
+.icon-filter-btn[data-filter="cim"] { color: #4ade80; }
+.icon-filter-btn[data-filter="cim"] .filter-icon { background: rgba(74, 222, 128, 0.15); }
+.icon-filter-btn[data-filter="cim"].active { background: rgba(74, 222, 128, 0.15); border-color: #4ade80; }
+
+.icon-filter-btn[data-filter="extractions"] { color: #f87171; }
+.icon-filter-btn[data-filter="extractions"] .filter-icon { background: rgba(248, 113, 113, 0.15); }
+.icon-filter-btn[data-filter="extractions"].active { background: rgba(248, 113, 113, 0.15); border-color: #f87171; }
+
+.icon-filter-btn[data-filter="macros"] { color: #818cf8; }
+.icon-filter-btn[data-filter="macros"] .filter-icon { background: rgba(129, 140, 248, 0.15); }
+.icon-filter-btn[data-filter="macros"].active { background: rgba(129, 140, 248, 0.15); border-color: #818cf8; }
+
+.icon-filter-btn[data-filter="engineering"] { color: #94a3b8; }
+.icon-filter-btn[data-filter="engineering"] .filter-icon { background: rgba(148, 163, 184, 0.15); }
+.icon-filter-btn[data-filter="engineering"].active { background: rgba(148, 163, 184, 0.15); border-color: #94a3b8; }
+
+/* Training type colors */
+.icon-filter-btn[data-filter="tutorial"] { color: #38bdf8; }
+.icon-filter-btn[data-filter="tutorial"] .filter-icon { background: rgba(56, 189, 248, 0.15); }
+.icon-filter-btn[data-filter="tutorial"].active { background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; }
+
+.icon-filter-btn[data-filter="scenario"] { color: #fb7185; }
+.icon-filter-btn[data-filter="scenario"] .filter-icon { background: rgba(251, 113, 133, 0.15); }
+.icon-filter-btn[data-filter="scenario"].active { background: rgba(251, 113, 133, 0.15); border-color: #fb7185; }
+
+.icon-filter-btn[data-filter="challenge"] { color: #fbbf24; }
+.icon-filter-btn[data-filter="challenge"] .filter-icon { background: rgba(251, 191, 36, 0.15); }
+.icon-filter-btn[data-filter="challenge"].active { background: rgba(251, 191, 36, 0.15); border-color: #fbbf24; }
+
+/* Training domain colors */
+.icon-filter-btn[data-filter="authentication"] { color: #a78bfa; }
+.icon-filter-btn[data-filter="authentication"] .filter-icon { background: rgba(167, 139, 250, 0.15); }
+.icon-filter-btn[data-filter="authentication"].active { background: rgba(167, 139, 250, 0.15); border-color: #a78bfa; }
+
+.icon-filter-btn[data-filter="network"] { color: #22d3ee; }
+.icon-filter-btn[data-filter="network"] .filter-icon { background: rgba(34, 211, 238, 0.15); }
+.icon-filter-btn[data-filter="network"].active { background: rgba(34, 211, 238, 0.15); border-color: #22d3ee; }
+
+.icon-filter-btn[data-filter="endpoint"] { color: #f472b6; }
+.icon-filter-btn[data-filter="endpoint"] .filter-icon { background: rgba(244, 114, 182, 0.15); }
+.icon-filter-btn[data-filter="endpoint"].active { background: rgba(244, 114, 182, 0.15); border-color: #f472b6; }
+
+.icon-filter-btn[data-filter="incident-response"] { color: #ef4444; }
+.icon-filter-btn[data-filter="incident-response"] .filter-icon { background: rgba(239, 68, 68, 0.15); }
+.icon-filter-btn[data-filter="incident-response"].active { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; }
+
+.icon-filter-btn[data-filter="basics"] { color: #9ca3af; }
+.icon-filter-btn[data-filter="basics"] .filter-icon { background: rgba(156, 163, 175, 0.15); }
+.icon-filter-btn[data-filter="basics"].active { background: rgba(156, 163, 175, 0.15); border-color: #9ca3af; }
+
+/* Filter section label */
+.filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.filter-section-label {
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+/* Filter groups container for multiple filter rows */
+.filter-groups {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
 }
 
 .view-toggle {

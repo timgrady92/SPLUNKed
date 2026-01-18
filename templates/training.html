@@ -29,27 +29,57 @@
     <!-- Controls Bar -->
     <div class="controls-bar">
         {{ search_input(placeholder='Search training modules...', id='trainingSearch') }}
+    </div>
 
-        <div class="filter-dropdown">
-            <label for="typeFilter" class="filter-label">Type:</label>
-            <select id="typeFilter" class="filter-select">
-                <option value="all">All types</option>
-                <option value="tutorial">Tutorials</option>
-                <option value="scenario">Scenarios</option>
-                <option value="challenge">Challenges</option>
-            </select>
+    <!-- Filter Groups -->
+    <div class="filter-groups">
+        <div class="filter-section">
+            <span class="filter-section-label">Type</span>
+            <div class="icon-filter" id="typeFilter">
+                <button class="icon-filter-btn active" data-filter="all">
+                    <span>All</span>
+                </button>
+                <button class="icon-filter-btn" data-filter="tutorial">
+                    <span class="filter-icon">▷</span>
+                    <span>Tutorials</span>
+                </button>
+                <button class="icon-filter-btn" data-filter="scenario">
+                    <span class="filter-icon">◎</span>
+                    <span>Scenarios</span>
+                </button>
+                <button class="icon-filter-btn" data-filter="challenge">
+                    <span class="filter-icon">★</span>
+                    <span>Challenges</span>
+                </button>
+            </div>
         </div>
-
-        <div class="filter-dropdown">
-            <label for="domainFilter" class="filter-label">Domain:</label>
-            <select id="domainFilter" class="filter-select">
-                <option value="all">All domains</option>
-                <option value="authentication">Authentication</option>
-                <option value="network">Network</option>
-                <option value="endpoint">Endpoint</option>
-                <option value="incident-response">Incident Response</option>
-                <option value="basics">Basics</option>
-            </select>
+        <div class="filter-section">
+            <span class="filter-section-label">Domain</span>
+            <div class="icon-filter" id="domainFilter">
+                <button class="icon-filter-btn active" data-filter="all">
+                    <span>All</span>
+                </button>
+                <button class="icon-filter-btn" data-filter="authentication">
+                    <span class="filter-icon">⚿</span>
+                    <span>Authentication</span>
+                </button>
+                <button class="icon-filter-btn" data-filter="network">
+                    <span class="filter-icon">⬡</span>
+                    <span>Network</span>
+                </button>
+                <button class="icon-filter-btn" data-filter="endpoint">
+                    <span class="filter-icon">▣</span>
+                    <span>Endpoint</span>
+                </button>
+                <button class="icon-filter-btn" data-filter="incident-response">
+                    <span class="filter-icon">⚠</span>
+                    <span>Incident Response</span>
+                </button>
+                <button class="icon-filter-btn" data-filter="basics">
+                    <span class="filter-icon">○</span>
+                    <span>Basics</span>
+                </button>
+            </div>
         </div>
     </div>
 
