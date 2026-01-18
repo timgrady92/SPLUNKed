@@ -31,19 +31,15 @@
         {{ search_input(placeholder='Search commands, functions...', id='glossarySearch') }}
 
         <div class="filter-dropdown">
-            <label for="purposeFilter" class="filter-label">When you need to:</label>
+            <label for="purposeFilter" class="filter-label">Pipeline stage:</label>
             <select id="purposeFilter" class="filter-select">
-                <option value="all">All purposes</option>
-                <option value="find">Find events</option>
-                <option value="count">Count & summarize</option>
-                <option value="calculate">Do math & logic</option>
-                <option value="enrich">Add context</option>
-                <option value="format">Clean up output</option>
-                <option value="parse">Work with structure</option>
-                <option value="combine">Combine data</option>
-                <option value="order">Order & limit</option>
-                <option value="create">Create data</option>
-                <option value="save">Save results</option>
+                <option value="all">All stages</option>
+                <option value="get">Get data</option>
+                <option value="filter">Filter</option>
+                <option value="transform">Transform</option>
+                <option value="aggregate">Aggregate</option>
+                <option value="combine">Combine</option>
+                <option value="output">Output</option>
             </select>
         </div>
 
@@ -60,6 +56,11 @@
 
     <div id="functionsPanel" class="tab-panel" role="tabpanel" hidden>
         <div class="category-info" id="functionsInfo"></div>
+        <div class="function-type-filter" id="functionTypeFilter">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="eval">Eval</button>
+            <button class="filter-btn" data-filter="stats">Stats</button>
+        </div>
         <div class="glossary-grid" id="functionsGrid">
             <!-- Populated by JavaScript -->
         </div>

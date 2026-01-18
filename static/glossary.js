@@ -51,16 +51,12 @@ const CATEGORY_INFO = {
 // ============================================
 
 const PURPOSE_LABELS = {
-    find: 'Find events',
-    count: 'Count & summarize',
-    calculate: 'Do math & logic',
-    enrich: 'Add context',
-    format: 'Clean up output',
-    parse: 'Work with structure',
-    combine: 'Combine data',
-    order: 'Order & limit',
-    create: 'Create data',
-    save: 'Save results'
+    get: 'Get data',
+    filter: 'Filter',
+    transform: 'Transform',
+    aggregate: 'Aggregate',
+    combine: 'Combine',
+    output: 'Output'
 };
 
 // Purpose labels for eval functions (organized by problem, not technical category)
@@ -131,7 +127,7 @@ const GLOSSARY_DATA = {
             name: 'stats',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Aggregate data with statistical functions',
             cardStyle: 'tabbed',
             relatedSection: { category: 'statsFunctions', label: 'View Stats Functions', shortLabel: 'Functions' },
@@ -185,7 +181,7 @@ const GLOSSARY_DATA = {
             name: 'eval',
             category: 'commands',
             subcategory: 'manipulating',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Create or modify fields with expressions',
             cardStyle: 'tabbed',
             relatedSection: { category: 'functions', label: 'View Eval Functions', shortLabel: 'Functions' },
@@ -238,7 +234,7 @@ const GLOSSARY_DATA = {
             name: 'search',
             category: 'commands',
             subcategory: 'searching',
-            purpose: 'find',
+            purpose: 'get',
             takeaway: 'Filter events based on search criteria',
             cardStyle: 'tabbed',
             zones: {
@@ -290,7 +286,7 @@ const GLOSSARY_DATA = {
             name: 'where',
             category: 'commands',
             subcategory: 'searching',
-            purpose: 'find',
+            purpose: 'filter',
             takeaway: 'Filter with eval-style expressions',
             cardStyle: 'tabbed',
             zones: {
@@ -342,7 +338,7 @@ const GLOSSARY_DATA = {
             name: 'table',
             category: 'commands',
             subcategory: 'manipulating',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Display specific fields in table format',
             cardStyle: 'tabbed',
             zones: {
@@ -390,7 +386,7 @@ const GLOSSARY_DATA = {
             name: 'timechart',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Create time-series charts and analysis',
             cardStyle: 'tabbed',
             zones: {
@@ -442,7 +438,7 @@ const GLOSSARY_DATA = {
             name: 'rex',
             category: 'commands',
             subcategory: 'manipulating',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Extract fields using regular expressions',
             cardStyle: 'tabbed',
             zones: {
@@ -495,7 +491,7 @@ const GLOSSARY_DATA = {
             name: 'dedup',
             category: 'commands',
             subcategory: 'searching',
-            purpose: 'find',
+            purpose: 'filter',
             takeaway: 'Remove duplicate events',
             cardStyle: 'tabbed',
             zones: {
@@ -602,7 +598,7 @@ const GLOSSARY_DATA = {
             name: 'lookup',
             category: 'commands',
             subcategory: 'lookup',
-            purpose: 'enrich',
+            purpose: 'combine',
             takeaway: 'Enrich events with external data',
             cardStyle: 'tabbed',
             zones: {
@@ -655,7 +651,7 @@ const GLOSSARY_DATA = {
             name: 'fields',
             category: 'commands',
             subcategory: 'manipulating',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Keep or remove specific fields',
             cardStyle: 'tabbed',
             zones: {
@@ -704,7 +700,7 @@ const GLOSSARY_DATA = {
             name: 'fieldsummary',
             category: 'commands',
             subcategory: 'reporting',
-            purpose: 'find',
+            purpose: 'get',
             takeaway: 'Get statistics about your fields - counts, values, types',
             cardStyle: 'tabbed',
             zones: {
@@ -750,7 +746,7 @@ const GLOSSARY_DATA = {
             name: 'fillnull',
             category: 'commands',
             subcategory: 'manipulating',
-            purpose: 'format',
+            purpose: 'transform',
             takeaway: 'Replace null values with a default',
             cardStyle: 'tabbed',
             zones: {
@@ -798,7 +794,7 @@ const GLOSSARY_DATA = {
             name: 'bin',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'format',
+            purpose: 'transform',
             takeaway: 'Group values into discrete buckets',
             cardStyle: 'tabbed',
             zones: {
@@ -849,7 +845,7 @@ const GLOSSARY_DATA = {
             name: 'eventstats',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'enrich',
+            purpose: 'aggregate',
             takeaway: 'Add aggregations while keeping all events',
             cardStyle: 'tabbed',
             zones: {
@@ -901,7 +897,7 @@ const GLOSSARY_DATA = {
             name: 'streamstats',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'enrich',
+            purpose: 'aggregate',
             takeaway: 'Running calculations as events stream',
             cardStyle: 'tabbed',
             zones: {
@@ -954,7 +950,7 @@ const GLOSSARY_DATA = {
             name: 'top',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Find most common values',
             cardStyle: 'tabbed',
             zones: {
@@ -1005,7 +1001,7 @@ const GLOSSARY_DATA = {
             name: 'tail',
             category: 'commands',
             subcategory: 'filtering',
-            purpose: 'order',
+            purpose: 'filter',
             takeaway: 'Return last N results',
             cardStyle: 'tabbed',
             zones: {
@@ -1106,7 +1102,7 @@ const GLOSSARY_DATA = {
             name: 'rare',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Find least common values',
             cardStyle: 'tabbed',
             zones: {
@@ -1154,7 +1150,7 @@ const GLOSSARY_DATA = {
             name: 'iplocation',
             category: 'commands',
             subcategory: 'enrichment',
-            purpose: 'enrich',
+            purpose: 'combine',
             takeaway: 'Add geographic info to IP addresses',
             cardStyle: 'tabbed',
             zones: {
@@ -1205,7 +1201,7 @@ const GLOSSARY_DATA = {
             name: 'inputcsv',
             category: 'commands',
             subcategory: 'input',
-            purpose: 'create',
+            purpose: 'get',
             takeaway: 'Load data from a CSV file',
             cardStyle: 'tabbed',
             zones: {
@@ -1251,7 +1247,7 @@ const GLOSSARY_DATA = {
             name: 'inputlookup',
             category: 'commands',
             subcategory: 'lookup',
-            purpose: 'create',
+            purpose: 'get',
             takeaway: 'Read lookup table as search results',
             cardStyle: 'tabbed',
             zones: {
@@ -1302,7 +1298,7 @@ const GLOSSARY_DATA = {
             name: 'outputlookup',
             category: 'commands',
             subcategory: 'lookup',
-            purpose: 'save',
+            purpose: 'output',
             takeaway: 'Write search results to lookup table',
             cardStyle: 'tabbed',
             zones: {
@@ -1457,7 +1453,7 @@ const GLOSSARY_DATA = {
             name: 'mvexpand',
             category: 'commands',
             subcategory: 'manipulating',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Expand multivalue fields into separate events',
             cardStyle: 'tabbed',
             zones: {
@@ -1509,7 +1505,7 @@ const GLOSSARY_DATA = {
             name: 'spath',
             category: 'commands',
             subcategory: 'manipulating',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Extract fields from JSON or XML',
             cardStyle: 'tabbed',
             zones: {
@@ -1561,7 +1557,7 @@ const GLOSSARY_DATA = {
             name: 'makeresults',
             category: 'commands',
             subcategory: 'generating',
-            purpose: 'create',
+            purpose: 'get',
             takeaway: 'Generate results from nothing',
             cardStyle: 'tabbed',
             zones: {
@@ -1613,7 +1609,7 @@ const GLOSSARY_DATA = {
             name: 'regex',
             category: 'commands',
             subcategory: 'filtering',
-            purpose: 'find',
+            purpose: 'filter',
             takeaway: 'Filter events using regular expressions',
             cardStyle: 'tabbed',
             zones: {
@@ -1665,7 +1661,7 @@ const GLOSSARY_DATA = {
             name: 'tstats',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Fast statistics over indexed or accelerated data',
             cardStyle: 'tabbed',
             zones: {
@@ -1770,7 +1766,7 @@ const GLOSSARY_DATA = {
             name: 'chart',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Create charts with two grouping dimensions',
             cardStyle: 'tabbed',
             zones: {
@@ -1828,7 +1824,7 @@ const GLOSSARY_DATA = {
             name: 'sort',
             category: 'commands',
             subcategory: 'ordering',
-            purpose: 'order',
+            purpose: 'filter',
             takeaway: 'Order results by field values',
             cardStyle: 'tabbed',
             zones: {
@@ -1880,7 +1876,7 @@ const GLOSSARY_DATA = {
             name: 'head',
             category: 'commands',
             subcategory: 'filtering',
-            purpose: 'order',
+            purpose: 'filter',
             takeaway: 'Return first N results',
             cardStyle: 'tabbed',
             zones: {
@@ -1932,7 +1928,7 @@ const GLOSSARY_DATA = {
             name: 'rename',
             category: 'commands',
             subcategory: 'manipulating',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Change field names in results',
             cardStyle: 'tabbed',
             zones: {
@@ -1980,7 +1976,7 @@ const GLOSSARY_DATA = {
             name: 'bucket',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'format',
+            purpose: 'transform',
             takeaway: 'Alias for bin - group numeric or time values into buckets',
             what: 'Alias for the bin command. Groups continuous numeric values or time into discrete buckets.',
             why: 'Some users prefer "bucket" over "bin" - they work identically.',
@@ -1996,7 +1992,7 @@ const GLOSSARY_DATA = {
             name: 'accum',
             category: 'commands',
             subcategory: 'streaming',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Calculate running totals across events',
             what: 'Keeps a running total of a numeric field, adding each event\'s value to the accumulated sum.',
             why: 'Useful for calculating cumulative values like running totals of bytes transferred, counts over time, or progressive sums.',
@@ -2012,7 +2008,7 @@ const GLOSSARY_DATA = {
             name: 'addtotals',
             category: 'commands',
             subcategory: 'reporting',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Add row and column totals to tables',
             cardStyle: 'tabbed',
             zones: {
@@ -2057,7 +2053,7 @@ const GLOSSARY_DATA = {
             name: 'anomalydetection',
             category: 'commands',
             subcategory: 'ml',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Detect anomalies using machine learning',
             what: 'Uses machine learning algorithms to identify unusual patterns or outliers in your data.',
             why: 'Automates the detection of anomalies without manually setting thresholds. Good for finding unusual behavior in metrics, user activity, or system performance.',
@@ -2073,7 +2069,7 @@ const GLOSSARY_DATA = {
             name: 'associate',
             category: 'commands',
             subcategory: 'reporting',
-            purpose: 'calculate',
+            purpose: 'aggregate',
             takeaway: 'Find correlations between fields',
             what: 'Identifies fields that frequently appear together, helping discover relationships in your data.',
             why: 'Useful for exploratory analysis when you want to understand what fields or values tend to co-occur.',
@@ -2089,7 +2085,7 @@ const GLOSSARY_DATA = {
             name: 'autoregress',
             category: 'commands',
             subcategory: 'streaming',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Access values from previous events',
             what: 'Copies field values from previous events into the current event, creating lagged values for comparison.',
             why: 'Essential for time-series analysis where you need to compare current values with past values - detecting changes, calculating deltas, or building forecasts.',
@@ -2105,7 +2101,7 @@ const GLOSSARY_DATA = {
             name: 'collect',
             category: 'commands',
             subcategory: 'output',
-            purpose: 'save',
+            purpose: 'output',
             takeaway: 'Write results to a summary index',
             what: 'Saves search results to a summary index for later retrieval, enabling report acceleration and data collection.',
             why: 'Use for scheduled searches that build up summary data over time, or to store search results for future analysis without re-running expensive searches.',
@@ -2121,7 +2117,7 @@ const GLOSSARY_DATA = {
             name: 'concurrency',
             category: 'commands',
             subcategory: 'streaming',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Count concurrent events at each point in time',
             what: 'Calculates how many events are occurring simultaneously based on start and duration fields.',
             why: 'Perfect for understanding resource utilization - how many sessions are active, how many jobs are running concurrently, or peak load analysis.',
@@ -2137,7 +2133,7 @@ const GLOSSARY_DATA = {
             name: 'datamodel',
             category: 'commands',
             subcategory: 'generating',
-            purpose: 'find',
+            purpose: 'get',
             takeaway: 'Search data models directly',
             what: 'Searches accelerated data models, providing fast access to pre-indexed, normalized data.',
             why: 'Data models with acceleration are much faster than raw searches. Essential for Enterprise Security and large-scale deployments.',
@@ -2153,7 +2149,7 @@ const GLOSSARY_DATA = {
             name: 'delta',
             category: 'commands',
             subcategory: 'streaming',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Calculate difference from previous event',
             what: 'Computes the difference between the current event\'s field value and the previous event\'s value.',
             why: 'Quick way to see changes between consecutive events - useful for monitoring counters, tracking rate of change, or identifying sudden jumps.',
@@ -2169,7 +2165,7 @@ const GLOSSARY_DATA = {
             name: 'erex',
             category: 'commands',
             subcategory: 'extraction',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Extract fields using examples instead of regex',
             what: 'Automatically generates a regex pattern based on examples you provide, then extracts matching values.',
             why: 'When you don\'t know regex but can identify the values you want - give examples and let Splunk figure out the pattern.',
@@ -2185,7 +2181,7 @@ const GLOSSARY_DATA = {
             name: 'extract',
             category: 'commands',
             subcategory: 'extraction',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Auto-extract key=value pairs (alias for kv)',
             cardStyle: 'tabbed',
             zones: {
@@ -2219,7 +2215,7 @@ const GLOSSARY_DATA = {
             name: 'format',
             category: 'commands',
             subcategory: 'formatting',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Format subsearch results for use in main search',
             cardStyle: 'tabbed',
             zones: {
@@ -2253,7 +2249,7 @@ const GLOSSARY_DATA = {
             name: 'from',
             category: 'commands',
             subcategory: 'generating',
-            purpose: 'find',
+            purpose: 'get',
             takeaway: 'Search datasets, data models, or saved searches',
             cardStyle: 'tabbed',
             zones: {
@@ -2287,7 +2283,7 @@ const GLOSSARY_DATA = {
             name: 'geom',
             category: 'commands',
             subcategory: 'geographic',
-            purpose: 'enrich',
+            purpose: 'combine',
             takeaway: 'Add geographic boundary data for choropleth maps',
             cardStyle: 'tabbed',
             zones: {
@@ -2321,7 +2317,7 @@ const GLOSSARY_DATA = {
             name: 'geostats',
             category: 'commands',
             subcategory: 'geographic',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Aggregate statistics for map visualization',
             cardStyle: 'tabbed',
             zones: {
@@ -2355,7 +2351,7 @@ const GLOSSARY_DATA = {
             name: 'kvform',
             category: 'commands',
             subcategory: 'extraction',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Extract fields using a form template',
             cardStyle: 'tabbed',
             zones: {
@@ -2388,7 +2384,7 @@ const GLOSSARY_DATA = {
             name: 'makemv',
             category: 'commands',
             subcategory: 'multivalue',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Split a field into multivalue',
             cardStyle: 'tabbed',
             zones: {
@@ -2422,7 +2418,7 @@ const GLOSSARY_DATA = {
             name: 'mstats',
             category: 'commands',
             subcategory: 'metrics',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Query metrics data efficiently',
             cardStyle: 'tabbed',
             zones: {
@@ -2485,7 +2481,7 @@ const GLOSSARY_DATA = {
             name: 'mvcombine',
             category: 'commands',
             subcategory: 'multivalue',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Combine rows into multivalue fields',
             cardStyle: 'tabbed',
             zones: {
@@ -2514,7 +2510,7 @@ const GLOSSARY_DATA = {
             name: 'mvdedup',
             category: 'commands',
             subcategory: 'multivalue',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Remove duplicates from multivalue field',
             cardStyle: 'tabbed',
             zones: {
@@ -2543,7 +2539,7 @@ const GLOSSARY_DATA = {
             name: 'reverse',
             category: 'commands',
             subcategory: 'ordering',
-            purpose: 'order',
+            purpose: 'filter',
             takeaway: 'Reverse the order of results',
             cardStyle: 'tabbed',
             zones: {
@@ -2572,7 +2568,7 @@ const GLOSSARY_DATA = {
             name: 'sample',
             category: 'commands',
             subcategory: 'filtering',
-            purpose: 'order',
+            purpose: 'filter',
             takeaway: 'Return a random sample of events',
             cardStyle: 'tabbed',
             zones: {
@@ -2630,7 +2626,7 @@ const GLOSSARY_DATA = {
             name: 'uniq',
             category: 'commands',
             subcategory: 'filtering',
-            purpose: 'format',
+            purpose: 'filter',
             takeaway: 'Remove consecutive duplicate events',
             cardStyle: 'tabbed',
             zones: {
@@ -2659,7 +2655,7 @@ const GLOSSARY_DATA = {
             name: 'untable',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Convert table columns to rows (unpivot)',
             cardStyle: 'tabbed',
             zones: {
@@ -2688,7 +2684,7 @@ const GLOSSARY_DATA = {
             name: 'xyseries',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Convert rows to columns (pivot)',
             cardStyle: 'tabbed',
             zones: {
@@ -2717,7 +2713,7 @@ const GLOSSARY_DATA = {
             name: 'xmlkv',
             category: 'commands',
             subcategory: 'extraction',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Extract fields from XML data',
             cardStyle: 'tabbed',
             zones: {
@@ -2746,7 +2742,7 @@ const GLOSSARY_DATA = {
             name: 'contingency',
             category: 'commands',
             subcategory: 'reporting',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Build a contingency table (cross-tabulation)',
             cardStyle: 'tabbed',
             zones: {
@@ -2775,7 +2771,7 @@ const GLOSSARY_DATA = {
             name: 'correlate',
             category: 'commands',
             subcategory: 'reporting',
-            purpose: 'calculate',
+            purpose: 'aggregate',
             takeaway: 'Calculate correlation between numeric fields',
             cardStyle: 'tabbed',
             zones: {
@@ -2804,7 +2800,7 @@ const GLOSSARY_DATA = {
             name: 'mcatalog',
             category: 'commands',
             subcategory: 'metrics',
-            purpose: 'find',
+            purpose: 'get',
             takeaway: 'List available metrics metadata',
             cardStyle: 'tabbed',
             zones: {
@@ -2833,7 +2829,7 @@ const GLOSSARY_DATA = {
             name: 'outputcsv',
             category: 'commands',
             subcategory: 'output',
-            purpose: 'save',
+            purpose: 'output',
             takeaway: 'Export results to a CSV file',
             cardStyle: 'tabbed',
             zones: {
@@ -2862,7 +2858,7 @@ const GLOSSARY_DATA = {
             name: 'pivot',
             category: 'commands',
             subcategory: 'reporting',
-            purpose: 'count',
+            purpose: 'aggregate',
             takeaway: 'Generate pivot table reports from data models',
             cardStyle: 'tabbed',
             zones: {
@@ -2891,7 +2887,7 @@ const GLOSSARY_DATA = {
             name: 'predict',
             category: 'commands',
             subcategory: 'ml',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Forecast future values using machine learning',
             cardStyle: 'tabbed',
             zones: {
@@ -2920,7 +2916,7 @@ const GLOSSARY_DATA = {
             name: 'savedsearch',
             category: 'commands',
             subcategory: 'generating',
-            purpose: 'find',
+            purpose: 'get',
             takeaway: 'Run a saved search by name',
             cardStyle: 'tabbed',
             zones: {
@@ -2949,7 +2945,7 @@ const GLOSSARY_DATA = {
             name: 'sendemail',
             category: 'commands',
             subcategory: 'output',
-            purpose: 'save',
+            purpose: 'output',
             takeaway: 'Send search results via email',
             cardStyle: 'tabbed',
             zones: {
@@ -2978,7 +2974,7 @@ const GLOSSARY_DATA = {
             name: 'transpose',
             category: 'commands',
             subcategory: 'transforming',
-            purpose: 'format',
+            purpose: 'output',
             takeaway: 'Swap rows and columns',
             cardStyle: 'tabbed',
             zones: {
@@ -3007,7 +3003,7 @@ const GLOSSARY_DATA = {
             name: 'trendline',
             category: 'commands',
             subcategory: 'streaming',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Calculate moving averages and trends',
             cardStyle: 'tabbed',
             zones: {
@@ -3037,7 +3033,7 @@ const GLOSSARY_DATA = {
             name: 'validate',
             category: 'commands',
             subcategory: 'filtering',
-            purpose: 'calculate',
+            purpose: 'transform',
             takeaway: 'Return first failing validation message',
             cardStyle: 'tabbed',
             zones: {
@@ -3066,7 +3062,7 @@ const GLOSSARY_DATA = {
             name: 'xpath',
             category: 'commands',
             subcategory: 'extraction',
-            purpose: 'parse',
+            purpose: 'transform',
             takeaway: 'Extract XML values using XPath expressions',
             cardStyle: 'tabbed',
             zones: {
@@ -3095,7 +3091,7 @@ const GLOSSARY_DATA = {
             name: 'metadata',
             category: 'commands',
             subcategory: 'generating',
-            purpose: 'find',
+            purpose: 'get',
             takeaway: 'Get metadata about indexes, hosts, sources, or sourcetypes',
             cardStyle: 'tabbed',
             zones: {
@@ -3125,7 +3121,7 @@ const GLOSSARY_DATA = {
             name: 'eventcount',
             category: 'commands',
             subcategory: 'generating',
-            purpose: 'count',
+            purpose: 'get',
             takeaway: 'Quickly count events per index',
             cardStyle: 'tabbed',
             zones: {
@@ -3204,7 +3200,7 @@ const GLOSSARY_DATA = {
             name: 'cluster',
             category: 'commands',
             subcategory: 'analysis',
-            purpose: 'find',
+            purpose: 'filter',
             takeaway: 'Group similar events together automatically',
             cardStyle: 'tabbed',
             zones: {
@@ -3255,7 +3251,7 @@ const GLOSSARY_DATA = {
             name: 'diff',
             category: 'commands',
             subcategory: 'comparison',
-            purpose: 'find',
+            purpose: 'filter',
             takeaway: 'Compare two search results and show differences',
             cardStyle: 'tabbed',
             zones: {
@@ -6776,12 +6772,17 @@ const GLOSSARY_DATA = {
     ]
 };
 
+Object.keys(GLOSSARY_DATA).forEach((category) => {
+    GLOSSARY_DATA[category].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+});
+
 // ============================================
 // Glossary Logic
 // ============================================
 
 let currentCategory = 'commands';
 let currentFilter = 'all';
+let currentFunctionFilter = 'all';
 let currentSearch = '';
 let currentView = 'categorized';
 
@@ -6796,8 +6797,9 @@ function initGlossary() {
     window.CATEGORY_TO_TAB = CATEGORY_TO_TAB;
 
     // Initialize tabs
+    const storageKey = 'splunked-glossary-tab';
     const tabController = SPLUNKed.initTabs('#glossaryTabs', {
-        storageKey: 'splunked-glossary-tab',
+        storageKey: storageKey,
         onTabChange: (category) => {
             currentCategory = category;
             renderGlossary();
@@ -6813,6 +6815,12 @@ function initGlossary() {
         currentCategory = urlTab;
         if (tabController) {
             tabController.activateTab(urlTab);
+        }
+    } else {
+        // Sync currentCategory with restored tab from localStorage
+        const savedTab = localStorage.getItem(storageKey);
+        if (savedTab && TAB_CATEGORY_MAP[savedTab]) {
+            currentCategory = savedTab;
         }
     }
 
@@ -6841,6 +6849,9 @@ function initGlossary() {
         }
     });
 
+    // Initialize function type filter
+    initFunctionTypeFilter();
+
     // Initialize modal
     SPLUNKed.initModal('glossaryModal');
 
@@ -6858,6 +6869,24 @@ function initGlossary() {
             setTimeout(() => openDetailModal(entry), 100);
         }
     }
+}
+
+function initFunctionTypeFilter() {
+    const filterContainer = document.getElementById('functionTypeFilter');
+    if (!filterContainer) return;
+
+    filterContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.filter-btn');
+        if (!btn) return;
+
+        // Update active state
+        filterContainer.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Update filter and re-render
+        currentFunctionFilter = btn.dataset.filter;
+        renderGlossary();
+    });
 }
 
 // Find an entry by ID across all categories
@@ -6932,6 +6961,17 @@ function createCategoryInfoHTML(tab) {
 
 function filterEntries(entries) {
     return entries.filter(entry => {
+        // Filter by function type (for Functions tab)
+        if (currentCategory === 'functions' && currentFunctionFilter !== 'all') {
+            const entryCategory = entry._sourceCategory || entry.category;
+            if (currentFunctionFilter === 'eval' && entryCategory !== 'functions') {
+                return false;
+            }
+            if (currentFunctionFilter === 'stats' && entryCategory !== 'statsFunctions') {
+                return false;
+            }
+        }
+
         // Filter by purpose (for commands) or show all (for other categories)
         if (currentFilter !== 'all') {
             if (entry.purpose) {
@@ -6973,19 +7013,24 @@ function createCardHTML(entry, showSubcategory = false) {
         ? '<span class="experimental-badge">Test</span>'
         : '';
 
-    // Use purpose badge for commands/functions
+    // Use purpose badge for commands only (not functions - they cause overflow)
     let badge = '';
-    if (entry.purpose) {
-        if (PURPOSE_LABELS[entry.purpose]) {
-            badge = `<span class="purpose-badge ${entry.purpose}">${PURPOSE_LABELS[entry.purpose]}</span>`;
-        } else if (FUNCTION_PURPOSE_LABELS[entry.purpose]) {
-            badge = `<span class="purpose-badge fn-${entry.purpose}">${FUNCTION_PURPOSE_LABELS[entry.purpose]}</span>`;
-        }
+    if (entry.purpose && PURPOSE_LABELS[entry.purpose]) {
+        badge = `<span class="purpose-badge ${entry.purpose}">${PURPOSE_LABELS[entry.purpose]}</span>`;
     }
 
-    // Show subcategory badge for merged tabs (functions, reference)
+    // Show function type badge for functions
+    let fnTypeBadge = '';
+    const entryCategory = entry._sourceCategory || entry.category;
+    if (entryCategory === 'functions') {
+        fnTypeBadge = '<span class="fn-type-badge eval">Eval</span>';
+    } else if (entryCategory === 'statsFunctions') {
+        fnTypeBadge = '<span class="fn-type-badge stats">Stats</span>';
+    }
+
+    // Show subcategory badge for reference tab items (not functions - they have fn-type-badge)
     let subcategoryBadge = '';
-    if (showSubcategory && entry._sourceCategory && SUBCATEGORY_LABELS[entry._sourceCategory]) {
+    if (showSubcategory && !fnTypeBadge && entry._sourceCategory && SUBCATEGORY_LABELS[entry._sourceCategory]) {
         subcategoryBadge = `<span class="subcategory-badge">${SUBCATEGORY_LABELS[entry._sourceCategory]}</span>`;
     }
 
@@ -6996,11 +7041,9 @@ function createCardHTML(entry, showSubcategory = false) {
                 ${experimentalBadge}
                 ${subcategoryBadge}
                 ${badge}
+                ${fnTypeBadge}
             </div>
             <p class="glossary-takeaway">${escapeHtml(entry.takeaway)}</p>
-            <button class="glossary-expand" aria-label="View details">
-                <span class="expand-icon">+</span>
-            </button>
         </div>
     `;
 }

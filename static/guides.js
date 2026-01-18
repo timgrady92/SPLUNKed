@@ -1846,7 +1846,7 @@ const GUIDES_DATA = {
             title: 'How to visualize trends over time',
             description: 'Create time-based charts showing how metrics change over hours, days, or weeks.',
             keywords: 'timechart trend time series line chart graph over time',
-            body: \`
+            body: `
                 <div class="guide-group">
                     <div class="guide-group-header">The Goal</div>
                     <div class="guide-detail-section">
@@ -1938,14 +1938,14 @@ const GUIDES_DATA = {
                     <div class="guide-callout-title">Pro Tip</div>
                     <p>If your chart has too many spikes, increase the span. If it's too smooth and hides detail, decrease the span. Match the span to what you're investigating.</p>
                 </div>
-            \`
+            `
         },
         {
             id: 'viz-compare-categories',
             title: 'How to compare categories',
             description: 'Create bar charts and column charts to compare values across different groups.',
             keywords: 'bar chart column compare categories comparison hosts users top',
-            body: \`
+            body: `
                 <div class="guide-group">
                     <div class="guide-group-header">The Goal</div>
                     <div class="guide-detail-section">
@@ -2033,14 +2033,14 @@ const GUIDES_DATA = {
                     <div class="guide-callout-title">Pro Tip</div>
                     <p>Always sort your data and limit to top N results. A bar chart with 100+ categories is unreadable. Use <code>| sort -count | head 10</code> to show just the top 10.</p>
                 </div>
-            \`
+            `
         },
         {
             id: 'viz-top-offenders',
             title: 'How to show top offenders',
             description: 'Quickly find and display the top N values for any field.',
             keywords: 'top rare bottom highest lowest most least frequent',
-            body: \`
+            body: `
                 <div class="guide-group">
                     <div class="guide-group-header">The Goal</div>
                     <div class="guide-detail-section">
@@ -2125,14 +2125,14 @@ const GUIDES_DATA = {
                     <div class="guide-callout-title">Heads Up</div>
                     <p>The <code>top</code> command only shows count and percentage. If you need other aggregations (sum, avg), use <code>stats ... | sort -field | head N</code> instead.</p>
                 </div>
-            \`
+            `
         },
         {
             id: 'viz-single-kpi',
             title: 'How to display a single KPI value',
             description: 'Create dashboard-ready single value displays for key metrics.',
             keywords: 'single value kpi metric number count total dashboard',
-            body: \`
+            body: `
                 <div class="guide-group">
                     <div class="guide-group-header">The Goal</div>
                     <div class="guide-detail-section">
@@ -2220,14 +2220,14 @@ const GUIDES_DATA = {
                     <div class="guide-callout-title">Pro Tip</div>
                     <p>Format numbers in your search using <code>round()</code> and concatenating units. A KPI showing "2,847,293" is hard to read - "2.85 M" is much better. Use <code>eval display=round(value/1000000, 2)." M"</code></p>
                 </div>
-            \`
+            `
         },
         {
             id: 'viz-geographic',
             title: 'How to show geographic activity',
             description: 'Map IP addresses to locations and visualize geographic patterns.',
             keywords: 'map geo geographic location ip country city iplocation geostats',
-            body: \`
+            body: `
                 <div class="guide-group">
                     <div class="guide-group-header">The Goal</div>
                     <div class="guide-detail-section">
@@ -2334,14 +2334,14 @@ const GUIDES_DATA = {
                     <div class="guide-callout-title">Heads Up</div>
                     <p>IP geolocation isn't 100% accurate, especially for VPNs, proxies, and mobile IPs. It's useful for broad patterns but don't rely on it for precise location.</p>
                 </div>
-            \`
+            `
         },
         {
             id: 'viz-distribution',
             title: 'How to visualize distribution',
             description: 'Show how values are spread using histograms and percentiles.',
             keywords: 'histogram distribution percentile spread range bin bucket',
-            body: \`
+            body: `
                 <div class="guide-group">
                     <div class="guide-group-header">The Goal</div>
                     <div class="guide-detail-section">
@@ -2450,14 +2450,14 @@ const GUIDES_DATA = {
                     <div class="guide-callout-title">Pro Tip</div>
                     <p>When analyzing performance data, focus on percentiles over averages. An average of 200ms doesn't tell you that 1% of users experience 5 second delays. P99 does.</p>
                 </div>
-            \`
+            `
         },
         {
             id: 'viz-before-after',
             title: 'How to create before/after comparisons',
             description: 'Compare metrics between two time periods to show change impact.',
             keywords: 'compare before after change impact difference delta trend',
-            body: \`
+            body: `
                 <div class="guide-group">
                     <div class="guide-group-header">The Goal</div>
                     <div class="guide-detail-section">
@@ -2547,14 +2547,14 @@ const GUIDES_DATA = {
                     <div class="guide-callout-title">Pro Tip</div>
                     <p>When showing before/after, always use the same time duration for both periods. Comparing 2 days before to 1 day after gives misleading results.</p>
                 </div>
-            \`
+            `
         },
         {
             id: 'viz-event-timeline',
             title: 'How to build a timeline of events',
             description: 'Create chronological views showing the sequence of events during an incident.',
             keywords: 'timeline sequence chronological order incident investigation transaction',
-            body: \`
+            body: `
                 <div class="guide-group">
                     <div class="guide-group-header">The Goal</div>
                     <div class="guide-detail-section">
@@ -2657,7 +2657,7 @@ const GUIDES_DATA = {
                     <div class="guide-callout-title">Pro Tip</div>
                     <p>For incident reports, add a <code>| eval description="..."</code> to annotate key events. This creates a narrative that's easier to follow than raw log data.</p>
                 </div>
-            \`
+            `
         }
     ],
 
@@ -3081,6 +3081,681 @@ const GUIDES_DATA = {
                 </div>
             `
         }
+    ],
+
+    dashboards: [
+        {
+            id: 'dash-fundamentals',
+            title: 'Dashboard fundamentals for analysts',
+            description: 'Understand what dashboards are, when to use them, and how they fit into your analysis workflow.',
+            keywords: 'dashboard basics fundamentals overview introduction why use panels',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">What is a Dashboard?</div>
+                    <div class="guide-detail-section">
+                        <p>A dashboard is a collection of panels - each panel runs a search and displays results as a visualization, table, or single value. Dashboards let you monitor multiple things at once without re-running searches manually.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Why Use Dashboards?</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Save time</strong> - Stop re-typing the same searches every day</li>
+                            <li><strong>Monitor at a glance</strong> - See the health of systems, security posture, or KPIs instantly</li>
+                            <li><strong>Share knowledge</strong> - Give your team pre-built views instead of teaching everyone SPL</li>
+                            <li><strong>Consistency</strong> - Everyone sees the same data, calculated the same way</li>
+                            <li><strong>Investigation launchpads</strong> - Start from a dashboard, then drill down into details</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Dashboard Components</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Panels</div>
+                        <p>Each panel contains one search and one visualization. A dashboard typically has 4-12 panels arranged in rows.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Inputs</div>
+                        <p>Dropdowns, text boxes, and time pickers that let users filter the dashboard without editing searches. Example: a dropdown to select which server to view.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Drilldowns</div>
+                        <p>Click actions that take you somewhere else - another dashboard, a detailed search, or an external URL. Essential for investigation workflows.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">When to Build a Dashboard</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li>You run the same searches daily or weekly</li>
+                            <li>Multiple people need to see the same data</li>
+                            <li>You want to monitor something continuously</li>
+                            <li>You need a starting point for investigations</li>
+                            <li>Leadership wants visibility without learning SPL</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Analyst Tip</div>
+                    <p>Don't dashboard everything. Keep ad-hoc investigation searches ad-hoc. Dashboard the things you check repeatedly - daily health checks, weekly reports, ongoing monitoring. Your dashboards should answer questions you ask over and over.</p>
+                </div>
+            `
+        },
+        {
+            id: 'dash-first-dashboard',
+            title: 'How to build your first dashboard',
+            description: 'Step-by-step guide to creating a dashboard from scratch using the Splunk UI.',
+            keywords: 'create build new dashboard first beginner tutorial step by step',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>Create a simple dashboard with 2-3 panels that you can use and customize. We'll use the Dashboard Studio (the modern editor) which is the default in newer Splunk versions.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 1: Create the Dashboard</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li>From the Splunk home page, click <strong>Dashboards</strong> in the left menu</li>
+                            <li>Click <strong>Create New Dashboard</strong></li>
+                            <li>Give it a name (e.g., "Security Overview")</li>
+                            <li>Select <strong>Dashboard Studio</strong> (recommended) or Classic Dashboards</li>
+                            <li>Click <strong>Create</strong></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 2: Add Your First Panel</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li>Click <strong>Add Panel</strong> or the <strong>+</strong> icon</li>
+                            <li>Select a visualization type (start with <strong>Table</strong> or <strong>Single Value</strong>)</li>
+                            <li>In the search editor, enter your SPL:</li>
+                        </ol>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security EventCode=4625
+| stats count as "Failed Logins"</code></pre>
+                        </div>
+                        <p class="guide-explanation">A simple single value showing total failed logins.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <ol start="4">
+                            <li>Set your time range (e.g., "Last 24 hours")</li>
+                            <li>Click <strong>Apply</strong> to see results</li>
+                            <li>Give the panel a title like "Failed Logins (24h)"</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 3: Add More Panels</div>
+                    <div class="guide-detail-section">
+                        <p>Repeat the process. Good starter panels:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security EventCode=4625
+| timechart span=1h count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Line chart showing failed logins over time.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security EventCode=4625
+| stats count by src_ip
+| sort - count
+| head 10</code></pre>
+                        </div>
+                        <p class="guide-explanation">Table of top 10 source IPs with failed logins.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 4: Arrange and Save</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li>Drag panels to rearrange them</li>
+                            <li>Resize panels by dragging corners</li>
+                            <li>Click <strong>Save</strong> in the top right</li>
+                        </ol>
+                        <p>Your dashboard is now saved and accessible from the Dashboards menu.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Start with searches you've already tested in the Search app. Get the search working first, then add it to a dashboard. Don't try to write new SPL directly in the dashboard editor.</p>
+                </div>
+            `
+        },
+        {
+            id: 'dash-best-practices',
+            title: 'Dashboard design best practices',
+            description: 'Design principles for creating effective, performant dashboards that people actually use.',
+            keywords: 'best practices design layout performance tips efficient effective',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">Layout Principles</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Most important = top left</div>
+                        <p>People read dashboards like a page - top to bottom, left to right. Put your key metrics and alerts at the top.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Group related panels</div>
+                        <p>Keep authentication panels together, network panels together, etc. Use visual rows to create sections.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Limit to 8-12 panels</div>
+                        <p>More panels = slower load times and visual overload. If you need more, create multiple focused dashboards.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Performance Tips</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Use specific indexes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security sourcetype=WinEventLog:Security</code></pre>
+                        </div>
+                        <p class="guide-explanation">Always specify index and sourcetype. Never use <code>index=*</code> on dashboards.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Use tstats for high-volume data</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count WHERE index=web by _time span=1h</code></pre>
+                        </div>
+                        <p class="guide-explanation">tstats searches indexed fields only - much faster than regular searches for simple counts.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Limit time ranges</div>
+                        <p>Default to 24 hours or 7 days, not "All Time". Let users expand if needed via time picker input.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Use base searches</div>
+                        <p>If multiple panels use similar data, create one base search and have panels reference it. This runs one search instead of many.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Visualization Choice</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Single Value</strong> - Key metrics, counts, current status</li>
+                            <li><strong>Line/Area Chart</strong> - Trends over time</li>
+                            <li><strong>Bar Chart</strong> - Comparing categories (top users, top sources)</li>
+                            <li><strong>Pie Chart</strong> - Proportions (use sparingly, max 5-6 slices)</li>
+                            <li><strong>Table</strong> - Detailed data, lists, when you need exact values</li>
+                            <li><strong>Map</strong> - Geographic data only</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Usability</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Descriptive titles</strong> - "Failed Logins by User (7d)" not "Panel 1"</li>
+                            <li><strong>Consistent time ranges</strong> - All panels should use the same time range or make it obvious when they don't</li>
+                            <li><strong>Add drilldowns</strong> - Let users click to investigate further</li>
+                            <li><strong>Include context</strong> - What's normal? Add thresholds or comparisons</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Common Mistakes</div>
+                    <p>Avoid real-time searches unless truly needed (they're expensive). Don't use <code>| table *</code> (pulls all fields). Don't create "everything" dashboards - make focused ones for specific purposes.</p>
+                </div>
+            `
+        },
+        {
+            id: 'dash-inputs-filters',
+            title: 'How to add inputs and filters',
+            description: 'Make dashboards interactive with dropdowns, time pickers, and text inputs that filter your data.',
+            keywords: 'input filter dropdown time picker text box token interactive dynamic',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>Add interactive controls that let users filter dashboard data without editing searches. For example, a dropdown to select a specific host or user.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">How Inputs Work</div>
+                    <div class="guide-detail-section">
+                        <p>Inputs create <strong>tokens</strong> - variables that get inserted into your searches. When a user selects "server01" from a dropdown, the token <code>$host$</code> becomes "server01" and all searches using that token re-run.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Adding a Dropdown Input</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li>In Dashboard Studio, click <strong>Add Input</strong></li>
+                            <li>Select <strong>Dropdown</strong></li>
+                            <li>Configure the input:
+                                <ul>
+                                    <li><strong>Token:</strong> <code>selected_host</code></li>
+                                    <li><strong>Label:</strong> "Select Host"</li>
+                                    <li><strong>Default:</strong> <code>*</code> (shows all)</li>
+                                </ul>
+                            </li>
+                            <li>For dynamic choices, add a search:</li>
+                        </ol>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=main | stats count by host | fields host</code></pre>
+                        </div>
+                        <p class="guide-explanation">Populates dropdown with actual hosts from your data.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using Tokens in Searches</div>
+                    <div class="guide-detail-section">
+                        <p>Reference the token in your panel searches with <code>$token_name$</code>:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=main host=$selected_host$
+| stats count by sourcetype</code></pre>
+                        </div>
+                        <p class="guide-explanation">When user selects "server01", this becomes <code>host=server01</code>. When they select the default "*", it shows all hosts.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Common Input Types</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Time Range Picker</div>
+                        <p>Lets users control the dashboard time range. Uses <code>$time.earliest$</code> and <code>$time.latest$</code> tokens.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Text Input</div>
+                        <p>Free-form text entry. Good for searching specific usernames, IPs, or error messages.</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=*$search_user$*</code></pre>
+                        </div>
+                        <p class="guide-explanation">Wildcards around the token allow partial matches.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Multiselect Dropdown</div>
+                        <p>Select multiple values. The token contains all selections in a search-friendly format.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Input Best Practices</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li>Always set a sensible default value</li>
+                            <li>Add an "All" option with value <code>*</code></li>
+                            <li>Keep dropdown lists reasonable (under 100 items)</li>
+                            <li>Put inputs at the top of the dashboard</li>
+                            <li>Group related inputs together</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Test your dashboard with different input combinations. Make sure it handles edge cases like empty selections or special characters in values. A dropdown that breaks the search when you select "O'Brien" is not a good dropdown.</p>
+                </div>
+            `
+        },
+        {
+            id: 'dash-drilldowns',
+            title: 'How to set up drilldowns for investigations',
+            description: 'Configure click actions that take users from summary views to detailed investigations.',
+            keywords: 'drilldown click action investigate detail link navigation workflow',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>Make your dashboards interactive investigation tools. When an analyst sees something suspicious, they should be able to click and dig deeper immediately.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">What is a Drilldown?</div>
+                    <div class="guide-detail-section">
+                        <p>A drilldown is an action triggered when someone clicks on a chart, table row, or value. It can:</p>
+                        <ul>
+                            <li>Open a new search with the clicked value</li>
+                            <li>Navigate to another dashboard with context</li>
+                            <li>Link to an external system (ticketing, wiki, etc.)</li>
+                            <li>Set tokens to filter the current dashboard</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Setting Up Basic Drilldowns</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">In Dashboard Studio</div>
+                        <ol>
+                            <li>Select a panel</li>
+                            <li>Click the <strong>Interactions</strong> tab (or drilldown settings)</li>
+                            <li>Enable drilldown</li>
+                            <li>Choose the action type</li>
+                        </ol>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Drilldown to Search</div>
+                        <p>Open the Search app with a pre-built query. Use tokens to pass the clicked value:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security src_ip=$click.value$
+| table _time, user, action, dest</code></pre>
+                        </div>
+                        <p class="guide-explanation"><code>$click.value$</code> contains whatever the user clicked on.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Useful Drilldown Tokens</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><code>$click.value$</code> - The value that was clicked</li>
+                            <li><code>$click.name$</code> - The field name of the clicked value</li>
+                            <li><code>$row.&lt;fieldname&gt;$</code> - Value of a specific field in the clicked row</li>
+                            <li><code>$earliest$</code> / <code>$latest$</code> - Time range of the panel</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Drilldown to Another Dashboard</div>
+                    <div class="guide-detail-section">
+                        <p>Pass context to a detailed dashboard using URL parameters:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>/app/search/user_investigation?form.username=$row.user$</code></pre>
+                        </div>
+                        <p class="guide-explanation">Opens the "user_investigation" dashboard with the username pre-filled.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Investigation Workflow Example</div>
+                    <div class="guide-detail-section">
+                        <p>Build a three-level investigation flow:</p>
+                        <ol>
+                            <li><strong>Overview Dashboard</strong> - High-level metrics and alerts</li>
+                            <li><strong>Entity Dashboard</strong> - Details about a specific user, host, or IP (reached via drilldown)</li>
+                            <li><strong>Raw Search</strong> - Full event details (final drilldown)</li>
+                        </ol>
+                        <p>Each level provides more detail. Analysts start broad and click to focus.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Analyst Tip</div>
+                    <p>Design drilldowns around investigation questions. When an analyst sees a spike in failed logins, what's their next question? Probably "which users?" or "which sources?" - make those one click away.</p>
+                </div>
+            `
+        },
+        {
+            id: 'dash-analyst-workflows',
+            title: 'Using dashboards in analyst workflows',
+            description: 'Practical strategies for integrating dashboards into daily monitoring, triage, and investigation routines.',
+            keywords: 'workflow monitoring triage investigation routine daily soc analyst hunting',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Big Picture</div>
+                    <div class="guide-detail-section">
+                        <p>Dashboards aren't just pretty pictures - they're operational tools. Used well, they make you faster and help you catch things you'd otherwise miss.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Daily Monitoring Workflow</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Morning Check Dashboard</div>
+                        <p>Create a "start of shift" dashboard that answers: What happened overnight? What needs attention?</p>
+                        <ul>
+                            <li>Alert counts by severity (last 12-24 hours)</li>
+                            <li>Failed authentication trends</li>
+                            <li>System health indicators</li>
+                            <li>Anomalies or threshold breaches</li>
+                        </ul>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Make it actionable</div>
+                        <p>Every panel should either show "all clear" or lead somewhere. If failed logins are high, one click should show you which accounts. Don't make analysts context-switch to investigate.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Triage Workflow</div>
+                    <div class="guide-detail-section">
+                        <p>When alerts fire, you need to quickly determine: Is this real? How bad? What's affected?</p>
+                        <div class="guide-detail-label">Alert Triage Dashboard Pattern</div>
+                        <ul>
+                            <li><strong>Top row:</strong> Key context about the alerted entity (user/host/IP)</li>
+                            <li><strong>Middle:</strong> Related activity timeline</li>
+                            <li><strong>Bottom:</strong> Historical baseline - is this normal for this entity?</li>
+                        </ul>
+                    </div>
+                    <div class="guide-detail-section">
+                        <p>Use inputs to quickly pivot between entities. Drilldowns to raw events for evidence.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Investigation Dashboard</div>
+                    <div class="guide-detail-section">
+                        <p>Deep-dive dashboards for confirmed incidents. Build these around entities:</p>
+                        <div class="guide-detail-label">User Investigation Dashboard</div>
+                        <ul>
+                            <li>Authentication history (successes and failures)</li>
+                            <li>Systems accessed</li>
+                            <li>Data accessed or transferred</li>
+                            <li>Timeline of all activity</li>
+                            <li>Comparison to peer group behavior</li>
+                        </ul>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Host Investigation Dashboard</div>
+                        <ul>
+                            <li>Process execution history</li>
+                            <li>Network connections</li>
+                            <li>File modifications</li>
+                            <li>User logins</li>
+                            <li>Installed software changes</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Threat Hunting with Dashboards</div>
+                    <div class="guide-detail-section">
+                        <p>Hunting dashboards focus on patterns and anomalies:</p>
+                        <ul>
+                            <li>Rare process executions</li>
+                            <li>First-time connections</li>
+                            <li>Outliers in behavior (statistical or rule-based)</li>
+                            <li>Known-bad indicators</li>
+                        </ul>
+                        <p>These dashboards surface candidates for investigation. Not every hit is malicious - that's where analyst judgment comes in.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Workflow Tip</div>
+                    <p>Create a personal "Analyst Home" dashboard with links to all your operational dashboards. Organize by workflow: Monitoring, Triage, Investigation, Hunting. One bookmark, everything accessible.</p>
+                </div>
+            `
+        },
+        {
+            id: 'dash-realtime-monitoring',
+            title: 'Building real-time monitoring dashboards',
+            description: 'When and how to use real-time searches for live monitoring, and how to avoid performance pitfalls.',
+            keywords: 'real-time realtime live monitoring streaming performance refresh',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">When to Use Real-Time</div>
+                    <div class="guide-detail-section">
+                        <p>Real-time searches continuously process events as they arrive. Use them when:</p>
+                        <ul>
+                            <li>You need to see events within seconds of occurrence</li>
+                            <li>You're monitoring active incidents</li>
+                            <li>You're watching a deployment or change window</li>
+                            <li>Display screens for NOC/SOC visibility</li>
+                        </ul>
+                    </div>
+                    <div class="guide-detail-section">
+                        <p><strong>Don't use real-time</strong> for general dashboards. Scheduled searches with auto-refresh are usually better - same visibility, fraction of the cost.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-Time Search Types</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Windowed Real-Time</div>
+                        <p>Shows a sliding time window (e.g., last 5 minutes). Less resource-intensive.</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security EventCode=4625 earliest=-5m
+| stats count by src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Set time picker to "5 minute window" in real-time options.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">All-Time Real-Time</div>
+                        <p>Accumulates all events since the search started. Use sparingly - memory intensive.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Performance Considerations</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Limit concurrent real-time searches</strong> - Each one consumes resources continuously</li>
+                            <li><strong>Use specific filters</strong> - The more data flowing through, the higher the cost</li>
+                            <li><strong>Prefer windowed over all-time</strong> - Bounded memory usage</li>
+                            <li><strong>Avoid transforming commands when possible</strong> - Stats, timechart, etc. add overhead</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Alternative: Scheduled + Auto-Refresh</div>
+                    <div class="guide-detail-section">
+                        <p>For most monitoring needs, this pattern works better:</p>
+                        <ol>
+                            <li>Create a scheduled search that runs every 1-5 minutes</li>
+                            <li>Save results to a summary index or lookup</li>
+                            <li>Dashboard reads from the summary (fast)</li>
+                            <li>Set dashboard to auto-refresh every minute</li>
+                        </ol>
+                        <p>Result: Near-real-time visibility with much lower resource usage.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-Time Dashboard Pattern</div>
+                    <div class="guide-detail-section">
+                        <p>A typical real-time ops dashboard:</p>
+                        <ul>
+                            <li><strong>Row 1:</strong> Single values showing current counts/rates</li>
+                            <li><strong>Row 2:</strong> Live event stream (last 100 events)</li>
+                            <li><strong>Row 3:</strong> 5-minute trending chart</li>
+                        </ul>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| head 100
+| table _time, src_ip, dest_ip, dest_port, rule</code></pre>
+                        </div>
+                        <p class="guide-explanation">Live stream of blocked connections - useful during active monitoring.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Resource Warning</div>
+                    <p>Real-time searches run until you close them. A dashboard with 6 real-time panels left open overnight is running 6 continuous searches. Always close real-time dashboards when you're done, or set them to convert to historical after a timeout.</p>
+                </div>
+            `
+        },
+        {
+            id: 'dash-sharing-permissions',
+            title: 'How to share dashboards and manage permissions',
+            description: 'Control who can view, edit, and manage your dashboards across the organization.',
+            keywords: 'share sharing permissions access control roles private app global',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">Permission Levels</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Private (User)</div>
+                        <p>Only you can see and edit. Good for personal dashboards and work-in-progress.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">App-Level (App)</div>
+                        <p>Anyone with access to the app can see it. Most common for team dashboards.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Global (All Apps)</div>
+                        <p>Visible across all apps. Use for organization-wide dashboards.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Changing Permissions</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li>Go to <strong>Settings > User Interface > Views</strong></li>
+                            <li>Find your dashboard</li>
+                            <li>Click <strong>Permissions</strong></li>
+                            <li>Set the sharing level and role-based access</li>
+                        </ol>
+                        <p>Or from the dashboard: <strong>Edit > Edit Permissions</strong></p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Role-Based Access</div>
+                    <div class="guide-detail-section">
+                        <p>Within each sharing level, you can set per-role permissions:</p>
+                        <ul>
+                            <li><strong>Read</strong> - Can view the dashboard</li>
+                            <li><strong>Write</strong> - Can edit the dashboard</li>
+                        </ul>
+                        <p>Example: Share with App, give all users Read, give analysts Write.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Sharing Best Practices</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Start private</strong> - Build and test before sharing</li>
+                            <li><strong>Use descriptive names</strong> - "Q4 Security Metrics" not "Dashboard 2"</li>
+                            <li><strong>Document your dashboards</strong> - Add a description explaining what it shows and who it's for</li>
+                            <li><strong>Limit write access</strong> - Too many editors leads to inconsistency</li>
+                            <li><strong>Consider creating an app</strong> - For major dashboard collections, a dedicated app keeps things organized</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Exporting Dashboards</div>
+                    <div class="guide-detail-section">
+                        <p>To share dashboards between Splunk instances:</p>
+                        <ol>
+                            <li>Go to the dashboard</li>
+                            <li>Click <strong>Edit > Export</strong></li>
+                            <li>Download as XML or JSON</li>
+                            <li>Import on the target system via UI or copying to <code>$SPLUNK_HOME/etc/apps/[app]/local/data/ui/views/</code></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Create a "Dashboard Directory" dashboard - a simple page with links and descriptions of all your team's dashboards. Makes it easy for new team members to find what they need.</p>
+                </div>
+            `
+        }
     ]
 };
 
@@ -3264,6 +3939,11 @@ function openGuideModal(guide) {
 
     title.textContent = guide.title;
     body.innerHTML = guide.body;
+
+    // Apply SPL syntax highlighting
+    if (window.SPLUNKed && SPLUNKed.applySPLHighlighting) {
+        SPLUNKed.applySPLHighlighting(body);
+    }
 
     // Initialize copy buttons
     initCopyButtons(body);

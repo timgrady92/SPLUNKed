@@ -1,0 +1,148 @@
+{% extends "_base.html" %}
+
+{% block title %}Training - SPLUNKed{% endblock %}
+
+{% block content %}
+{% from "_components.html" import search_input, category_tab %}
+
+<div class="page-container">
+    <!-- Page Header -->
+    <header class="page-header">
+        <h1 class="page-title">Training Center</h1>
+        <p class="page-subtitle">
+            Curated learning pipelines with realistic SOC scenarios.
+            Build your analytical instincts through hands-on practice.
+        </p>
+    </header>
+
+    <!-- Skill Progression Tabs -->
+    <div class="tabs-container" id="trainingTabs">
+        <div class="tabs-list" role="tablist">
+            {{ category_tab('foundations', 'Foundations', active=true) }}
+            {{ category_tab('coreSkills', 'Core Skills') }}
+            {{ category_tab('intermediate', 'Intermediate') }}
+            {{ category_tab('advanced', 'Advanced') }}
+            {{ category_tab('expert', 'Expert') }}
+        </div>
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+        {{ search_input(placeholder='Search training modules...', id='trainingSearch') }}
+
+        <div class="filter-dropdown">
+            <label for="typeFilter" class="filter-label">Type:</label>
+            <select id="typeFilter" class="filter-select">
+                <option value="all">All types</option>
+                <option value="tutorial">Tutorials</option>
+                <option value="scenario">Scenarios</option>
+                <option value="challenge">Challenges</option>
+            </select>
+        </div>
+
+        <div class="filter-dropdown">
+            <label for="domainFilter" class="filter-label">Domain:</label>
+            <select id="domainFilter" class="filter-select">
+                <option value="all">All domains</option>
+                <option value="authentication">Authentication</option>
+                <option value="network">Network</option>
+                <option value="endpoint">Endpoint</option>
+                <option value="incident-response">Incident Response</option>
+                <option value="basics">Basics</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Tab Panels -->
+    <div id="foundationsPanel" class="tab-panel active" role="tabpanel">
+        <div class="training-level-info">
+            <span class="level-badge foundations">Foundations</span>
+            <p class="level-description">SPL basics, search anatomy, time concepts, and field extraction. Start here if you're new to Splunk.</p>
+        </div>
+        <div class="training-grid" id="foundationsGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="coreSkillsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-level-info">
+            <span class="level-badge coreSkills">Core Skills</span>
+            <p class="level-description">Filtering, aggregating, field manipulation, and basic correlation. Essential skills for daily SOC work.</p>
+        </div>
+        <div class="training-grid" id="coreSkillsGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="intermediatePanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-level-info">
+            <span class="level-badge intermediate">Intermediate</span>
+            <p class="level-description">Subsearches, lookups, joins, and transaction analysis. Combine data sources for deeper investigation.</p>
+        </div>
+        <div class="training-grid" id="intermediateGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="advancedPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-level-info">
+            <span class="level-badge advanced">Advanced</span>
+            <p class="level-description">Statistical analysis, anomaly detection, and threat hunting patterns. Proactive security techniques.</p>
+        </div>
+        <div class="training-grid" id="advancedGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="expertPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-level-info">
+            <span class="level-badge expert">Expert</span>
+            <p class="level-description">Performance optimization, complex correlations, and custom commands. Master-level techniques.</p>
+        </div>
+        <div class="training-grid" id="expertGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state hidden" id="trainingEmptyState">
+        <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+            </svg>
+        </div>
+        <h3 class="empty-title">No training modules found</h3>
+        <p class="empty-message">Try adjusting your search or filter criteria.</p>
+    </div>
+</div>
+
+<!-- Training Modal -->
+<div class="training-modal" id="trainingModal">
+    <div class="training-modal-overlay" id="trainingModalOverlay"></div>
+    <div class="training-modal-content">
+        <div class="training-modal-header">
+            <div class="training-modal-meta">
+                <span class="training-type-badge" id="modalTypeBadge"></span>
+                <span class="training-difficulty" id="modalDifficulty"></span>
+                <span class="training-duration" id="modalDuration"></span>
+            </div>
+            <button class="training-modal-close" id="trainingModalClose" aria-label="Close modal">&times;</button>
+        </div>
+        <h2 class="training-modal-title" id="trainingModalTitle"></h2>
+        <div class="training-modal-objectives" id="trainingModalObjectives">
+            <!-- Populated by JavaScript -->
+        </div>
+        <div class="training-modal-body" id="trainingModalBody">
+            <!-- Populated by JavaScript -->
+        </div>
+        <div class="training-modal-nav" id="trainingModalNav">
+            <!-- Populated by JavaScript for scenarios -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='training.js') }}"></script>
+{% endblock %}

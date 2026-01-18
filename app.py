@@ -78,6 +78,12 @@ def prompt_builder():
     return render_template("prompt-builder.html")
 
 
+@app.route("/training")
+def training():
+    """Training page with curated learning pipelines and SOC scenarios."""
+    return render_template("training.html")
+
+
 # API Routes for Prompt Builder
 @app.route("/api/mappings", methods=['GET'])
 def get_all_mappings():
