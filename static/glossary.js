@@ -75,6 +75,52 @@ const FUNCTION_PURPOSE_LABELS = {
 };
 
 // ============================================
+// Tab Consolidation Mapping (9 categories → 5 tabs)
+// ============================================
+
+const TAB_CATEGORY_MAP = {
+    commands: ['commands'],
+    functions: ['functions', 'statsFunctions'],
+    fields: ['fields'],
+    reference: ['cim', 'concepts', 'extractions', 'macros'],
+    antipatterns: ['antipatterns']
+};
+
+const TAB_INFO = {
+    commands: CATEGORY_INFO.commands,
+    functions: {
+        title: 'Functions',
+        description: 'Eval functions for calculations and string manipulation, plus aggregation functions for stats commands.'
+    },
+    fields: {
+        title: 'Fields',
+        description: 'Common Splunk fields including index-time metadata (_time, _raw, host, source, sourcetype) and frequently-used extracted fields.'
+    },
+    reference: {
+        title: 'Reference',
+        description: 'CIM data models, Splunk concepts, field extraction techniques, and macros & lookups.'
+    },
+    antipatterns: CATEGORY_INFO.antipatterns
+};
+
+// Map from source categories to their parent tab
+const CATEGORY_TO_TAB = {};
+Object.entries(TAB_CATEGORY_MAP).forEach(([tab, categories]) => {
+    categories.forEach(cat => CATEGORY_TO_TAB[cat] = tab);
+});
+
+// Subcategory labels for merged tabs
+const SUBCATEGORY_LABELS = {
+    functions: 'Eval Function',
+    statsFunctions: 'Stats Function',
+    fields: 'Field',
+    cim: 'CIM/Data Model',
+    concepts: 'Concept',
+    extractions: 'Extraction',
+    macros: 'Macro/Lookup'
+};
+
+// ============================================
 // Glossary Data
 // ============================================
 
@@ -654,6 +700,52 @@ const GLOSSARY_DATA = {
             relatedCommands: ['table', 'rename', 'eval', 'stats']
         },
         {
+            id: 'fieldsummary',
+            name: 'fieldsummary',
+            category: 'commands',
+            subcategory: 'reporting',
+            purpose: 'find',
+            takeaway: 'Get statistics about your fields - counts, values, types',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Generates summary statistics for each field in your search results: count, distinct count, whether it\'s numeric, sample values, and more.',
+                    why: 'Essential for data discovery. When you\'re unfamiliar with a data source, fieldsummary tells you what fields exist and what they contain.',
+                    syntax: 'fieldsummary [maxvals=<int>] [<field-list>]',
+                    example: { spl: 'index=security | fieldsummary', explanation: 'Explore all fields in security index' }
+                },
+                practical: {
+                    examples: [
+                        { spl: 'index=security earliest=-1h | fieldsummary | where count > 100', explanation: 'Fields with significant data' },
+                        { spl: 'index=new_source | fieldsummary | table field, count, distinct_count, values', explanation: 'Explore a new data source' },
+                        { spl: 'sourcetype=syslog | fieldsummary maxvals=10', explanation: 'Show up to 10 sample values per field' },
+                        { spl: 'index=* user=admin | fieldsummary | search field=*ip*', explanation: 'Find IP-related fields' }
+                    ],
+                    gotchas: [
+                        'Returns one row per field, not per event',
+                        'maxvals controls how many sample values to show (default 100)',
+                        'Only analyzes the events returned by your search',
+                        'Large result sets can make fieldsummary slow - limit with head first'
+                    ],
+                    commonUses: [
+                        'Exploring unfamiliar data sources',
+                        'Finding which fields have data vs. are mostly empty',
+                        'Discovering field names in new sourcetypes',
+                        'Data quality assessment'
+                    ]
+                },
+                deep: {
+                    performance: 'Scans all returned events. For exploration, limit with head 10000 first.',
+                    vsAlternatives: {
+                        'stats dc()': 'Use stats dc(field) for specific field cardinality',
+                        'top': 'Use top to see most common values of specific fields',
+                        'metadata': 'Use metadata for index-level field info without searching events'
+                    }
+                }
+            },
+            relatedCommands: ['fields', 'stats', 'metadata', 'top']
+        },
+        {
             id: 'fillnull',
             name: 'fillnull',
             category: 'commands',
@@ -1107,6 +1199,52 @@ const GLOSSARY_DATA = {
                 }
             },
             relatedCommands: ['lookup', 'geostats', 'geom']
+        },
+        {
+            id: 'inputcsv',
+            name: 'inputcsv',
+            category: 'commands',
+            subcategory: 'input',
+            purpose: 'create',
+            takeaway: 'Load data from a CSV file',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Reads a CSV file from the Splunk server and returns its contents as search results. The file must be in $SPLUNK_HOME/var/run/splunk/ or a dispatch directory.',
+                    why: 'Load external data into Splunk for analysis, testing, or one-time investigations without creating a formal lookup.',
+                    syntax: '| inputcsv [append=<bool>] <filename>',
+                    example: { spl: '| inputcsv my_data.csv', explanation: 'Load my_data.csv into search results' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| inputcsv threat_indicators.csv | rename indicator as src_ip | join src_ip [search index=firewall]', explanation: 'Match CSV data against logs' },
+                        { spl: '| inputcsv exported_data.csv | stats count by category', explanation: 'Analyze previously exported data' },
+                        { spl: '| inputcsv append=true file1.csv | inputcsv append=true file2.csv', explanation: 'Combine multiple CSV files' },
+                        { spl: '| inputcsv results.csv | where severity="critical"', explanation: 'Filter loaded CSV data' }
+                    ],
+                    gotchas: [
+                        'File must exist in specific Splunk directories (not arbitrary paths)',
+                        'First row is treated as header (field names)',
+                        'Starts with pipe (|) since it generates events',
+                        'For persistent reference data, use lookups instead'
+                    ],
+                    commonUses: [
+                        'Loading previously exported search results',
+                        'One-time import of external data for investigation',
+                        'Testing with sample data files',
+                        'Comparing exported baselines to current data'
+                    ]
+                },
+                deep: {
+                    performance: 'Reads entire file into memory. For large files or frequent access, use lookup tables instead.',
+                    vsAlternatives: {
+                        'inputlookup': 'Use inputlookup for persistent reference data (lookups are managed and versioned)',
+                        'outputcsv': 'Use outputcsv to export data, inputcsv to re-import it',
+                        'lookup': 'Use lookup command for enrichment during a search'
+                    }
+                }
+            },
+            relatedCommands: ['outputcsv', 'inputlookup', 'outputlookup']
         },
         {
             id: 'inputlookup',
@@ -1868,6 +2006,51 @@ const GLOSSARY_DATA = {
                 { spl: '... | accum count as cumulative_count', explanation: 'Cumulative count across events' }
             ],
             relatedCommands: ['streamstats', 'autoregress', 'delta', 'stats']
+        },
+        {
+            id: 'addtotals',
+            name: 'addtotals',
+            category: 'commands',
+            subcategory: 'reporting',
+            purpose: 'format',
+            takeaway: 'Add row and column totals to tables',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Adds a total row and/or column to your results. Can sum across rows (adding a Total column) or down columns (adding a Total row).',
+                    why: 'Essential for creating report-ready tables with totals. Makes summary tables more useful for stakeholders.',
+                    syntax: 'addtotals [row=<bool>] [col=<bool>] [fieldname=<name>] [<field-list>]',
+                    example: { spl: '... | stats count by host | addtotals', explanation: 'Add a total row to the bottom' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '... | stats count by host, status | addtotals col=true', explanation: 'Add Total column summing across each row' },
+                        { spl: '... | chart count by host over status | addtotals row=true col=true', explanation: 'Add both row and column totals' },
+                        { spl: '... | stats sum(bytes) as bytes by user | addtotals fieldname="TOTAL"', explanation: 'Custom name for total row' },
+                        { spl: '... | stats count as events, sum(bytes) as bytes by host | addtotals', explanation: 'Totals for multiple numeric columns' }
+                    ],
+                    gotchas: [
+                        'Only works on numeric fields',
+                        'Default adds row totals (row=true, col=false)',
+                        'Total row appears at the bottom of results',
+                        'Use fieldname= to change "Total" label'
+                    ],
+                    commonUses: [
+                        'Creating summary reports with totals',
+                        'Adding "Total" row to stats tables',
+                        'Cross-tab reports with row and column totals',
+                        'Executive dashboards and reports'
+                    ]
+                },
+                deep: {
+                    performance: 'Lightweight operation performed after main search.',
+                    vsAlternatives: {
+                        'eventstats': 'Use eventstats sum() to add running totals as a field',
+                        'appendcols': 'For more complex total calculations'
+                    }
+                }
+            },
+            relatedCommands: ['stats', 'chart', 'eventstats']
         },
         {
             id: 'anomalydetection',
@@ -2965,6 +3148,248 @@ const GLOSSARY_DATA = {
                 }
             },
             relatedCommands: ['metadata', 'tstats', 'stats']
+        },
+        {
+            id: 'map',
+            name: 'map',
+            category: 'commands',
+            subcategory: 'subsearch',
+            purpose: 'combine',
+            takeaway: 'Run a search for each result row (iterative subsearch)',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Executes a search once for each result row, substituting field values into the search string. Enables iterative or recursive lookups.',
+                    why: 'Essential for process tree traversal, chained investigations, and scenarios where you need to "follow the trail" through multiple hops.',
+                    syntax: 'map search="<search_string>" [maxsearches=<int>]',
+                    example: { spl: '... | map search="search index=security ParentProcessId=$ProcessId$"', explanation: 'Find child processes for each process' }
+                },
+                practical: {
+                    examples: [
+                        { spl: 'index=security EventCode=4688 user=admin | head 5 | map search="search index=security ProcessId=$ProcessId$ | stats count by CommandLine"', explanation: 'Get command details for each process started by admin' },
+                        { spl: '| inputlookup suspicious_ips.csv | map search="search index=firewall src_ip=$ip$ | stats sum(bytes) as total_bytes" maxsearches=100', explanation: 'Check traffic volume for each suspicious IP' },
+                        { spl: 'index=endpoint malware | map search="search index=endpoint host=$host$ earliest=$_time$ latest=+1h | stats values(process) as subsequent_processes"', explanation: 'Find processes launched within 1 hour of malware detection' }
+                    ],
+                    gotchas: [
+                        'Default maxsearches=10 - increase for larger datasets but watch performance',
+                        'Use $field$ syntax to substitute values from each row',
+                        'Each mapped search runs independently - can be slow with many rows',
+                        'Results are appended together from all searches'
+                    ],
+                    commonUses: [
+                        'Process tree traversal (parent→child→grandchild)',
+                        'Investigating IOCs from a lookup table',
+                        'Following lateral movement paths',
+                        'Chained correlation across data sources'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Recursive process tree', spl: '| makeresults | eval ProcessId="4688" | map search="search index=security EventCode=4688 ParentProcessId=$ProcessId$ | table ProcessId, NewProcessName" maxsearches=50', explanation: 'Traverse process tree from known PID' },
+                        { name: 'Time-bounded follow-up', spl: '... | map search="search index=proxy src_ip=$src_ip$ earliest=\"$_time$\" latest=\"$_time$+5m\""', explanation: 'Find proxy events within 5 minutes of each alert' }
+                    ],
+                    performance: 'Runs N separate searches where N = number of input rows (up to maxsearches). Can be expensive - limit input rows with head/where first.',
+                    internals: 'Each map iteration is a full search job. Field values are string-substituted into the search before execution.',
+                    vsAlternatives: {
+                        'join': 'Use join for simple key matching; map for complex iterative logic',
+                        'lookup': 'Use lookup for static enrichment; map for dynamic searches',
+                        'subsearch': 'Subsearch runs once; map runs per row'
+                    }
+                }
+            },
+            relatedCommands: ['join', 'lookup', 'append', 'foreach']
+        },
+        {
+            id: 'cluster',
+            name: 'cluster',
+            category: 'commands',
+            subcategory: 'analysis',
+            purpose: 'find',
+            takeaway: 'Group similar events together automatically',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Automatically groups events with similar field values, assigning a cluster ID to each group. Uses text similarity algorithms.',
+                    why: 'Find patterns in unstructured data, group similar error messages, or identify related events without knowing the exact values in advance.',
+                    syntax: 'cluster [field=<field>] [t=<threshold>] [showcount=<bool>]',
+                    example: { spl: '... | cluster field=Message showcount=true | table cluster_count, Message', explanation: 'Group similar messages and count each cluster' }
+                },
+                practical: {
+                    examples: [
+                        { spl: 'index=web status>=500 | cluster field=uri t=0.8 | stats count by cluster_label', explanation: 'Group similar error URLs (80% similarity threshold)' },
+                        { spl: 'index=security EventCode=4625 | cluster field=FailureReason showcount=true | dedup cluster_label', explanation: 'Find unique failure reason patterns' },
+                        { spl: 'index=endpoint CommandLine=*powershell* | cluster field=CommandLine t=0.7 | where cluster_count > 5', explanation: 'Find repeated PowerShell command patterns' },
+                        { spl: 'index=proxy | cluster field=url | stats dc(src_ip) as unique_sources by cluster_label | where unique_sources > 10', explanation: 'Find URL patterns accessed by many sources' }
+                    ],
+                    gotchas: [
+                        'Threshold t (0-1) controls similarity - lower = looser grouping',
+                        'Works best on text fields with natural variation',
+                        'Adds cluster_label and optionally cluster_count fields',
+                        'Default field is _raw if not specified'
+                    ],
+                    commonUses: [
+                        'Grouping similar error messages',
+                        'Finding command-line attack patterns',
+                        'Identifying data staging (similar file operations)',
+                        'Detecting variations of the same attack'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Attack pattern detection', spl: 'index=endpoint CommandLine=* | cluster field=CommandLine t=0.6 | eventstats count as pattern_count by cluster_label | where pattern_count > 3 AND pattern_count < 20', explanation: 'Find repeated but not ubiquitous command patterns' },
+                        { name: 'Data staging detection', spl: 'index=endpoint (copy OR move OR xcopy) | cluster field=CommandLine | stats values(dest_path) as destinations, count by cluster_label, user | where count > 10', explanation: 'Group similar copy operations by user' }
+                    ],
+                    performance: 'Memory-intensive for large result sets. Filter events first to reduce clustering overhead.',
+                    internals: 'Uses locality-sensitive hashing for efficient similarity matching. The t parameter controls the Jaccard similarity threshold.',
+                    vsAlternatives: {
+                        'dedup': 'For exact duplicates only',
+                        'transaction': 'For grouping by field values and time, not similarity',
+                        'kmeans': 'For numeric clustering with k predefined groups'
+                    }
+                }
+            },
+            relatedCommands: ['dedup', 'transaction', 'kmeans', 'anomalydetection']
+        },
+        {
+            id: 'diff',
+            name: 'diff',
+            category: 'commands',
+            subcategory: 'comparison',
+            purpose: 'find',
+            takeaway: 'Compare two search results and show differences',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Compares the current search results with a saved search or another dataset, showing what changed between them.',
+                    why: 'Critical for before/after analysis, configuration change detection, and identifying what\'s different between two points in time.',
+                    syntax: 'diff <position> [attribute=<field>] [diffheader=<bool>] [maxlen=<int>]',
+                    example: { spl: '| diff position1=baseline position2=current attribute=config_value', explanation: 'Compare current config to baseline' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| savedsearch baseline_configs | diff position2=[| savedsearch current_configs] attribute=value', explanation: 'Compare saved config snapshots' },
+                        { spl: '| inputlookup authorized_admins.csv | diff position2=[search index=security EventCode=4728 | table user] attribute=user', explanation: 'Find users added to admin groups not in authorized list' }
+                    ],
+                    gotchas: [
+                        'Requires two datasets to compare (position1 and position2)',
+                        'Shows additions, deletions, and changes',
+                        'Often used with savedsearch or inputlookup for baseline comparison',
+                        'Results show which position each row came from'
+                    ],
+                    commonUses: [
+                        'Configuration change detection',
+                        'Identifying new entries since baseline',
+                        'Before/after incident comparison',
+                        'Compliance drift detection'
+                    ]
+                },
+                deep: {
+                    performance: 'Both datasets must fit in memory for comparison.',
+                    vsAlternatives: {
+                        'set diff': 'For simpler set subtraction without detailed diff output',
+                        'join type=left': 'For finding non-matching rows',
+                        'stats earliest/latest': 'For detecting value changes over time'
+                    }
+                }
+            },
+            relatedCommands: ['set', 'join', 'append']
+        },
+        {
+            id: 'selfjoin',
+            name: 'selfjoin',
+            category: 'commands',
+            subcategory: 'combining',
+            purpose: 'combine',
+            takeaway: 'Join results with themselves on a key field',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Joins the search results with themselves based on a specified field, creating pairs of related events.',
+                    why: 'Essential for finding relationships within the same dataset - like matching login/logout pairs, request/response events, or parent/child processes.',
+                    syntax: 'selfjoin <field> [max=<int>] [overwrite=<bool>]',
+                    example: { spl: '... | selfjoin session_id', explanation: 'Match events with same session_id' }
+                },
+                practical: {
+                    examples: [
+                        { spl: 'index=auth action IN (login, logout) | selfjoin user | where action="login" AND action2="logout" | eval session_duration=_time2-_time', explanation: 'Calculate session duration from login/logout pairs' },
+                        { spl: 'index=web transaction_id=* | selfjoin transaction_id | where phase="request" AND phase2="response" | eval latency=_time2-_time', explanation: 'Match request/response pairs for latency calculation' },
+                        { spl: 'index=security EventCode IN (4624, 4634) | selfjoin LogonId | where EventCode=4624 AND EventCode2=4634', explanation: 'Match logon/logoff events by LogonId' }
+                    ],
+                    gotchas: [
+                        'Creates new fields with "2" suffix for the joined row (field2, _time2, etc.)',
+                        'Can produce many combinations - filter first',
+                        'max parameter limits matches per key (default 1)',
+                        'Order matters - first occurrence matches with subsequent ones'
+                    ],
+                    commonUses: [
+                        'Matching start/end event pairs',
+                        'Calculating duration between related events',
+                        'Finding request/response correlation',
+                        'Session analysis'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Login without logout detection', spl: 'index=auth | selfjoin user max=0 | where action="login" AND NOT isnotnull(action2) earliest=-1h', explanation: 'Find logins with no matching logout' }
+                    ],
+                    performance: 'Memory-intensive for high-cardinality join fields. Use max to limit combinations.',
+                    vsAlternatives: {
+                        'transaction': 'Better for grouping related events with flexible matching',
+                        'join': 'For joining with different datasets',
+                        'stats': 'For first/last/list aggregations'
+                    }
+                }
+            },
+            relatedCommands: ['join', 'transaction', 'stats']
+        },
+        {
+            id: 'set',
+            name: 'set',
+            category: 'commands',
+            subcategory: 'combining',
+            purpose: 'combine',
+            takeaway: 'Perform set operations (union, diff, intersect) on results',
+            cardStyle: 'tabbed',
+            zones: {
+                essential: {
+                    what: 'Performs mathematical set operations on two or more search results: union (combine all), diff (subtract), or intersect (common only).',
+                    why: 'Perfect for threat intelligence matching, finding what\'s new or missing between datasets, and combining results from multiple searches.',
+                    syntax: 'set <union|diff|intersect> [subsearch1] [subsearch2]...',
+                    example: { spl: '| set diff [search index=current_users] [search index=authorized_users]', explanation: 'Find users not in authorized list' }
+                },
+                practical: {
+                    examples: [
+                        { spl: '| set intersect [search index=firewall src_ip=* | stats count by src_ip | fields src_ip] [| inputlookup threat_intel.csv | fields ip | rename ip as src_ip]', explanation: 'Find IPs in both traffic and threat intel' },
+                        { spl: '| set union [search index=windows EventCode=4688] [search index=sysmon EventCode=1]', explanation: 'Combine process creation events from multiple sources' },
+                        { spl: '| set diff [search index=auth user=* | dedup user | fields user] [| inputlookup terminated_users.csv | fields user]', explanation: 'Find active users excluding terminated list' }
+                    ],
+                    gotchas: [
+                        'union: All rows from all searches (duplicates removed)',
+                        'diff: Rows in first search NOT in subsequent searches',
+                        'intersect: Only rows appearing in ALL searches',
+                        'Fields must match for proper comparison'
+                    ],
+                    commonUses: [
+                        'Threat intel IOC matching',
+                        'Finding unauthorized users/systems',
+                        'Combining data from multiple indexes',
+                        'Exclusion list filtering'
+                    ]
+                },
+                deep: {
+                    advancedPatterns: [
+                        { name: 'Multi-source threat matching', spl: '| set intersect [search index=dns query=* | stats count by query | fields query] [search index=proxy url=* | rex field=url "https?://(?<query>[^/]+)" | stats count by query | fields query] [| inputlookup malicious_domains.csv | fields query]', explanation: 'Find domains appearing in DNS, proxy, AND threat intel' },
+                        { name: 'New process detection', spl: '| set diff [search index=sysmon EventCode=1 earliest=-1d | stats count by Image | fields Image] [search index=sysmon EventCode=1 earliest=-8d latest=-1d | stats count by Image | fields Image]', explanation: 'Find executables seen today but not in prior week' }
+                    ],
+                    performance: 'Each subsearch runs fully before set operation. Keep subsearches efficient.',
+                    vsAlternatives: {
+                        'join': 'For field-based matching with different schemas',
+                        'append': 'For simple concatenation without duplicate removal',
+                        'diff': 'For detailed row-by-row comparison'
+                    }
+                }
+            },
+            relatedCommands: ['append', 'join', 'diff', 'multisearch']
         }
     ],
 
@@ -4876,6 +5301,27 @@ const GLOSSARY_DATA = {
 
     statsFunctions: [
         {
+            id: 'stats_avg',
+            name: 'avg()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Calculate the mean average',
+            what: 'Returns the arithmetic mean (average) of numeric values for a field.',
+            why: 'Understand typical values, baseline metrics, identify anomalies that deviate from the average.',
+            syntax: 'avg(field)',
+            examples: [
+                { spl: '| stats avg(response_time) as avg_response', explanation: 'Average response time' },
+                { spl: '| stats avg(bytes) by host', explanation: 'Average bytes per host' },
+                { spl: '| stats avg(duration) as avg_dur, max(duration) as max_dur by user', explanation: 'Compare average vs maximum duration' }
+            ],
+            gotchas: [
+                'Sensitive to outliers - one huge value skews the average',
+                'Consider using median() for skewed distributions',
+                'Non-numeric and null values are ignored'
+            ],
+            relatedCommands: ['median', 'stdev', 'min', 'max']
+        },
+        {
             id: 'stats_count',
             name: 'count()',
             category: 'statsFunctions',
@@ -4919,132 +5365,48 @@ const GLOSSARY_DATA = {
             relatedCommands: ['count', 'values', 'estdc']
         },
         {
-            id: 'stats_sum',
-            name: 'sum()',
-            category: 'statsFunctions',
-            difficulty: 'beginner',
-            takeaway: 'Add up numeric values',
-            what: 'Returns the sum of all values for a numeric field.',
-            why: 'Essential for totaling bytes transferred, calculating total duration, summing costs, or any additive metric.',
-            syntax: 'sum(field)',
-            examples: [
-                { spl: '| stats sum(bytes) as total_bytes', explanation: 'Total bytes transferred' },
-                { spl: '| stats sum(bytes) by src_ip | sort -sum(bytes)', explanation: 'Total bytes per source, sorted descending' },
-                { spl: '| stats sum(bytes_in) as download, sum(bytes_out) as upload by user', explanation: 'Network usage per user' }
-            ],
-            gotchas: [
-                'Non-numeric values are ignored',
-                'Null values are ignored',
-                'Very large sums may need formatting: use fieldformat or eval to add commas'
-            ],
-            relatedCommands: ['avg', 'count', 'max', 'min']
-        },
-        {
-            id: 'stats_avg',
-            name: 'avg()',
-            category: 'statsFunctions',
-            difficulty: 'beginner',
-            takeaway: 'Calculate the mean average',
-            what: 'Returns the arithmetic mean (average) of numeric values for a field.',
-            why: 'Understand typical values, baseline metrics, identify anomalies that deviate from the average.',
-            syntax: 'avg(field)',
-            examples: [
-                { spl: '| stats avg(response_time) as avg_response', explanation: 'Average response time' },
-                { spl: '| stats avg(bytes) by host', explanation: 'Average bytes per host' },
-                { spl: '| stats avg(duration) as avg_dur, max(duration) as max_dur by user', explanation: 'Compare average vs maximum duration' }
-            ],
-            gotchas: [
-                'Sensitive to outliers - one huge value skews the average',
-                'Consider using median() for skewed distributions',
-                'Non-numeric and null values are ignored'
-            ],
-            relatedCommands: ['median', 'stdev', 'min', 'max']
-        },
-        {
-            id: 'stats_min',
-            name: 'min()',
-            category: 'statsFunctions',
-            difficulty: 'beginner',
-            takeaway: 'Find the smallest value',
-            what: 'Returns the minimum value for a field. Works with numbers, strings (alphabetical), and times.',
-            why: 'Find first occurrence, lowest value, earliest time, or baseline minimum.',
-            syntax: 'min(field)',
-            examples: [
-                { spl: '| stats min(_time) as first_seen by user', explanation: 'First time each user appeared' },
-                { spl: '| stats min(response_time) as fastest by endpoint', explanation: 'Fastest response per endpoint' },
-                { spl: '| stats min(severity) by host', explanation: 'Lowest severity per host (alphabetical for strings)' }
-            ],
-            gotchas: [
-                'For strings, returns alphabetically first value',
-                'For times, returns earliest',
-                'Null values are ignored'
-            ],
-            relatedCommands: ['max', 'earliest', 'first', 'range']
-        },
-        {
-            id: 'stats_max',
-            name: 'max()',
-            category: 'statsFunctions',
-            difficulty: 'beginner',
-            takeaway: 'Find the largest value',
-            what: 'Returns the maximum value for a field. Works with numbers, strings (alphabetical), and times.',
-            why: 'Find peak values, worst case, latest time, or upper bounds.',
-            syntax: 'max(field)',
-            examples: [
-                { spl: '| stats max(_time) as last_seen by user', explanation: 'Most recent time each user appeared' },
-                { spl: '| stats max(cpu_percent) as peak_cpu by host', explanation: 'Peak CPU usage per host' },
-                { spl: '| stats max(bytes) as largest_transfer by src_ip', explanation: 'Largest single transfer per source' }
-            ],
-            gotchas: [
-                'For strings, returns alphabetically last value',
-                'For times, returns latest',
-                'Null values are ignored'
-            ],
-            relatedCommands: ['min', 'latest', 'last', 'range']
-        },
-        {
-            id: 'stats_values',
-            name: 'values()',
+            id: 'stats_earliest',
+            name: 'earliest()',
             category: 'statsFunctions',
             difficulty: 'intermediate',
-            takeaway: 'Collect unique values into a multivalue field',
-            what: 'Returns all distinct values for a field as a multivalue result, sorted alphabetically.',
-            why: 'See all unique values at a glance. Great for listing distinct IPs, users, or actions per group.',
-            syntax: 'values(field)',
+            takeaway: 'Get value from the earliest event by time',
+            what: 'Returns the value from the event with the earliest (oldest) _time timestamp.',
+            why: 'Get the first chronological value. Essential for seeing initial state or first occurrence.',
+            syntax: 'earliest(field)',
             examples: [
-                { spl: '| stats values(dest_port) as ports by src_ip', explanation: 'All unique destination ports per source' },
-                { spl: '| stats values(action) as actions by user', explanation: 'All actions performed by each user' },
-                { spl: '| stats dc(dest_ip) as count, values(dest_ip) as destinations by src_ip', explanation: 'Count and list destinations' }
+                { spl: '| stats earliest(status) as initial_status by user', explanation: 'First status for each user chronologically' },
+                { spl: '| stats earliest(src_ip) as first_source, latest(src_ip) as last_source by user', explanation: 'First and last source IP' },
+                { spl: '| stats earliest(_time) as first_seen by host', explanation: 'When each host first appeared' }
             ],
             gotchas: [
-                'Results are DEDUPLICATED - each value appears only once',
-                'Results are SORTED alphabetically (not by occurrence order)',
-                'Use list() if you need all occurrences including duplicates',
-                'Memory-intensive for high-cardinality fields'
+                'Based on _time, not processing order - more reliable than first()',
+                'Slightly slower than first() due to time comparison',
+                'Returns value from earliest event, not earliest value',
+                'Use earliest_time() to get the actual timestamp'
             ],
-            relatedCommands: ['list', 'dc', 'earliest', 'latest']
+            relatedCommands: ['latest', 'first', 'earliest_time', 'min']
         },
         {
-            id: 'stats_list',
-            name: 'list()',
+            id: 'stats_earliest_time',
+            name: 'earliest_time() / latest_time()',
             category: 'statsFunctions',
-            difficulty: 'intermediate',
-            takeaway: 'Collect all values including duplicates',
-            what: 'Returns all values for a field as a multivalue result, preserving duplicates and order of occurrence.',
-            why: 'See every value in sequence. Useful for transaction analysis or when duplicates matter.',
-            syntax: 'list(field)',
+            difficulty: 'advanced',
+            takeaway: 'Get the actual timestamp of earliest/latest event',
+            what: 'Returns the _time value of the earliest or latest event in each group.',
+            why: 'Get exact timestamps for first/last occurrence without needing to return _time as a value.',
+            syntax: 'earliest_time(field) | latest_time(field)',
             examples: [
-                { spl: '| stats list(action) as action_sequence by session_id', explanation: 'All actions in order per session' },
-                { spl: '| stats list(status_code) as responses by transaction_id', explanation: 'All status codes including repeated ones' },
-                { spl: '| stats list(_time) as times, list(action) as actions by user', explanation: 'Parallel lists of times and actions' }
+                { spl: '| stats earliest_time(_time) as first_seen, latest_time(_time) as last_seen by user', explanation: 'When each user was first and last seen' },
+                { spl: '| stats earliest_time(status) as first_status_time, earliest(status) as first_status by host', explanation: 'Get both time and value' },
+                { spl: '| eval first_seen=strftime(earliest_time(_time), "%Y-%m-%d %H:%M:%S")', explanation: 'Format the timestamp' }
             ],
             gotchas: [
-                'PRESERVES duplicates - same value can appear multiple times',
-                'NOT sorted - preserves order of occurrence',
-                'Can produce very large multivalue fields - use with caution',
-                'Memory-intensive for large result sets'
+                'Returns epoch time - use strftime() to format',
+                'The field argument is used to check for non-null values',
+                'earliest_time(_time) finds earliest event overall',
+                'earliest_time(status) finds earliest event where status is non-null'
             ],
-            relatedCommands: ['values', 'first', 'last']
+            relatedCommands: ['earliest', 'latest', 'min', 'max']
         },
         {
             id: 'stats_first',
@@ -5089,28 +5451,6 @@ const GLOSSARY_DATA = {
             relatedCommands: ['first', 'earliest', 'latest']
         },
         {
-            id: 'stats_earliest',
-            name: 'earliest()',
-            category: 'statsFunctions',
-            difficulty: 'intermediate',
-            takeaway: 'Get value from the earliest event by time',
-            what: 'Returns the value from the event with the earliest (oldest) _time timestamp.',
-            why: 'Get the first chronological value. Essential for seeing initial state or first occurrence.',
-            syntax: 'earliest(field)',
-            examples: [
-                { spl: '| stats earliest(status) as initial_status by user', explanation: 'First status for each user chronologically' },
-                { spl: '| stats earliest(src_ip) as first_source, latest(src_ip) as last_source by user', explanation: 'First and last source IP' },
-                { spl: '| stats earliest(_time) as first_seen by host', explanation: 'When each host first appeared' }
-            ],
-            gotchas: [
-                'Based on _time, not processing order - more reliable than first()',
-                'Slightly slower than first() due to time comparison',
-                'Returns value from earliest event, not earliest value',
-                'Use earliest_time() to get the actual timestamp'
-            ],
-            relatedCommands: ['latest', 'first', 'earliest_time', 'min']
-        },
-        {
             id: 'stats_latest',
             name: 'latest()',
             category: 'statsFunctions',
@@ -5133,6 +5473,49 @@ const GLOSSARY_DATA = {
             relatedCommands: ['earliest', 'last', 'latest_time', 'max']
         },
         {
+            id: 'stats_list',
+            name: 'list()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Collect all values including duplicates',
+            what: 'Returns all values for a field as a multivalue result, preserving duplicates and order of occurrence.',
+            why: 'See every value in sequence. Useful for transaction analysis or when duplicates matter.',
+            syntax: 'list(field)',
+            examples: [
+                { spl: '| stats list(action) as action_sequence by session_id', explanation: 'All actions in order per session' },
+                { spl: '| stats list(status_code) as responses by transaction_id', explanation: 'All status codes including repeated ones' },
+                { spl: '| stats list(_time) as times, list(action) as actions by user', explanation: 'Parallel lists of times and actions' }
+            ],
+            gotchas: [
+                'PRESERVES duplicates - same value can appear multiple times',
+                'NOT sorted - preserves order of occurrence',
+                'Can produce very large multivalue fields - use with caution',
+                'Memory-intensive for large result sets'
+            ],
+            relatedCommands: ['values', 'first', 'last']
+        },
+        {
+            id: 'stats_max',
+            name: 'max()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Find the largest value',
+            what: 'Returns the maximum value for a field. Works with numbers, strings (alphabetical), and times.',
+            why: 'Find peak values, worst case, latest time, or upper bounds.',
+            syntax: 'max(field)',
+            examples: [
+                { spl: '| stats max(_time) as last_seen by user', explanation: 'Most recent time each user appeared' },
+                { spl: '| stats max(cpu_percent) as peak_cpu by host', explanation: 'Peak CPU usage per host' },
+                { spl: '| stats max(bytes) as largest_transfer by src_ip', explanation: 'Largest single transfer per source' }
+            ],
+            gotchas: [
+                'For strings, returns alphabetically last value',
+                'For times, returns latest',
+                'Null values are ignored'
+            ],
+            relatedCommands: ['min', 'latest', 'last', 'range']
+        },
+        {
             id: 'stats_median',
             name: 'median()',
             category: 'statsFunctions',
@@ -5152,6 +5535,48 @@ const GLOSSARY_DATA = {
                 'Requires sorting internally - more expensive than avg()'
             ],
             relatedCommands: ['avg', 'perc', 'mode']
+        },
+        {
+            id: 'stats_min',
+            name: 'min()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Find the smallest value',
+            what: 'Returns the minimum value for a field. Works with numbers, strings (alphabetical), and times.',
+            why: 'Find first occurrence, lowest value, earliest time, or baseline minimum.',
+            syntax: 'min(field)',
+            examples: [
+                { spl: '| stats min(_time) as first_seen by user', explanation: 'First time each user appeared' },
+                { spl: '| stats min(response_time) as fastest by endpoint', explanation: 'Fastest response per endpoint' },
+                { spl: '| stats min(severity) by host', explanation: 'Lowest severity per host (alphabetical for strings)' }
+            ],
+            gotchas: [
+                'For strings, returns alphabetically first value',
+                'For times, returns earliest',
+                'Null values are ignored'
+            ],
+            relatedCommands: ['max', 'earliest', 'first', 'range']
+        },
+        {
+            id: 'stats_mode',
+            name: 'mode()',
+            category: 'statsFunctions',
+            difficulty: 'intermediate',
+            takeaway: 'Find the most common value',
+            what: 'Returns the most frequently occurring value for a field.',
+            why: 'Find the typical case, most common error, dominant user, or prevalent pattern.',
+            syntax: 'mode(field)',
+            examples: [
+                { spl: '| stats mode(status_code) as common_status by endpoint', explanation: 'Most common status code per endpoint' },
+                { spl: '| stats mode(user_agent) as typical_browser', explanation: 'Most frequently seen browser' },
+                { spl: '| stats mode(src_ip) as top_source, count by dest_port', explanation: 'Most common source per port' }
+            ],
+            gotchas: [
+                'If multiple values tie, returns one of them (non-deterministic)',
+                'For finding top N, use top command instead',
+                'Null values are ignored'
+            ],
+            relatedCommands: ['median', 'avg', 'top']
         },
         {
             id: 'stats_perc',
@@ -5176,25 +5601,46 @@ const GLOSSARY_DATA = {
             relatedCommands: ['median', 'avg', 'max']
         },
         {
-            id: 'stats_mode',
-            name: 'mode()',
+            id: 'stats_range',
+            name: 'range()',
             category: 'statsFunctions',
             difficulty: 'intermediate',
-            takeaway: 'Find the most common value',
-            what: 'Returns the most frequently occurring value for a field.',
-            why: 'Find the typical case, most common error, dominant user, or prevalent pattern.',
-            syntax: 'mode(field)',
+            takeaway: 'Difference between max and min',
+            what: 'Returns the difference between the maximum and minimum values.',
+            why: 'Quick measure of spread. See how wide the range of values is.',
+            syntax: 'range(field)',
             examples: [
-                { spl: '| stats mode(status_code) as common_status by endpoint', explanation: 'Most common status code per endpoint' },
-                { spl: '| stats mode(user_agent) as typical_browser', explanation: 'Most frequently seen browser' },
-                { spl: '| stats mode(src_ip) as top_source, count by dest_port', explanation: 'Most common source per port' }
+                { spl: '| stats range(response_time) as response_spread by endpoint', explanation: 'Range of response times per endpoint' },
+                { spl: '| stats range(_time) as duration by session_id', explanation: 'Session duration (last - first event time)' },
+                { spl: '| stats min(bytes) as min_b, max(bytes) as max_b, range(bytes) as spread by user', explanation: 'Full range analysis' }
             ],
             gotchas: [
-                'If multiple values tie, returns one of them (non-deterministic)',
-                'For finding top N, use top command instead',
-                'Null values are ignored'
+                'Equivalent to max(field) - min(field)',
+                'Sensitive to outliers (one extreme value affects result)',
+                'For time fields, result is in seconds (epoch difference)'
             ],
-            relatedCommands: ['median', 'avg', 'top']
+            relatedCommands: ['min', 'max', 'stdev']
+        },
+        {
+            id: 'stats_rate',
+            name: 'rate()',
+            category: 'statsFunctions',
+            difficulty: 'advanced',
+            takeaway: 'Calculate per-second rate of a counter',
+            what: 'Returns the rate of change per second for a cumulative counter field.',
+            why: 'Convert cumulative counters (like total bytes) to rates (bytes per second).',
+            syntax: 'rate(field)',
+            examples: [
+                { spl: '| stats rate(total_bytes) as bytes_per_sec by interface', explanation: 'Throughput rate per interface' },
+                { spl: '| stats rate(request_count) as requests_per_sec by endpoint', explanation: 'Request rate per endpoint' }
+            ],
+            gotchas: [
+                'Designed for monotonically increasing counters',
+                'May produce unexpected results if counter resets',
+                'Often used with timechart for rate visualization',
+                'Alternative: use delta and manual calculation'
+            ],
+            relatedCommands: ['sum', 'per_second']
         },
         {
             id: 'stats_stdev',
@@ -5218,93 +5664,51 @@ const GLOSSARY_DATA = {
             relatedCommands: ['avg', 'var', 'range']
         },
         {
-            id: 'stats_range',
-            name: 'range()',
+            id: 'stats_sum',
+            name: 'sum()',
+            category: 'statsFunctions',
+            difficulty: 'beginner',
+            takeaway: 'Add up numeric values',
+            what: 'Returns the sum of all values for a numeric field.',
+            why: 'Essential for totaling bytes transferred, calculating total duration, summing costs, or any additive metric.',
+            syntax: 'sum(field)',
+            examples: [
+                { spl: '| stats sum(bytes) as total_bytes', explanation: 'Total bytes transferred' },
+                { spl: '| stats sum(bytes) by src_ip | sort -sum(bytes)', explanation: 'Total bytes per source, sorted descending' },
+                { spl: '| stats sum(bytes_in) as download, sum(bytes_out) as upload by user', explanation: 'Network usage per user' }
+            ],
+            gotchas: [
+                'Non-numeric values are ignored',
+                'Null values are ignored',
+                'Very large sums may need formatting: use fieldformat or eval to add commas'
+            ],
+            relatedCommands: ['avg', 'count', 'max', 'min']
+        },
+        {
+            id: 'stats_values',
+            name: 'values()',
             category: 'statsFunctions',
             difficulty: 'intermediate',
-            takeaway: 'Difference between max and min',
-            what: 'Returns the difference between the maximum and minimum values.',
-            why: 'Quick measure of spread. See how wide the range of values is.',
-            syntax: 'range(field)',
+            takeaway: 'Collect unique values into a multivalue field',
+            what: 'Returns all distinct values for a field as a multivalue result, sorted alphabetically.',
+            why: 'See all unique values at a glance. Great for listing distinct IPs, users, or actions per group.',
+            syntax: 'values(field)',
             examples: [
-                { spl: '| stats range(response_time) as response_spread by endpoint', explanation: 'Range of response times per endpoint' },
-                { spl: '| stats range(_time) as duration by session_id', explanation: 'Session duration (last - first event time)' },
-                { spl: '| stats min(bytes) as min_b, max(bytes) as max_b, range(bytes) as spread by user', explanation: 'Full range analysis' }
+                { spl: '| stats values(dest_port) as ports by src_ip', explanation: 'All unique destination ports per source' },
+                { spl: '| stats values(action) as actions by user', explanation: 'All actions performed by each user' },
+                { spl: '| stats dc(dest_ip) as count, values(dest_ip) as destinations by src_ip', explanation: 'Count and list destinations' }
             ],
             gotchas: [
-                'Equivalent to max(field) - min(field)',
-                'Sensitive to outliers (one extreme value affects result)',
-                'For time fields, result is in seconds (epoch difference)'
+                'Results are DEDUPLICATED - each value appears only once',
+                'Results are SORTED alphabetically (not by occurrence order)',
+                'Use list() if you need all occurrences including duplicates',
+                'Memory-intensive for high-cardinality fields'
             ],
-            relatedCommands: ['min', 'max', 'stdev']
-        },
-        {
-            id: 'stats_earliest_time',
-            name: 'earliest_time() / latest_time()',
-            category: 'statsFunctions',
-            difficulty: 'advanced',
-            takeaway: 'Get the actual timestamp of earliest/latest event',
-            what: 'Returns the _time value of the earliest or latest event in each group.',
-            why: 'Get exact timestamps for first/last occurrence without needing to return _time as a value.',
-            syntax: 'earliest_time(field) | latest_time(field)',
-            examples: [
-                { spl: '| stats earliest_time(_time) as first_seen, latest_time(_time) as last_seen by user', explanation: 'When each user was first and last seen' },
-                { spl: '| stats earliest_time(status) as first_status_time, earliest(status) as first_status by host', explanation: 'Get both time and value' },
-                { spl: '| eval first_seen=strftime(earliest_time(_time), "%Y-%m-%d %H:%M:%S")', explanation: 'Format the timestamp' }
-            ],
-            gotchas: [
-                'Returns epoch time - use strftime() to format',
-                'The field argument is used to check for non-null values',
-                'earliest_time(_time) finds earliest event overall',
-                'earliest_time(status) finds earliest event where status is non-null'
-            ],
-            relatedCommands: ['earliest', 'latest', 'min', 'max']
-        },
-        {
-            id: 'stats_rate',
-            name: 'rate()',
-            category: 'statsFunctions',
-            difficulty: 'advanced',
-            takeaway: 'Calculate per-second rate of a counter',
-            what: 'Returns the rate of change per second for a cumulative counter field.',
-            why: 'Convert cumulative counters (like total bytes) to rates (bytes per second).',
-            syntax: 'rate(field)',
-            examples: [
-                { spl: '| stats rate(total_bytes) as bytes_per_sec by interface', explanation: 'Throughput rate per interface' },
-                { spl: '| stats rate(request_count) as requests_per_sec by endpoint', explanation: 'Request rate per endpoint' }
-            ],
-            gotchas: [
-                'Designed for monotonically increasing counters',
-                'May produce unexpected results if counter resets',
-                'Often used with timechart for rate visualization',
-                'Alternative: use delta and manual calculation'
-            ],
-            relatedCommands: ['sum', 'per_second']
+            relatedCommands: ['list', 'dc', 'earliest', 'latest']
         }
-    ],
+],
 
     extractions: [
-        {
-            id: 'rex_extraction',
-            name: 'rex field extraction',
-            category: 'extractions',
-            difficulty: 'intermediate',
-            takeaway: 'Extract fields with named regex groups',
-            what: 'Uses regular expressions with named capture groups to extract field values from text.',
-            why: 'Most flexible extraction method for parsing unstructured or semi-structured data.',
-            syntax: 'rex field=source_field "pattern_with_(?<fieldname>regex)"',
-            examples: [
-                { spl: '| rex field=_raw "Failed login for (?<user>\\S+) from (?<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"', explanation: 'Extract user and IP from auth log' },
-                { spl: '| rex field=url "^https?://(?<domain>[^/]+)"', explanation: 'Extract domain from URL' }
-            ],
-            performance: 'CPU-intensive. Consider indexed extractions for high-volume data.',
-            gotchas: [
-                'Named groups use (?<name>pattern) syntax',
-                'Backslashes must be doubled: \\\\d instead of \\d',
-                'Default field is _raw if not specified'
-            ],
-            relatedCommands: ['erex', 'kvform', 'extract']
-        },
         {
             id: 'erex_extraction',
             name: 'erex automatic extraction',
@@ -5346,6 +5750,27 @@ const GLOSSARY_DATA = {
             relatedCommands: ['rex', 'extract', 'spath']
         },
         {
+            id: 'rex_extraction',
+            name: 'rex field extraction',
+            category: 'extractions',
+            difficulty: 'intermediate',
+            takeaway: 'Extract fields with named regex groups',
+            what: 'Uses regular expressions with named capture groups to extract field values from text.',
+            why: 'Most flexible extraction method for parsing unstructured or semi-structured data.',
+            syntax: 'rex field=source_field "pattern_with_(?<fieldname>regex)"',
+            examples: [
+                { spl: '| rex field=_raw "Failed login for (?<user>\\S+) from (?<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"', explanation: 'Extract user and IP from auth log' },
+                { spl: '| rex field=url "^https?://(?<domain>[^/]+)"', explanation: 'Extract domain from URL' }
+            ],
+            performance: 'CPU-intensive. Consider indexed extractions for high-volume data.',
+            gotchas: [
+                'Named groups use (?<name>pattern) syntax',
+                'Backslashes must be doubled: \\\\d instead of \\d',
+                'Default field is _raw if not specified'
+            ],
+            relatedCommands: ['erex', 'kvform', 'extract']
+        },
+        {
             id: 'spath_extraction',
             name: 'spath JSON/XML extraction',
             category: 'extractions',
@@ -5366,7 +5791,7 @@ const GLOSSARY_DATA = {
             ],
             relatedCommands: ['rex', 'kvform', 'xmlkv']
         }
-    ],
+],
 
     fields: [
         {
@@ -5482,54 +5907,341 @@ const GLOSSARY_DATA = {
                 'Default search uses allowed indexes only',
                 'Access controlled by roles and permissions'
             ]
+        },
+        // ========== COMMONLY EXTRACTED FIELDS ==========
+        {
+            id: 'field_user',
+            name: 'user',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'The person or account that performed an action',
+            what: 'Identifies who performed an action - a username, account name, or identity. One of the most frequently searched fields in security investigations.',
+            why: 'Essential for tracking user activity, investigating incidents, and answering "who did this?"',
+            examples: [
+                { spl: 'index=security user=jsmith', explanation: 'Find all activity for user jsmith' },
+                { spl: 'index=auth action=failed | stats count by user | sort -count', explanation: 'Users with most failed logins' },
+                { spl: 'index=* user=admin OR user=root', explanation: 'Track privileged account usage' }
+            ],
+            gotchas: [
+                'Field name varies by source: user, username, userName, AccountName, etc.',
+                'May contain domain prefix: DOMAIN\\\\user or user@domain.com',
+                'Service accounts and system accounts appear here too',
+                'Case sensitivity depends on the source system'
+            ],
+            relatedFields: ['src_user', 'dest_user', 'AccountName']
+        },
+        {
+            id: 'field_src_ip',
+            name: 'src_ip / src',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'Where the connection or request came from',
+            what: 'The source IP address - where network traffic, authentication attempts, or requests originated. Critical for identifying attackers and tracing activity.',
+            why: 'Answers "where did this come from?" - essential for firewall analysis, auth logs, and threat hunting.',
+            examples: [
+                { spl: 'index=firewall src_ip=192.168.1.100', explanation: 'Traffic from a specific internal IP' },
+                { spl: 'index=auth action=failed | stats count by src_ip | sort -count', explanation: 'IPs with most failed logins' },
+                { spl: 'index=proxy src_ip=10.0.0.* | stats dc(url) by src_ip', explanation: 'Unique sites visited per internal IP' }
+            ],
+            gotchas: [
+                'Field name varies: src_ip, src, source_ip, SrcIP, c-ip (IIS)',
+                'May be IPv4 or IPv6',
+                'NAT can obscure true source - check for X-Forwarded-For',
+                'Internal IPs (10.x, 192.168.x, 172.16-31.x) vs external'
+            ],
+            relatedFields: ['dest_ip', 'src', 'source_address']
+        },
+        {
+            id: 'field_dest_ip',
+            name: 'dest_ip / dest',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'Where the connection or request went to',
+            what: 'The destination IP address - where network traffic or requests were sent. Used to identify what systems were accessed or attacked.',
+            why: 'Answers "where did this go?" - essential for identifying accessed resources, data exfiltration, and lateral movement.',
+            examples: [
+                { spl: 'index=firewall dest_ip=8.8.8.8', explanation: 'Traffic to Google DNS' },
+                { spl: 'index=firewall action=blocked | stats count by dest_ip | sort -count', explanation: 'Most blocked destinations' },
+                { spl: 'index=proxy src_ip=192.168.1.100 | stats values(dest_ip) as destinations', explanation: 'Where did this host connect?' }
+            ],
+            gotchas: [
+                'Field name varies: dest_ip, dest, dest_address, dst, DstIP',
+                'For web logs, this is usually your server (less interesting)',
+                'External dest_ip in outbound traffic = potential exfil target',
+                'Use iplocation to map IPs to countries'
+            ],
+            relatedFields: ['src_ip', 'dest', 'destination_address']
+        },
+        {
+            id: 'field_action',
+            name: 'action',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'What happened - success, failure, blocked, allowed',
+            what: 'Describes the outcome or type of action taken. Common values include success/failure, allowed/blocked, login/logout, create/delete.',
+            why: 'Critical for filtering to just failures, blocks, or specific action types. Turns raw logs into meaningful security events.',
+            examples: [
+                { spl: 'index=auth action=failed', explanation: 'Failed authentication attempts' },
+                { spl: 'index=firewall action=blocked | stats count by src_ip', explanation: 'Who is getting blocked?' },
+                { spl: 'index=security action=* | stats count by action', explanation: 'See all action types in your data' }
+            ],
+            gotchas: [
+                'Values vary wildly: success/failure, allow/deny, blocked/permitted, 0/1',
+                'Check what values exist: | stats count by action',
+                'Some sources use status instead of action',
+                'May need to normalize: eval action=lower(action)'
+            ],
+            relatedFields: ['status', 'result', 'outcome', 'EventType']
+        },
+        {
+            id: 'field_status',
+            name: 'status',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'HTTP status codes and response outcomes',
+            what: 'For web/proxy logs, the HTTP status code (200, 404, 500, etc.). For other logs, may indicate success/failure status.',
+            why: 'Quickly filter to errors (status>=400), successes (status=200), or specific issues (status=503 for service unavailable).',
+            examples: [
+                { spl: 'index=web status>=500', explanation: 'Server errors' },
+                { spl: 'index=web status=404 | stats count by uri', explanation: 'Most common "not found" pages' },
+                { spl: 'index=proxy status=403', explanation: 'Forbidden/blocked requests' }
+            ],
+            gotchas: [
+                '2xx = success, 3xx = redirect, 4xx = client error, 5xx = server error',
+                'Field may be status, status_code, sc-status (IIS), response_code',
+                'A 200 status doesn\'t mean the request was legitimate',
+                '401/403 often indicate access control issues'
+            ],
+            relatedFields: ['action', 'response_code', 'sc-status']
+        },
+        {
+            id: 'field_bytes',
+            name: 'bytes',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'Amount of data transferred',
+            what: 'The number of bytes sent or received in a connection. Used to measure data volume, detect large transfers, and identify potential data exfiltration.',
+            why: 'Large byte counts can indicate file downloads, data theft, or unusual activity. Essential for bandwidth monitoring and DLP.',
+            examples: [
+                { spl: 'index=proxy | stats sum(bytes) as total_bytes by user | sort -total_bytes', explanation: 'Top bandwidth users' },
+                { spl: 'index=firewall bytes>10000000', explanation: 'Transfers over 10MB' },
+                { spl: 'index=proxy | timechart sum(bytes) by user', explanation: 'Bandwidth usage over time' }
+            ],
+            gotchas: [
+                'May be split: bytes_in/bytes_out, sent_bytes/received_bytes',
+                'Values are typically in bytes - divide by 1024 for KB, 1048576 for MB',
+                'High bytes to external IPs = potential data exfiltration',
+                'Check both directions: uploads vs downloads'
+            ],
+            relatedFields: ['bytes_in', 'bytes_out', 'content_length', 'sc-bytes']
+        },
+        {
+            id: 'field_url',
+            name: 'url / uri',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'The web address or resource path accessed',
+            what: 'The URL or URI of the resource accessed. May be full URL (https://example.com/path) or just the path (/path/to/resource).',
+            why: 'Essential for web investigations - what sites were visited, what files were downloaded, what API endpoints were called.',
+            examples: [
+                { spl: 'index=proxy url=*malware*', explanation: 'URLs containing "malware"' },
+                { spl: 'index=web uri="/admin/*"', explanation: 'Admin page access' },
+                { spl: 'index=proxy | stats count by url | sort -count | head 20', explanation: 'Top 20 visited URLs' }
+            ],
+            gotchas: [
+                'url usually = full URL, uri usually = just the path',
+                'May be URL-encoded: %20 = space, %2F = /',
+                'Query strings (?param=value) may be separate field',
+                'Case sensitivity varies - normalize with lower(url)'
+            ],
+            relatedFields: ['uri', 'uri_path', 'cs-uri-stem', 'request']
+        },
+        {
+            id: 'field_process',
+            name: 'process / process_name',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'The program or executable that ran',
+            what: 'The name of the process or executable. Critical for endpoint security - identifying what programs ran on a system.',
+            why: 'Detect malicious executables, track software usage, and investigate what ran during an incident.',
+            examples: [
+                { spl: 'index=endpoint process_name=powershell.exe', explanation: 'PowerShell executions' },
+                { spl: 'index=sysmon EventCode=1 | stats count by process_name | sort -count', explanation: 'Most run processes' },
+                { spl: 'index=endpoint process_name=*.exe | rare process_name', explanation: 'Unusual executables' }
+            ],
+            gotchas: [
+                'May include full path or just filename',
+                'Field names vary: process, process_name, Image, NewProcessName, exe',
+                'Attackers rename malware to look legitimate (svchost.exe in wrong location)',
+                'Check parent process for context on how it was launched'
+            ],
+            relatedFields: ['Image', 'NewProcessName', 'ParentProcessName', 'exe']
+        },
+        {
+            id: 'field_commandline',
+            name: 'CommandLine',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'The full command that was executed',
+            what: 'The complete command line including executable and all arguments. Shows exactly what was run, including parameters, flags, and targets.',
+            why: 'The most valuable field for detecting malicious activity. Reveals encoded commands, suspicious arguments, and attack techniques.',
+            examples: [
+                { spl: 'index=endpoint CommandLine=*-encodedcommand*', explanation: 'Encoded PowerShell (often malicious)' },
+                { spl: 'index=endpoint CommandLine=*password* OR CommandLine=*credential*', explanation: 'Credential access attempts' },
+                { spl: 'index=sysmon EventCode=1 | table _time, user, process_name, CommandLine', explanation: 'Process execution timeline' }
+            ],
+            gotchas: [
+                'Can be very long - may be truncated in some sources',
+                'Field names vary: CommandLine, command_line, cmd, process_command_line',
+                'Attackers use encoding, obfuscation, and special characters to evade detection',
+                'Always check alongside parent process and user context'
+            ],
+            relatedFields: ['command_line', 'cmd', 'ParentCommandLine']
+        },
+        {
+            id: 'field_eventcode',
+            name: 'EventCode / EventID',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'Windows Event ID - the most important field for Windows security',
+            what: 'A numeric identifier for the type of Windows event. Each EventCode represents a specific action like login (4624), failed login (4625), or process creation (4688).',
+            why: 'THE most critical field for Windows security analysis. Knowing key EventCodes lets you quickly find logins, account changes, process executions, and security events.',
+            examples: [
+                { spl: 'index=security EventCode=4625', explanation: 'Failed login attempts' },
+                { spl: 'index=security EventCode=4624 Logon_Type=10', explanation: 'Remote desktop logins' },
+                { spl: 'index=security EventCode IN (4720, 4722, 4723, 4724, 4725, 4726)', explanation: 'Account management events' },
+                { spl: 'index=sysmon EventCode=1', explanation: 'Process creation (Sysmon)' }
+            ],
+            gotchas: [
+                'Windows Security log uses EventCode; some apps use EventID - check your data',
+                'Same EventCode can mean different things in different Windows logs',
+                'Sysmon has its own EventCode numbering (1-26) separate from Windows',
+                'Keep a cheat sheet of critical EventCodes handy'
+            ],
+            relatedFields: ['EventID', 'event_id', 'signature_id'],
+            keyEventCodes: [
+                { code: '4624', meaning: 'Successful login' },
+                { code: '4625', meaning: 'Failed login' },
+                { code: '4688', meaning: 'Process created' },
+                { code: '4689', meaning: 'Process terminated' },
+                { code: '4672', meaning: 'Admin/special privileges assigned' },
+                { code: '4720', meaning: 'User account created' },
+                { code: '4726', meaning: 'User account deleted' },
+                { code: '4732', meaning: 'User added to security group' },
+                { code: '4648', meaning: 'Explicit credential login (runas)' },
+                { code: '1102', meaning: 'Audit log cleared' }
+            ]
+        },
+        {
+            id: 'field_dest_port',
+            name: 'dest_port / src_port',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'Network port numbers - what service or application is being used',
+            what: 'The destination port (dest_port) identifies what service is being accessed. The source port (src_port) is typically random and less useful.',
+            why: 'Ports tell you what protocol or service is involved. Port 443 = HTTPS, port 22 = SSH, port 3389 = RDP. Unusual ports may indicate malicious activity.',
+            examples: [
+                { spl: 'index=firewall dest_port=3389', explanation: 'Remote desktop traffic' },
+                { spl: 'index=firewall dest_port!=443 dest_port!=80 | stats count by dest_port', explanation: 'Non-web traffic by port' },
+                { spl: 'index=firewall dest_port>1024 dest_port<65535 | rare dest_port', explanation: 'Unusual high ports' },
+                { spl: 'index=network dest_port IN (20, 21, 22, 23, 3389) | stats count by dest_port, src_ip', explanation: 'Administrative protocol usage' }
+            ],
+            gotchas: [
+                'Source port is usually random (ephemeral) - focus on dest_port',
+                'Field names vary: dest_port, dport, dst_port, DestinationPort',
+                'Port 80/443 can tunnel anything - don\'t assume it\'s legitimate web traffic',
+                'High ports (>1024) are not inherently suspicious, but uncommon ones may be'
+            ],
+            relatedFields: ['dport', 'dst_port', 'sport', 'DestinationPort', 'SourcePort'],
+            commonPorts: [
+                { port: '22', service: 'SSH' },
+                { port: '23', service: 'Telnet (insecure)' },
+                { port: '25', service: 'SMTP (email)' },
+                { port: '53', service: 'DNS' },
+                { port: '80', service: 'HTTP' },
+                { port: '443', service: 'HTTPS' },
+                { port: '445', service: 'SMB (file sharing)' },
+                { port: '3389', service: 'RDP (Remote Desktop)' },
+                { port: '5985/5986', service: 'WinRM (PowerShell remoting)' }
+            ]
+        },
+        {
+            id: 'field_severity',
+            name: 'severity / priority',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'How serious is this event?',
+            what: 'Indicates the importance or urgency of an event. Common values: critical, high, medium, low, informational (or numeric 1-5).',
+            why: 'Filter to high-priority events first. During incidents, focus on critical/high severity. For tuning, review low-severity noise.',
+            examples: [
+                { spl: 'index=alerts severity=critical', explanation: 'Critical alerts only' },
+                { spl: 'index=security | stats count by severity | sort -count', explanation: 'Alert distribution by severity' },
+                { spl: 'index=ids severity IN (critical, high) | stats count by signature', explanation: 'High-priority IDS alerts' },
+                { spl: 'index=alerts severity!=informational earliest=-1h', explanation: 'Non-info alerts in last hour' }
+            ],
+            gotchas: [
+                'Field names vary: severity, priority, level, urgency, risk',
+                'Values vary: critical/high/medium/low OR 1/2/3/4/5 OR P1/P2/P3',
+                'Check what values exist: | stats count by severity',
+                'A "critical" from one source may not equal "critical" from another'
+            ],
+            relatedFields: ['priority', 'level', 'urgency', 'risk_score', 'threat_level']
+        },
+        {
+            id: 'field_message',
+            name: 'message / Message',
+            category: 'fields',
+            subcategory: 'extracted',
+            difficulty: 'beginner',
+            takeaway: 'Human-readable event description',
+            what: 'A text description of what happened, often auto-generated by the source system. Contains the narrative explanation of the event.',
+            why: 'When you need to understand what an event means, the message field explains it in plain language. Essential for unfamiliar event types.',
+            examples: [
+                { spl: 'index=security | search message=*failed*', explanation: 'Events with "failed" in message' },
+                { spl: 'index=application message=*error* | stats count by message', explanation: 'Group similar error messages' },
+                { spl: 'index=security EventCode=4625 | table _time, user, src_ip, message', explanation: 'Include message for context' },
+                { spl: 'index=syslog | rex field=message "user=(?<extracted_user>\\w+)"', explanation: 'Extract data from message text' }
+            ],
+            gotchas: [
+                'Field names vary: message, Message, msg, description, summary',
+                'May contain structured data you can extract with rex',
+                'Long messages may be truncated in display - expand to see full text',
+                'Similar events may have slightly different messages - use wildcards or rex'
+            ],
+            relatedFields: ['msg', 'description', 'summary', 'event_description']
         }
     ],
 
     concepts: [
-        // ========== BEGINNER CONCEPTS ==========
         {
-            id: 'concept_index',
-            name: 'Indexes',
+            id: 'concept_apps',
+            name: 'Apps and Add-ons',
             category: 'concepts',
-            subcategory: 'data-organization',
-            level: 'beginner',
-            takeaway: 'Containers that store your data in Splunk',
-            what: 'An index is a repository where Splunk stores your data. Think of it as a folder or database that holds related events.',
-            why: 'Understanding indexes helps you search efficiently. Specifying the right index dramatically speeds up searches and ensures you\'re looking at the correct data.',
-            keyPoint: 'Always specify an index in your searches to avoid searching everything.',
-            examples: [
-                { spl: 'index=security', explanation: 'Search only the security index' },
-                { spl: 'index=main OR index=security', explanation: 'Search multiple indexes' },
-                { spl: '| eventcount summarize=false index=*', explanation: 'List all indexes you can access' }
-            ],
+            subcategory: 'customization',
+            level: 'intermediate',
+            takeaway: 'Packaged functionality for specific use cases',
+            what: 'Apps are packages containing dashboards, searches, and configurations for specific use cases. Add-ons (TAs) provide data inputs and field extractions for specific data sources.',
+            why: 'Apps let you extend Splunk with pre-built solutions instead of building everything from scratch. The Splunk community shares thousands of apps.',
+            keyPoint: 'Apps = interfaces and functionality. Add-ons (TAs) = data collection and parsing.',
+            types: ['Apps (dashboards, reports)', 'Technology Add-ons (TAs)', 'Supporting Add-ons (SAs)'],
             gotchas: [
-                'Omitting index searches ALL indexes you have access to - very slow',
-                'Index names are case-sensitive',
-                'Your admin controls which indexes you can access via roles'
+                'Apps can only see knowledge objects within themselves (unless shared globally)',
+                'Some apps require specific add-ons for data',
+                'Check Splunkbase for community apps'
             ],
-            relatedConcepts: ['concept_sourcetype', 'concept_events', 'concept_fields']
-        },
-        {
-            id: 'concept_sourcetype',
-            name: 'Sourcetypes',
-            category: 'concepts',
-            subcategory: 'data-organization',
-            level: 'beginner',
-            takeaway: 'Defines what kind of data it is and how to parse it',
-            what: 'A sourcetype tells Splunk what format the data is in - like a file type label. It determines how Splunk breaks data into events and extracts fields.',
-            why: 'The right sourcetype means Splunk correctly parses timestamps, breaks events properly, and extracts the right fields automatically.',
-            keyPoint: 'Sourcetype determines how your data is parsed and what fields are available.',
-            examples: [
-                { spl: 'index=security sourcetype=WinEventLog:Security', explanation: 'Windows Security Event logs' },
-                { spl: 'sourcetype=syslog', explanation: 'Standard syslog format' },
-                { spl: 'index=* | stats count by sourcetype', explanation: 'See all sourcetypes in your data' }
-            ],
-            gotchas: [
-                'Sourcetype names are case-sensitive',
-                'Wrong sourcetype = wrong field extractions and timestamps',
-                'Custom sourcetypes may exist for your organization\'s specific applications'
-            ],
-            relatedConcepts: ['concept_index', 'concept_fields', 'concept_events']
+            relatedConcepts: ['concept_knowledge_objects', 'concept_field_extraction']
         },
         {
             id: 'concept_events',
@@ -5554,6 +6266,28 @@ const GLOSSARY_DATA = {
             relatedConcepts: ['concept_fields', 'concept_time', 'concept_sourcetype']
         },
         {
+            id: 'concept_field_extraction',
+            name: 'Field Extraction',
+            category: 'concepts',
+            subcategory: 'customization',
+            level: 'intermediate',
+            takeaway: 'How Splunk parses fields from raw event text',
+            what: 'Field extraction is the process of identifying and parsing structured values (fields) from unstructured event text. This happens automatically for common patterns and can be customized.',
+            why: 'Good field extraction is the foundation of useful searching. Without extracted fields, you\'re limited to text searches.',
+            keyPoint: 'Splunk automatically extracts key=value pairs. Custom patterns need regex or the Field Extractor tool.',
+            methods: ['Automatic key=value recognition', 'Field Extractor UI tool', 'rex command in search', 'props.conf/transforms.conf'],
+            examples: [
+                { spl: '| rex field=_raw "user=(?<username>\\w+)"', explanation: 'Extract username with regex' },
+                { spl: '| extract', explanation: 'Force automatic KV extraction' }
+            ],
+            gotchas: [
+                'Extractions are tied to sourcetypes',
+                'Index-time extractions are faster but require re-indexing to change',
+                'Search-time extractions are flexible but slower'
+            ],
+            relatedConcepts: ['concept_fields', 'concept_knowledge_objects', 'concept_sourcetype']
+        },
+        {
             id: 'concept_fields',
             name: 'Fields',
             category: 'concepts',
@@ -5574,6 +6308,191 @@ const GLOSSARY_DATA = {
                 'A field might not exist in every event'
             ],
             relatedConcepts: ['concept_events', 'concept_field_extraction', 'concept_knowledge_objects']
+        },
+        {
+            id: 'concept_index',
+            name: 'Indexes',
+            category: 'concepts',
+            subcategory: 'data-organization',
+            level: 'beginner',
+            takeaway: 'Containers that store your data in Splunk',
+            what: 'An index is a repository where Splunk stores your data. Think of it as a folder or database that holds related events.',
+            why: 'Understanding indexes helps you search efficiently. Specifying the right index dramatically speeds up searches and ensures you\'re looking at the correct data.',
+            keyPoint: 'Always specify an index in your searches to avoid searching everything.',
+            examples: [
+                { spl: 'index=security', explanation: 'Search only the security index' },
+                { spl: 'index=main OR index=security', explanation: 'Search multiple indexes' },
+                { spl: '| eventcount summarize=false index=*', explanation: 'List all indexes you can access' }
+            ],
+            gotchas: [
+                'Omitting index searches ALL indexes you have access to - very slow',
+                'Index names are case-sensitive',
+                'Your admin controls which indexes you can access via roles'
+            ],
+            relatedConcepts: ['concept_sourcetype', 'concept_events', 'concept_fields']
+        },
+        {
+            id: 'concept_knowledge_objects',
+            name: 'Knowledge Objects',
+            category: 'concepts',
+            subcategory: 'customization',
+            level: 'intermediate',
+            takeaway: 'Saved configurations that enrich and organize your data',
+            what: 'Knowledge objects are saved configurations that define how data is interpreted, enriched, and displayed. They include saved searches, field extractions, lookups, alerts, dashboards, and more.',
+            why: 'Knowledge objects let you build reusable components, share work with others, and customize how Splunk interprets your specific data.',
+            keyPoint: 'Knowledge objects are the building blocks for turning raw data into actionable intelligence.',
+            types: ['Field extractions', 'Field aliases', 'Calculated fields', 'Lookups', 'Event types', 'Tags', 'Saved searches', 'Macros'],
+            gotchas: [
+                'Knowledge objects belong to apps - check which app you\'re in',
+                'Permissions control who can see/use each object',
+                'Objects can be private, app-scoped, or global'
+            ],
+            relatedConcepts: ['concept_field_extraction', 'concept_apps']
+        },
+        {
+            id: 'concept_accelerations',
+            name: 'Search Acceleration',
+            category: 'concepts',
+            subcategory: 'performance',
+            level: 'intermediate',
+            takeaway: 'Pre-computed summaries for fast searches',
+            what: 'Search acceleration pre-computes and stores search results so future searches are dramatically faster. This includes report acceleration, data model acceleration, and summary indexing.',
+            why: 'Without acceleration, dashboards over large datasets can be unusably slow. Acceleration makes them respond in seconds instead of minutes.',
+            keyPoint: 'Acceleration trades storage space for search speed - summaries must be stored and kept updated.',
+            types: ['Report Acceleration', 'Data Model Acceleration', 'Summary Indexing'],
+            examples: [
+                { spl: '| tstats count FROM datamodel=Authentication BY user', explanation: 'Use accelerated data model - very fast' }
+            ],
+            gotchas: [
+                'Acceleration takes time to build initially',
+                'Summaries consume disk space',
+                'Not all searches can be accelerated',
+                'Accelerated data may be slightly behind real-time'
+            ],
+            relatedConcepts: ['concept_knowledge_objects', 'concept_streaming']
+        },
+        {
+            id: 'concept_search_modes',
+            name: 'Search Modes',
+            category: 'concepts',
+            subcategory: 'search-mechanics',
+            level: 'intermediate',
+            takeaway: 'Fast, Smart, or Verbose - balance speed vs detail',
+            what: 'Splunk has three search modes that control how much field extraction happens: Fast (minimal), Smart (automatic), and Verbose (everything).',
+            why: 'The right search mode balances speed and field availability. Fast mode can be 10x faster when you don\'t need all fields.',
+            keyPoint: 'Use Fast mode for counting and stats. Use Verbose when you need to see all possible fields.',
+            modes: [
+                { name: 'Fast', description: 'Only extracts fields needed for your search. Fastest.' },
+                { name: 'Smart', description: 'Default. Extracts fields based on your search.' },
+                { name: 'Verbose', description: 'Extracts ALL possible fields. Slowest but complete.' }
+            ],
+            gotchas: [
+                'Fast mode may hide fields you didn\'t explicitly reference',
+                'Dashboard searches often run in Fast mode automatically',
+                'Mode selector is in the search bar (to the left of the time picker)'
+            ],
+            relatedConcepts: ['concept_fields', 'concept_field_extraction', 'concept_pipeline']
+        },
+        {
+            id: 'concept_pipeline',
+            name: 'Search Pipeline',
+            category: 'concepts',
+            subcategory: 'search-mechanics',
+            level: 'beginner',
+            takeaway: 'Commands flow left to right via pipe (|)',
+            what: 'SPL processes data through a pipeline where each command receives the output of the previous command. The pipe symbol (|) connects commands.',
+            why: 'Understanding the pipeline is fundamental to writing effective searches. Data flows through each command in sequence, being transformed at each step.',
+            keyPoint: 'Think of it like an assembly line: data enters, gets processed by each command in order, and results come out.',
+            examples: [
+                { spl: 'index=main | stats count by host | sort -count | head 10', explanation: 'Pipeline: search → aggregate → sort → limit' },
+                { spl: 'index=security | where action="failure" | stats count by user', explanation: 'Pipeline: search → filter → aggregate' }
+            ],
+            gotchas: [
+                'Order matters! Filtering before stats processes fewer events',
+                'Each pipe creates a new "table" of data',
+                'After transforming commands (stats), original events are gone'
+            ],
+            relatedConcepts: ['concept_streaming', 'concept_search_modes']
+        },
+        {
+            id: 'concept_sourcetype',
+            name: 'Sourcetypes',
+            category: 'concepts',
+            subcategory: 'data-organization',
+            level: 'beginner',
+            takeaway: 'Defines what kind of data it is and how to parse it',
+            what: 'A sourcetype tells Splunk what format the data is in - like a file type label. It determines how Splunk breaks data into events and extracts fields.',
+            why: 'The right sourcetype means Splunk correctly parses timestamps, breaks events properly, and extracts the right fields automatically.',
+            keyPoint: 'Sourcetype determines how your data is parsed and what fields are available.',
+            examples: [
+                { spl: 'index=security sourcetype=WinEventLog:Security', explanation: 'Windows Security Event logs' },
+                { spl: 'sourcetype=syslog', explanation: 'Standard syslog format' },
+                { spl: 'index=* | stats count by sourcetype', explanation: 'See all sourcetypes in your data' }
+            ],
+            gotchas: [
+                'Sourcetype names are case-sensitive',
+                'Wrong sourcetype = wrong field extractions and timestamps',
+                'Custom sourcetypes may exist for your organization\'s specific applications'
+            ],
+            relatedConcepts: ['concept_index', 'concept_fields', 'concept_events']
+        },
+        {
+            id: 'concept_architecture',
+            name: 'Splunk Architecture',
+            category: 'concepts',
+            subcategory: 'infrastructure',
+            level: 'intermediate',
+            takeaway: 'How Splunk components work together',
+            what: 'Splunk consists of components that collect data (forwarders), store and index data (indexers), and run searches (search heads). These can all be on one server or distributed across many.',
+            why: 'Understanding architecture helps you troubleshoot issues, understand search performance, and communicate with your Splunk admins.',
+            keyPoint: 'Forwarders collect → Indexers store → Search Heads search. Simple setups combine these on one server.',
+            components: ['Universal Forwarder (UF)', 'Heavy Forwarder (HF)', 'Indexer', 'Search Head', 'Deployment Server', 'License Master'],
+            gotchas: [
+                'Distributed searches run on multiple indexers in parallel',
+                'Search head sends query to indexers, combines results',
+                'Your Splunk instance might be any of these architectures'
+            ],
+            relatedConcepts: ['concept_streaming', 'concept_accelerations']
+        },
+        {
+            id: 'concept_streaming',
+            name: 'Streaming vs Transforming',
+            category: 'concepts',
+            subcategory: 'search-mechanics',
+            level: 'intermediate',
+            takeaway: 'Command types affect where/how they run',
+            what: 'Streaming commands process events one at a time as they flow through. Transforming commands need ALL events before producing results.',
+            why: 'Understanding this distinction helps you write faster searches and troubleshoot performance issues.',
+            keyPoint: 'Streaming = "Do this to each event". Transforming = "Look at all events and summarize".',
+            streamingCommands: ['where', 'eval', 'rex', 'fields', 'rename'],
+            transformingCommands: ['stats', 'sort', 'dedup', 'top', 'rare', 'timechart'],
+            gotchas: [
+                'After a transforming command, original events are replaced by summary rows',
+                'eventstats and streamstats are special - they add stats without replacing events',
+                'Put streaming commands BEFORE transforming commands for efficiency'
+            ],
+            relatedConcepts: ['concept_pipeline', 'concept_search_modes', 'concept_accelerations']
+        },
+        {
+            id: 'concept_subsearch',
+            name: 'Subsearches',
+            category: 'concepts',
+            subcategory: 'search-mechanics',
+            level: 'intermediate',
+            takeaway: 'Nested searches in square brackets [ ]',
+            what: 'A subsearch is a search enclosed in square brackets that runs first. Its results are injected into the outer (main) search.',
+            why: 'Subsearches let you dynamically filter data based on another search. Find a list of values in one search and use them in another.',
+            keyPoint: 'Subsearch runs FIRST and completes BEFORE the main search uses its results.',
+            examples: [
+                { spl: 'index=web [search index=threats | fields ip | format]', explanation: 'Filter web logs to only IPs found in threats' },
+                { spl: 'index=main user=[search index=hr department="IT" | return 100 user]', explanation: 'Find events for IT department users' }
+            ],
+            gotchas: [
+                'Default limits: 60 seconds, 10,000 results',
+                'Use return or format to shape output properly',
+                'For large datasets, consider join, lookup, or stats instead'
+            ],
+            relatedConcepts: ['concept_pipeline', 'concept_knowledge_objects']
         },
         {
             id: 'concept_time',
@@ -5603,192 +6522,28 @@ const GLOSSARY_DATA = {
                 '_time is in epoch seconds internally, displayed in your timezone'
             ],
             relatedConcepts: ['concept_events', 'concept_pipeline']
-        },
-        // ========== INTERMEDIATE CONCEPTS ==========
-        {
-            id: 'concept_pipeline',
-            name: 'Search Pipeline',
-            category: 'concepts',
-            subcategory: 'search-mechanics',
-            level: 'beginner',
-            takeaway: 'Commands flow left to right via pipe (|)',
-            what: 'SPL processes data through a pipeline where each command receives the output of the previous command. The pipe symbol (|) connects commands.',
-            why: 'Understanding the pipeline is fundamental to writing effective searches. Data flows through each command in sequence, being transformed at each step.',
-            keyPoint: 'Think of it like an assembly line: data enters, gets processed by each command in order, and results come out.',
-            examples: [
-                { spl: 'index=main | stats count by host | sort -count | head 10', explanation: 'Pipeline: search → aggregate → sort → limit' },
-                { spl: 'index=security | where action="failure" | stats count by user', explanation: 'Pipeline: search → filter → aggregate' }
-            ],
-            gotchas: [
-                'Order matters! Filtering before stats processes fewer events',
-                'Each pipe creates a new "table" of data',
-                'After transforming commands (stats), original events are gone'
-            ],
-            relatedConcepts: ['concept_streaming', 'concept_search_modes']
-        },
-        {
-            id: 'concept_streaming',
-            name: 'Streaming vs Transforming',
-            category: 'concepts',
-            subcategory: 'search-mechanics',
-            level: 'intermediate',
-            takeaway: 'Command types affect where/how they run',
-            what: 'Streaming commands process events one at a time as they flow through. Transforming commands need ALL events before producing results.',
-            why: 'Understanding this distinction helps you write faster searches and troubleshoot performance issues.',
-            keyPoint: 'Streaming = "Do this to each event". Transforming = "Look at all events and summarize".',
-            streamingCommands: ['where', 'eval', 'rex', 'fields', 'rename'],
-            transformingCommands: ['stats', 'sort', 'dedup', 'top', 'rare', 'timechart'],
-            gotchas: [
-                'After a transforming command, original events are replaced by summary rows',
-                'eventstats and streamstats are special - they add stats without replacing events',
-                'Put streaming commands BEFORE transforming commands for efficiency'
-            ],
-            relatedConcepts: ['concept_pipeline', 'concept_search_modes', 'concept_accelerations']
-        },
-        {
-            id: 'concept_search_modes',
-            name: 'Search Modes',
-            category: 'concepts',
-            subcategory: 'search-mechanics',
-            level: 'intermediate',
-            takeaway: 'Fast, Smart, or Verbose - balance speed vs detail',
-            what: 'Splunk has three search modes that control how much field extraction happens: Fast (minimal), Smart (automatic), and Verbose (everything).',
-            why: 'The right search mode balances speed and field availability. Fast mode can be 10x faster when you don\'t need all fields.',
-            keyPoint: 'Use Fast mode for counting and stats. Use Verbose when you need to see all possible fields.',
-            modes: [
-                { name: 'Fast', description: 'Only extracts fields needed for your search. Fastest.' },
-                { name: 'Smart', description: 'Default. Extracts fields based on your search.' },
-                { name: 'Verbose', description: 'Extracts ALL possible fields. Slowest but complete.' }
-            ],
-            gotchas: [
-                'Fast mode may hide fields you didn\'t explicitly reference',
-                'Dashboard searches often run in Fast mode automatically',
-                'Mode selector is in the search bar (to the left of the time picker)'
-            ],
-            relatedConcepts: ['concept_fields', 'concept_field_extraction', 'concept_pipeline']
-        },
-        {
-            id: 'concept_subsearch',
-            name: 'Subsearches',
-            category: 'concepts',
-            subcategory: 'search-mechanics',
-            level: 'intermediate',
-            takeaway: 'Nested searches in square brackets [ ]',
-            what: 'A subsearch is a search enclosed in square brackets that runs first. Its results are injected into the outer (main) search.',
-            why: 'Subsearches let you dynamically filter data based on another search. Find a list of values in one search and use them in another.',
-            keyPoint: 'Subsearch runs FIRST and completes BEFORE the main search uses its results.',
-            examples: [
-                { spl: 'index=web [search index=threats | fields ip | format]', explanation: 'Filter web logs to only IPs found in threats' },
-                { spl: 'index=main user=[search index=hr department="IT" | return 100 user]', explanation: 'Find events for IT department users' }
-            ],
-            gotchas: [
-                'Default limits: 60 seconds, 10,000 results',
-                'Use return or format to shape output properly',
-                'For large datasets, consider join, lookup, or stats instead'
-            ],
-            relatedConcepts: ['concept_pipeline', 'concept_knowledge_objects']
-        },
-        {
-            id: 'concept_knowledge_objects',
-            name: 'Knowledge Objects',
-            category: 'concepts',
-            subcategory: 'customization',
-            level: 'intermediate',
-            takeaway: 'Saved configurations that enrich and organize your data',
-            what: 'Knowledge objects are saved configurations that define how data is interpreted, enriched, and displayed. They include saved searches, field extractions, lookups, alerts, dashboards, and more.',
-            why: 'Knowledge objects let you build reusable components, share work with others, and customize how Splunk interprets your specific data.',
-            keyPoint: 'Knowledge objects are the building blocks for turning raw data into actionable intelligence.',
-            types: ['Field extractions', 'Field aliases', 'Calculated fields', 'Lookups', 'Event types', 'Tags', 'Saved searches', 'Macros'],
-            gotchas: [
-                'Knowledge objects belong to apps - check which app you\'re in',
-                'Permissions control who can see/use each object',
-                'Objects can be private, app-scoped, or global'
-            ],
-            relatedConcepts: ['concept_field_extraction', 'concept_apps']
-        },
-        {
-            id: 'concept_field_extraction',
-            name: 'Field Extraction',
-            category: 'concepts',
-            subcategory: 'customization',
-            level: 'intermediate',
-            takeaway: 'How Splunk parses fields from raw event text',
-            what: 'Field extraction is the process of identifying and parsing structured values (fields) from unstructured event text. This happens automatically for common patterns and can be customized.',
-            why: 'Good field extraction is the foundation of useful searching. Without extracted fields, you\'re limited to text searches.',
-            keyPoint: 'Splunk automatically extracts key=value pairs. Custom patterns need regex or the Field Extractor tool.',
-            methods: ['Automatic key=value recognition', 'Field Extractor UI tool', 'rex command in search', 'props.conf/transforms.conf'],
-            examples: [
-                { spl: '| rex field=_raw "user=(?<username>\\w+)"', explanation: 'Extract username with regex' },
-                { spl: '| extract', explanation: 'Force automatic KV extraction' }
-            ],
-            gotchas: [
-                'Extractions are tied to sourcetypes',
-                'Index-time extractions are faster but require re-indexing to change',
-                'Search-time extractions are flexible but slower'
-            ],
-            relatedConcepts: ['concept_fields', 'concept_knowledge_objects', 'concept_sourcetype']
-        },
-        {
-            id: 'concept_accelerations',
-            name: 'Search Acceleration',
-            category: 'concepts',
-            subcategory: 'performance',
-            level: 'intermediate',
-            takeaway: 'Pre-computed summaries for fast searches',
-            what: 'Search acceleration pre-computes and stores search results so future searches are dramatically faster. This includes report acceleration, data model acceleration, and summary indexing.',
-            why: 'Without acceleration, dashboards over large datasets can be unusably slow. Acceleration makes them respond in seconds instead of minutes.',
-            keyPoint: 'Acceleration trades storage space for search speed - summaries must be stored and kept updated.',
-            types: ['Report Acceleration', 'Data Model Acceleration', 'Summary Indexing'],
-            examples: [
-                { spl: '| tstats count FROM datamodel=Authentication BY user', explanation: 'Use accelerated data model - very fast' }
-            ],
-            gotchas: [
-                'Acceleration takes time to build initially',
-                'Summaries consume disk space',
-                'Not all searches can be accelerated',
-                'Accelerated data may be slightly behind real-time'
-            ],
-            relatedConcepts: ['concept_knowledge_objects', 'concept_streaming']
-        },
-        {
-            id: 'concept_apps',
-            name: 'Apps and Add-ons',
-            category: 'concepts',
-            subcategory: 'customization',
-            level: 'intermediate',
-            takeaway: 'Packaged functionality for specific use cases',
-            what: 'Apps are packages containing dashboards, searches, and configurations for specific use cases. Add-ons (TAs) provide data inputs and field extractions for specific data sources.',
-            why: 'Apps let you extend Splunk with pre-built solutions instead of building everything from scratch. The Splunk community shares thousands of apps.',
-            keyPoint: 'Apps = interfaces and functionality. Add-ons (TAs) = data collection and parsing.',
-            types: ['Apps (dashboards, reports)', 'Technology Add-ons (TAs)', 'Supporting Add-ons (SAs)'],
-            gotchas: [
-                'Apps can only see knowledge objects within themselves (unless shared globally)',
-                'Some apps require specific add-ons for data',
-                'Check Splunkbase for community apps'
-            ],
-            relatedConcepts: ['concept_knowledge_objects', 'concept_field_extraction']
-        },
-        {
-            id: 'concept_architecture',
-            name: 'Splunk Architecture',
-            category: 'concepts',
-            subcategory: 'infrastructure',
-            level: 'intermediate',
-            takeaway: 'How Splunk components work together',
-            what: 'Splunk consists of components that collect data (forwarders), store and index data (indexers), and run searches (search heads). These can all be on one server or distributed across many.',
-            why: 'Understanding architecture helps you troubleshoot issues, understand search performance, and communicate with your Splunk admins.',
-            keyPoint: 'Forwarders collect → Indexers store → Search Heads search. Simple setups combine these on one server.',
-            components: ['Universal Forwarder (UF)', 'Heavy Forwarder (HF)', 'Indexer', 'Search Head', 'Deployment Server', 'License Master'],
-            gotchas: [
-                'Distributed searches run on multiple indexers in parallel',
-                'Search head sends query to indexers, combines results',
-                'Your Splunk instance might be any of these architectures'
-            ],
-            relatedConcepts: ['concept_streaming', 'concept_accelerations']
         }
-    ],
+],
 
     cim: [
+        {
+            id: 'cim_authentication',
+            name: 'Authentication Data Model',
+            category: 'cim',
+            difficulty: 'intermediate',
+            takeaway: 'Normalized login/logoff events',
+            what: 'Data model for authentication events including logins, logoffs, and failures.',
+            why: 'Essential for security monitoring, user behavior analysis, and compliance reporting.',
+            examples: [
+                { spl: '| tstats count from datamodel=Authentication where action=failure by user', explanation: 'Failed auth by user' },
+                { spl: 'tag=authentication action=success | stats count by user, src', explanation: 'Successful logins' }
+            ],
+            gotchas: [
+                'Key fields: user, src, dest, action, app',
+                'action values: success, failure, error',
+                'Requires proper CIM mapping of source data'
+            ]
+        },
         {
             id: 'cim_overview',
             name: 'Common Information Model',
@@ -5809,21 +6564,21 @@ const GLOSSARY_DATA = {
             relatedCommands: ['tstats', 'datamodel', 'from']
         },
         {
-            id: 'cim_authentication',
-            name: 'Authentication Data Model',
+            id: 'cim_endpoint',
+            name: 'Endpoint Data Model',
             category: 'cim',
-            difficulty: 'intermediate',
-            takeaway: 'Normalized login/logoff events',
-            what: 'Data model for authentication events including logins, logoffs, and failures.',
-            why: 'Essential for security monitoring, user behavior analysis, and compliance reporting.',
+            difficulty: 'advanced',
+            takeaway: 'Normalized endpoint activity',
+            what: 'Data model covering processes, services, file system, and registry activity on endpoints.',
+            why: 'Critical for endpoint detection and response, threat hunting, and incident investigation.',
             examples: [
-                { spl: '| tstats count from datamodel=Authentication where action=failure by user', explanation: 'Failed auth by user' },
-                { spl: 'tag=authentication action=success | stats count by user, src', explanation: 'Successful logins' }
+                { spl: '| tstats count from datamodel=Endpoint.Processes by Processes.process_name', explanation: 'Process execution counts' },
+                { spl: 'tag=process parent_process_name=cmd.exe', explanation: 'Find cmd.exe child processes' }
             ],
             gotchas: [
-                'Key fields: user, src, dest, action, app',
-                'action values: success, failure, error',
-                'Requires proper CIM mapping of source data'
+                'Key fields: process_name, parent_process_name, user, process_path',
+                'Requires detailed endpoint telemetry (Sysmon, EDR)',
+                'Multiple sub-models: Processes, Services, Filesystem, Registry'
             ]
         },
         {
@@ -5843,46 +6598,28 @@ const GLOSSARY_DATA = {
                 'action values: allowed, blocked, dropped',
                 'Transport field for protocol (tcp, udp, icmp)'
             ]
-        },
-        {
-            id: 'cim_endpoint',
-            name: 'Endpoint Data Model',
-            category: 'cim',
-            difficulty: 'advanced',
-            takeaway: 'Normalized endpoint activity',
-            what: 'Data model covering processes, services, file system, and registry activity on endpoints.',
-            why: 'Critical for endpoint detection and response, threat hunting, and incident investigation.',
-            examples: [
-                { spl: '| tstats count from datamodel=Endpoint.Processes by Processes.process_name', explanation: 'Process execution counts' },
-                { spl: 'tag=process parent_process_name=cmd.exe', explanation: 'Find cmd.exe child processes' }
-            ],
-            gotchas: [
-                'Key fields: process_name, parent_process_name, user, process_path',
-                'Requires detailed endpoint telemetry (Sysmon, EDR)',
-                'Multiple sub-models: Processes, Services, Filesystem, Registry'
-            ]
         }
-    ],
+],
 
     macros: [
         {
-            id: 'macro_basics',
-            name: 'Macro Basics',
+            id: 'kvstore_lookup',
+            name: 'KV Store Lookups',
             category: 'macros',
-            difficulty: 'intermediate',
-            takeaway: 'Reusable search snippets',
-            what: 'Named search fragments that can be reused across multiple searches using backtick syntax.',
-            why: 'Promotes code reuse, consistency, and maintainability across searches and dashboards.',
-            syntax: '`macro_name` or `macro_name(arg1, arg2)`',
+            difficulty: 'advanced',
+            takeaway: 'Dynamic, updatable lookups',
+            what: 'Key-value store collections that can be queried and updated via REST API or SPL.',
+            why: 'Enables dynamic lookup data, state tracking, and integration with external systems.',
             examples: [
-                { spl: '`security_index` | stats count by user', explanation: 'Macro for index/filter' },
-                { spl: '`get_user_activity(jsmith)`', explanation: 'Macro with argument' }
+                { spl: '| inputlookup my_kvstore_lookup', explanation: 'Query KV Store' },
+                { spl: '| outputlookup my_kvstore_lookup append=true', explanation: 'Append to KV Store' }
             ],
             gotchas: [
-                'Defined in macros.conf or via Settings > Advanced search > Search macros',
-                'Arguments use $arg$ syntax in definition',
-                'Macros can call other macros (nesting limit applies)'
-            ]
+                'Must be defined in collections.conf and transforms.conf',
+                'Supports CRUD operations via REST API',
+                'Can be modified during search with outputlookup'
+            ],
+            relatedCommands: ['inputlookup', 'outputlookup', 'lookup']
         },
         {
             id: 'lookup_basics',
@@ -5923,25 +6660,25 @@ const GLOSSARY_DATA = {
             ]
         },
         {
-            id: 'kvstore_lookup',
-            name: 'KV Store Lookups',
+            id: 'macro_basics',
+            name: 'Macro Basics',
             category: 'macros',
-            difficulty: 'advanced',
-            takeaway: 'Dynamic, updatable lookups',
-            what: 'Key-value store collections that can be queried and updated via REST API or SPL.',
-            why: 'Enables dynamic lookup data, state tracking, and integration with external systems.',
+            difficulty: 'intermediate',
+            takeaway: 'Reusable search snippets',
+            what: 'Named search fragments that can be reused across multiple searches using backtick syntax.',
+            why: 'Promotes code reuse, consistency, and maintainability across searches and dashboards.',
+            syntax: '`macro_name` or `macro_name(arg1, arg2)`',
             examples: [
-                { spl: '| inputlookup my_kvstore_lookup', explanation: 'Query KV Store' },
-                { spl: '| outputlookup my_kvstore_lookup append=true', explanation: 'Append to KV Store' }
+                { spl: '`security_index` | stats count by user', explanation: 'Macro for index/filter' },
+                { spl: '`get_user_activity(jsmith)`', explanation: 'Macro with argument' }
             ],
             gotchas: [
-                'Must be defined in collections.conf and transforms.conf',
-                'Supports CRUD operations via REST API',
-                'Can be modified during search with outputlookup'
-            ],
-            relatedCommands: ['inputlookup', 'outputlookup', 'lookup']
+                'Defined in macros.conf or via Settings > Advanced search > Search macros',
+                'Arguments use $arg$ syntax in definition',
+                'Macros can call other macros (nesting limit applies)'
+            ]
         }
-    ],
+],
 
     antipatterns: [
         {
@@ -6053,14 +6790,31 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initGlossary() {
+    // Export glossary data for global search
+    window.GLOSSARY_DATA = GLOSSARY_DATA;
+    window.TAB_CATEGORY_MAP = TAB_CATEGORY_MAP;
+    window.CATEGORY_TO_TAB = CATEGORY_TO_TAB;
+
     // Initialize tabs
-    SPLUNKed.initTabs('#glossaryTabs', {
+    const tabController = SPLUNKed.initTabs('#glossaryTabs', {
         storageKey: 'splunked-glossary-tab',
         onTabChange: (category) => {
             currentCategory = category;
             renderGlossary();
         }
     });
+
+    // Handle URL parameters for deep linking
+    const params = new URLSearchParams(window.location.search);
+    const urlTab = params.get('tab');
+    const openId = params.get('open');
+
+    if (urlTab && TAB_CATEGORY_MAP[urlTab]) {
+        currentCategory = urlTab;
+        if (tabController) {
+            tabController.activateTab(urlTab);
+        }
+    }
 
     // Initialize search
     SPLUNKed.initSearch('glossarySearch', {
@@ -6095,11 +6849,30 @@ function initGlossary() {
 
     // Add click handlers for cards
     document.addEventListener('click', handleCardClick);
+
+    // Open specific entry if requested via URL
+    if (openId) {
+        const entry = findEntryById(openId);
+        if (entry) {
+            // Slight delay to ensure DOM is ready
+            setTimeout(() => openDetailModal(entry), 100);
+        }
+    }
+}
+
+// Find an entry by ID across all categories
+function findEntryById(id) {
+    for (const category of Object.keys(GLOSSARY_DATA)) {
+        const entry = GLOSSARY_DATA[category].find(e => e.id === id);
+        if (entry) return entry;
+    }
+    return null;
 }
 
 function renderAllCategories() {
-    Object.keys(GLOSSARY_DATA).forEach(category => {
-        renderCategoryGrid(category);
+    // Render all 4 consolidated tabs
+    Object.keys(TAB_CATEGORY_MAP).forEach(tab => {
+        renderCategoryGrid(tab);
     });
 }
 
@@ -6108,28 +6881,46 @@ function renderGlossary() {
     updateEmptyState();
 }
 
-function renderCategoryGrid(category) {
-    const grid = document.getElementById(`${category}Grid`);
-    const infoContainer = document.getElementById(`${category}Info`);
+function renderCategoryGrid(tab) {
+    const grid = document.getElementById(`${tab}Grid`);
+    const infoContainer = document.getElementById(`${tab}Info`);
     if (!grid) return;
 
-    // Render category info if available
-    if (infoContainer && CATEGORY_INFO[category]) {
-        infoContainer.innerHTML = createCategoryInfoHTML(category);
+    // Render tab info
+    if (infoContainer && TAB_INFO[tab]) {
+        infoContainer.innerHTML = createCategoryInfoHTML(tab);
     }
 
-    const entries = GLOSSARY_DATA[category] || [];
+    // Get source categories for this tab
+    const sourceCategories = TAB_CATEGORY_MAP[tab] || [tab];
+
+    // Merge entries from all source categories
+    let entries = [];
+    sourceCategories.forEach(sourceCat => {
+        const catEntries = GLOSSARY_DATA[sourceCat] || [];
+        catEntries.forEach(entry => {
+            entries.push({
+                ...entry,
+                _sourceCategory: sourceCat
+            });
+        });
+    });
+
+    // Filter entries
     const filtered = filterEntries(entries);
 
+    // Sort alphabetically if requested
     if (currentView === 'alphabetical') {
         filtered.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    grid.innerHTML = filtered.map(entry => createCardHTML(entry)).join('');
+    // Render cards with optional subcategory badges for merged tabs
+    const showSubcategory = sourceCategories.length > 1;
+    grid.innerHTML = filtered.map(entry => createCardHTML(entry, showSubcategory)).join('');
 }
 
-function createCategoryInfoHTML(category) {
-    const info = CATEGORY_INFO[category];
+function createCategoryInfoHTML(tab) {
+    const info = TAB_INFO[tab] || CATEGORY_INFO[tab];
     if (!info) return '';
 
     return `
@@ -6177,7 +6968,7 @@ function filterEntries(entries) {
     });
 }
 
-function createCardHTML(entry) {
+function createCardHTML(entry, showSubcategory = false) {
     const experimentalBadge = entry.experimental
         ? '<span class="experimental-badge">Test</span>'
         : '';
@@ -6192,11 +6983,18 @@ function createCardHTML(entry) {
         }
     }
 
+    // Show subcategory badge for merged tabs (functions, reference)
+    let subcategoryBadge = '';
+    if (showSubcategory && entry._sourceCategory && SUBCATEGORY_LABELS[entry._sourceCategory]) {
+        subcategoryBadge = `<span class="subcategory-badge">${SUBCATEGORY_LABELS[entry._sourceCategory]}</span>`;
+    }
+
     return `
         <div class="glossary-card" data-id="${entry.id}" data-category="${entry.category}">
             <div class="glossary-card-header">
                 <code class="glossary-name">${escapeHtml(entry.name)}</code>
                 ${experimentalBadge}
+                ${subcategoryBadge}
                 ${badge}
             </div>
             <p class="glossary-takeaway">${escapeHtml(entry.takeaway)}</p>
@@ -6252,12 +7050,14 @@ function openDetailModal(entry) {
     if (entry.relatedSection) {
         const btn = document.createElement('button');
         btn.className = 'btn btn-secondary view-functions-btn';
-        btn.dataset.category = entry.relatedSection.category;
+        // Map old category to new consolidated tab
+        const targetTabName = CATEGORY_TO_TAB[entry.relatedSection.category] || entry.relatedSection.category;
+        btn.dataset.category = targetTabName;
         const shortLabel = entry.relatedSection.shortLabel || 'Functions';
         btn.innerHTML = `<span class="full-label">${entry.relatedSection.label}</span><span class="short-label">${shortLabel}</span> <span class="btn-arrow">→</span>`;
         btn.addEventListener('click', () => {
             SPLUNKed.closeModal('glossaryModal');
-            const targetTab = document.querySelector(`.category-tab[data-category="${entry.relatedSection.category}"]`);
+            const targetTab = document.querySelector(`.category-tab[data-category="${targetTabName}"]`);
             if (targetTab) {
                 targetTab.click();
             }

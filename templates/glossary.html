@@ -18,15 +18,11 @@
     <!-- Tabs Navigation -->
     <div class="tabs-container" id="glossaryTabs">
         <div class="tabs-list" role="tablist">
-            {{ category_tab('commands', 'SPL Commands', active=true) }}
-            {{ category_tab('functions', 'Eval Functions') }}
-            {{ category_tab('statsFunctions', 'Stats Functions') }}
-            {{ category_tab('extractions', 'Field Extractions') }}
-            {{ category_tab('fields', 'Common Fields') }}
-            {{ category_tab('concepts', 'Splunk Concepts') }}
-            {{ category_tab('cim', 'CIM/Data Models') }}
-            {{ category_tab('macros', 'Macros & Lookups') }}
-            {{ category_tab('antipatterns', 'Common Mistakes') }}
+            {{ category_tab('commands', 'Commands', active=true) }}
+            {{ category_tab('functions', 'Functions') }}
+            {{ category_tab('fields', 'Fields') }}
+            {{ category_tab('reference', 'Reference') }}
+            {{ category_tab('antipatterns', 'Pitfalls') }}
         </div>
     </div>
 
@@ -69,20 +65,6 @@
         </div>
     </div>
 
-    <div id="statsFunctionsPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="statsFunctionsInfo"></div>
-        <div class="glossary-grid" id="statsFunctionsGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
-    <div id="extractionsPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="extractionsInfo"></div>
-        <div class="glossary-grid" id="extractionsGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
     <div id="fieldsPanel" class="tab-panel" role="tabpanel" hidden>
         <div class="category-info" id="fieldsInfo"></div>
         <div class="glossary-grid" id="fieldsGrid">
@@ -90,23 +72,9 @@
         </div>
     </div>
 
-    <div id="conceptsPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="conceptsInfo"></div>
-        <div class="glossary-grid" id="conceptsGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
-    <div id="cimPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="cimInfo"></div>
-        <div class="glossary-grid" id="cimGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
-    <div id="macrosPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="macrosInfo"></div>
-        <div class="glossary-grid" id="macrosGrid">
+    <div id="referencePanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="referenceInfo"></div>
+        <div class="glossary-grid" id="referenceGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>

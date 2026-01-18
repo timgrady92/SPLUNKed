@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initKeyboardShortcuts();
     initCopyButtons();
     applySPLHighlighting();
+    initGlobalSearch();
 });
 
 /**
@@ -115,11 +116,14 @@ function initKeyboardShortcuts() {
 
         switch (e.key) {
             case '/':
-                // Focus search input
+                // Focus global search first (navbar), fallback to page search
                 e.preventDefault();
-                const searchInput = document.querySelector('.search-input');
-                if (searchInput) {
-                    searchInput.focus();
+                const globalSearch = document.getElementById('globalSearch');
+                const pageSearch = document.querySelector('.search-input');
+                if (globalSearch) {
+                    globalSearch.focus();
+                } else if (pageSearch) {
+                    pageSearch.focus();
                 }
                 break;
 
@@ -556,6 +560,261 @@ function debounce(fn, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+/**
+ * Global Search (Navbar)
+ */
+function initGlobalSearch() {
+    const input = document.getElementById('globalSearch');
+    const resultsContainer = document.getElementById('globalSearchResults');
+
+    if (!input || !resultsContainer) return;
+
+    let debounceTimer;
+    let selectedIndex = -1;
+
+    // Handle input
+    input.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            const query = input.value.toLowerCase().trim();
+            if (query.length < 2) {
+                hideResults();
+                return;
+            }
+            const results = performGlobalSearch(query);
+            renderSearchResults(results, query);
+        }, 200);
+    });
+
+    // Handle focus
+    input.addEventListener('focus', () => {
+        const query = input.value.toLowerCase().trim();
+        if (query.length >= 2) {
+            resultsContainer.classList.add('active');
+        }
+    });
+
+    // Handle blur (with delay for click)
+    input.addEventListener('blur', () => {
+        setTimeout(() => {
+            hideResults();
+        }, 200);
+    });
+
+    // Handle keyboard navigation
+    input.addEventListener('keydown', (e) => {
+        const items = resultsContainer.querySelectorAll('.search-result-item');
+
+        switch (e.key) {
+            case 'ArrowDown':
+                if (!items.length) return;
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                updateSelection(items);
+                break;
+            case 'ArrowUp':
+                if (!items.length) return;
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection(items);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (selectedIndex >= 0 && items[selectedIndex]) {
+                    items[selectedIndex].click();
+                }
+                break;
+            case 'Escape':
+                hideResults();
+                input.blur();
+                break;
+        }
+    });
+
+    function hideResults() {
+        resultsContainer.classList.remove('active');
+        selectedIndex = -1;
+    }
+
+    function updateSelection(items) {
+        items.forEach((item, i) => {
+            item.classList.toggle('selected', i === selectedIndex);
+        });
+        if (selectedIndex >= 0 && items[selectedIndex]) {
+            items[selectedIndex].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function performGlobalSearch(query) {
+        const results = {
+            commands: [],
+            functions: [],
+            reference: [],
+            guides: []
+        };
+
+        // Search glossary data if available
+        if (window.GLOSSARY_DATA && window.TAB_CATEGORY_MAP) {
+            // Commands
+            const commands = window.GLOSSARY_DATA.commands || [];
+            commands.forEach(entry => {
+                if (matchesQuery(entry, query)) {
+                    results.commands.push(entry);
+                }
+            });
+
+            // Functions (merged tab)
+            ['functions', 'statsFunctions'].forEach(cat => {
+                const entries = window.GLOSSARY_DATA[cat] || [];
+                entries.forEach(entry => {
+                    if (matchesQuery(entry, query)) {
+                        results.functions.push(entry);
+                    }
+                });
+            });
+
+            // Reference (merged tab)
+            ['fields', 'cim', 'concepts', 'extractions', 'macros'].forEach(cat => {
+                const entries = window.GLOSSARY_DATA[cat] || [];
+                entries.forEach(entry => {
+                    if (matchesQuery(entry, query)) {
+                        results.reference.push(entry);
+                    }
+                });
+            });
+        }
+
+        // Search guides data if available
+        if (window.GUIDES_DATA) {
+            Object.keys(window.GUIDES_DATA).forEach(category => {
+                const guides = window.GUIDES_DATA[category] || [];
+                guides.forEach(guide => {
+                    if (matchesGuide(guide, query)) {
+                        results.guides.push({ ...guide, _category: category });
+                    }
+                });
+            });
+        }
+
+        // Limit results per category
+        const maxPerCategory = 5;
+        results.commands = results.commands.slice(0, maxPerCategory);
+        results.functions = results.functions.slice(0, maxPerCategory);
+        results.reference = results.reference.slice(0, maxPerCategory);
+        results.guides = results.guides.slice(0, maxPerCategory);
+
+        return results;
+    }
+
+    function matchesQuery(entry, query) {
+        const searchable = [
+            entry.name || '',
+            entry.takeaway || '',
+            entry.what || ''
+        ].join(' ').toLowerCase();
+        return searchable.includes(query);
+    }
+
+    function matchesGuide(guide, query) {
+        const searchable = [
+            guide.title || '',
+            guide.description || '',
+            guide.keywords || ''
+        ].join(' ').toLowerCase();
+        return searchable.includes(query);
+    }
+
+    function renderSearchResults(results, query) {
+        const hasResults = results.commands.length || results.functions.length ||
+                          results.reference.length || results.guides.length;
+
+        if (!hasResults) {
+            resultsContainer.innerHTML = '<div class="search-no-results">No results found</div>';
+            resultsContainer.classList.add('active');
+            selectedIndex = -1;
+            return;
+        }
+
+        let html = '';
+
+        if (results.commands.length) {
+            html += renderResultGroup('Commands', results.commands, 'commands');
+        }
+
+        if (results.functions.length) {
+            html += renderResultGroup('Functions', results.functions, 'functions');
+        }
+
+        if (results.reference.length) {
+            html += renderResultGroup('Reference', results.reference, 'reference');
+        }
+
+        if (results.guides.length) {
+            html += renderGuideGroup('Guides', results.guides);
+        }
+
+        resultsContainer.innerHTML = html;
+        resultsContainer.classList.add('active');
+        selectedIndex = -1;
+
+        // Add click handlers to result items
+        resultsContainer.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToResult(item);
+            });
+        });
+    }
+
+    function renderResultGroup(title, entries, tab) {
+        let html = `<div class="search-results-group">
+            <div class="search-results-header">${title}</div>`;
+
+        entries.forEach(entry => {
+            const url = `/glossary?tab=${tab}&open=${entry.id}`;
+            html += `
+                <a href="${url}" class="search-result-item" data-url="${url}">
+                    <code class="result-name">${escapeSearchHtml(entry.name)}</code>
+                    <span class="result-desc">${escapeSearchHtml(entry.takeaway || '')}</span>
+                </a>`;
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    function renderGuideGroup(title, guides) {
+        let html = `<div class="search-results-group">
+            <div class="search-results-header">${title}</div>`;
+
+        guides.forEach(guide => {
+            const url = `/guides?tab=${guide._category}&open=${guide.id}`;
+            html += `
+                <a href="${url}" class="search-result-item" data-url="${url}">
+                    <code class="result-name">${escapeSearchHtml(guide.title)}</code>
+                    <span class="result-desc">${escapeSearchHtml(guide.description || '')}</span>
+                </a>`;
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    function navigateToResult(item) {
+        const url = item.dataset.url || item.getAttribute('href');
+        if (url) {
+            window.location.href = url;
+        }
+    }
+
+    function escapeSearchHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 }
 
 /**

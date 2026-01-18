@@ -21,6 +21,7 @@
             {{ category_tab('basics', 'Search Basics', active=true) }}
             {{ category_tab('summarizing', 'Counting & Summarizing') }}
             {{ category_tab('refining', 'Filtering & Refining') }}
+            {{ category_tab('visualizing', 'Visualizing Data') }}
             {{ category_tab('security', 'Security & Investigation') }}
             {{ category_tab('datasources', 'Data Sources') }}
             {{ category_tab('enriching', 'Enriching Data') }}
@@ -47,6 +48,12 @@
 
     <div id="refiningPanel" class="tab-panel" role="tabpanel" hidden>
         <div class="guides-grid" id="refiningGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="visualizingPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="visualizingGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>

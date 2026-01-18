@@ -1840,6 +1840,827 @@ const GUIDES_DATA = {
         }
     ],
 
+    visualizing: [
+        {
+            id: 'viz-trends-over-time',
+            title: 'How to visualize trends over time',
+            description: 'Create time-based charts showing how metrics change over hours, days, or weeks.',
+            keywords: 'timechart trend time series line chart graph over time',
+            body: \`
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to see how something changes over time - like failed logins per hour, errors per day, or traffic volume over a week.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">The Key Command: timechart</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Basic time trend</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security EventCode=4625
+| timechart count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Count of failed logins over time. Splunk auto-picks the time interval (span) based on your time range.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Control the time interval</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security EventCode=4625
+| timechart span=1h count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Count per hour. Use <code>span=15m</code> for 15 minutes, <code>span=1d</code> for daily.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Split by a field (multiple lines)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security EventCode=4625
+| timechart span=1h count by src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Creates a separate line for each source IP. Great for comparing patterns.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Limit the number of series</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web status>=500
+| timechart span=1h count by uri limit=10 useother=false</code></pre>
+                        </div>
+                        <p class="guide-explanation">Top 10 URIs only. <code>useother=false</code> hides the "OTHER" bucket.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-World Scenarios</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Detect brute force attacks</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security EventCode=4625
+| timechart span=5m count by TargetUserName
+| where count > 10</code></pre>
+                        </div>
+                        <p class="guide-explanation">Spike in failed logins for a user in a 5-minute window = potential brute force.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Compare this week vs last week</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web status=200
+| timechart span=1h count
+| eval hour=strftime(_time, "%H")
+| stats avg(count) as avg_requests by hour</code></pre>
+                        </div>
+                        <p class="guide-explanation">Average requests by hour of day - shows your traffic pattern.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Network traffic volume</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=network
+| timechart span=1h sum(bytes) as total_bytes
+| eval total_GB=round(total_bytes/1024/1024/1024, 2)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Total bytes transferred per hour, converted to GB.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Visualization Tips</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Line chart</strong> - Best for continuous trends over time</li>
+                            <li><strong>Area chart</strong> - Good for showing volume/magnitude</li>
+                            <li><strong>Column chart</strong> - Better for discrete time periods (daily counts)</li>
+                        </ul>
+                        <p>After running your search, click the "Visualization" tab and select your chart type.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>If your chart has too many spikes, increase the span. If it's too smooth and hides detail, decrease the span. Match the span to what you're investigating.</p>
+                </div>
+            \`
+        },
+        {
+            id: 'viz-compare-categories',
+            title: 'How to compare categories',
+            description: 'Create bar charts and column charts to compare values across different groups.',
+            keywords: 'bar chart column compare categories comparison hosts users top',
+            body: \`
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to compare values across categories - like which hosts have the most errors, which users generate the most traffic, or which applications are most used.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">The Key Command: stats + by</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Count by category</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web status>=500
+| stats count by host
+| sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Count of errors per host, sorted highest first. Perfect for a bar chart.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Multiple metrics per category</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| stats count as requests, avg(response_time) as avg_response,
+        sum(bytes) as total_bytes by host</code></pre>
+                        </div>
+                        <p class="guide-explanation">Multiple measurements per host. Great for grouped bar charts.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Using chart command</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security action=*
+| chart count by action, user</code></pre>
+                        </div>
+                        <p class="guide-explanation">Creates a matrix - rows are actions, columns are users. Good for stacked bars.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-World Scenarios</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Which servers have the most errors?</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=application level=ERROR
+| stats count by host
+| sort -count
+| head 10</code></pre>
+                        </div>
+                        <p class="guide-explanation">Top 10 hosts by error count. Helps prioritize troubleshooting.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: User activity comparison</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy
+| stats dc(url) as unique_sites, sum(bytes) as total_bytes by user
+| eval total_MB=round(total_bytes/1024/1024, 2)
+| sort -total_MB
+| head 20</code></pre>
+                        </div>
+                        <p class="guide-explanation">Compare users by sites visited and bandwidth used.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Success vs failure by source</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth
+| eval status=if(action="success", "Success", "Failed")
+| chart count by src_ip, status</code></pre>
+                        </div>
+                        <p class="guide-explanation">Stacked bar showing success/failure ratio per source IP.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Choosing the Right Chart</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Bar chart (horizontal)</strong> - Best when category names are long</li>
+                            <li><strong>Column chart (vertical)</strong> - Good for fewer categories with short names</li>
+                            <li><strong>Stacked bar</strong> - Shows composition within each category</li>
+                            <li><strong>Grouped bar</strong> - Compares multiple metrics side by side</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Always sort your data and limit to top N results. A bar chart with 100+ categories is unreadable. Use <code>| sort -count | head 10</code> to show just the top 10.</p>
+                </div>
+            \`
+        },
+        {
+            id: 'viz-top-offenders',
+            title: 'How to show top offenders',
+            description: 'Quickly find and display the top N values for any field.',
+            keywords: 'top rare bottom highest lowest most least frequent',
+            body: \`
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to quickly identify the most common (or least common) values - top talkers, most blocked IPs, most frequent errors, etc.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">The Quick Way: top and rare</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Top values</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| top 10 src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Top 10 most blocked source IPs. Includes count and percentage automatically.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Rare values (least common)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=endpoint process_name=*
+| rare 10 process_name</code></pre>
+                        </div>
+                        <p class="guide-explanation">10 least common processes. Unusual processes might be suspicious.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Top with multiple fields</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth action=failed
+| top 10 user, src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Top user/IP combinations for failed auth. Shows attack patterns.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-World Scenarios</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Top blocked IPs (firewall)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| top 10 src_ip
+| rename src_ip as "Blocked IP", count as "Block Count", percent as "% of Total"</code></pre>
+                        </div>
+                        <p class="guide-explanation">Clean table of most blocked IPs, ready for a report.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Heaviest bandwidth users</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy
+| stats sum(bytes) as total_bytes by user
+| sort -total_bytes
+| head 10
+| eval total_GB=round(total_bytes/1024/1024/1024, 2)
+| table user, total_GB</code></pre>
+                        </div>
+                        <p class="guide-explanation">Top 10 users by bandwidth, shown in GB.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Unusual user agents (threat hunting)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy
+| rare 20 user_agent
+| where count < 5</code></pre>
+                        </div>
+                        <p class="guide-explanation">User agents seen fewer than 5 times. Rare agents may indicate malware.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Visualization Options</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Bar chart</strong> - Clear comparison of magnitudes</li>
+                            <li><strong>Pie chart</strong> - Shows proportion of total (use sparingly, max 5-7 slices)</li>
+                            <li><strong>Table</strong> - Best when exact numbers matter</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Heads Up</div>
+                    <p>The <code>top</code> command only shows count and percentage. If you need other aggregations (sum, avg), use <code>stats ... | sort -field | head N</code> instead.</p>
+                </div>
+            \`
+        },
+        {
+            id: 'viz-single-kpi',
+            title: 'How to display a single KPI value',
+            description: 'Create dashboard-ready single value displays for key metrics.',
+            keywords: 'single value kpi metric number count total dashboard',
+            body: \`
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to display a single important number - total alerts today, active users, error rate - prominently on a dashboard.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Creating Single Values</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Simple count</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security severity=critical
+| stats count as critical_alerts</code></pre>
+                        </div>
+                        <p class="guide-explanation">Total count of critical alerts. Returns one row, one number.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Percentage calculation</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth
+| stats count(eval(action="failed")) as failed, count as total
+| eval failure_rate=round(failed/total*100, 1)
+| fields failure_rate</code></pre>
+                        </div>
+                        <p class="guide-explanation">Authentication failure rate as a percentage.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">With trend indicator</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web status>=500
+| stats count as current_errors
+| appendcols [search index=web status>=500 earliest=-2d latest=-1d | stats count as yesterday_errors]
+| eval trend=if(current_errors>yesterday_errors, "up", "down")</code></pre>
+                        </div>
+                        <p class="guide-explanation">Today's errors with comparison to yesterday. Single value viz can show trend arrows.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-World Scenarios</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Active users right now</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth action=login earliest=-15m
+| stats dc(user) as active_users</code></pre>
+                        </div>
+                        <p class="guide-explanation">Distinct count of users who logged in the last 15 minutes.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: System uptime percentage</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=monitoring host=webserver01
+| stats count(eval(status="up")) as up_checks, count as total_checks
+| eval uptime_pct=round(up_checks/total_checks*100, 2)." %"
+| fields uptime_pct</code></pre>
+                        </div>
+                        <p class="guide-explanation">Shows "99.95 %" - perfect for an uptime dashboard.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Average response time</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| stats avg(response_time) as avg_ms
+| eval avg_ms=round(avg_ms, 0)." ms"</code></pre>
+                        </div>
+                        <p class="guide-explanation">Average response time with units - "245 ms".</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Dashboard Formatting</div>
+                    <div class="guide-detail-section">
+                        <p>When creating single value visualizations in dashboards:</p>
+                        <ul>
+                            <li>Use <strong>color ranges</strong> - green for good, yellow for warning, red for critical</li>
+                            <li>Add <strong>trend indicators</strong> - show if the value is up or down vs. previous period</li>
+                            <li>Include <strong>sparklines</strong> - small inline chart showing recent trend</li>
+                            <li>Set <strong>unit labels</strong> - "ms", "%", "GB" make numbers meaningful</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Format numbers in your search using <code>round()</code> and concatenating units. A KPI showing "2,847,293" is hard to read - "2.85 M" is much better. Use <code>eval display=round(value/1000000, 2)." M"</code></p>
+                </div>
+            \`
+        },
+        {
+            id: 'viz-geographic',
+            title: 'How to show geographic activity',
+            description: 'Map IP addresses to locations and visualize geographic patterns.',
+            keywords: 'map geo geographic location ip country city iplocation geostats',
+            body: \`
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to see where activity is coming from geographically - map attack sources, visualize user locations, or identify unusual geographic patterns.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 1: Convert IPs to Locations</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Basic IP lookup</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| iplocation src_ip
+| table src_ip, Country, City, Region, lat, lon</code></pre>
+                        </div>
+                        <p class="guide-explanation">Adds geographic fields to each event. Works with any IP field.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Aggregate by country</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| iplocation src_ip
+| stats count by Country
+| sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Count of blocked connections per country.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 2: Create Map Visualization</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Cluster map with geostats</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| iplocation src_ip
+| geostats count by Country</code></pre>
+                        </div>
+                        <p class="guide-explanation">Creates a cluster map. Larger circles = more events from that area.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Choropleth (filled map)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| iplocation src_ip
+| stats count by Country
+| geom geo_countries featureIdField=Country</code></pre>
+                        </div>
+                        <p class="guide-explanation">Colors countries based on count. Requires the geo_countries lookup.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-World Scenarios</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Where are attacks coming from?</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| iplocation src_ip
+| search Country!=United States
+| geostats count by Country</code></pre>
+                        </div>
+                        <p class="guide-explanation">Map of foreign attack sources, excluding domestic traffic.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Impossible travel detection</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth action=success
+| iplocation src_ip
+| stats earliest(_time) as first_login, latest(_time) as last_login,
+        values(Country) as countries, dc(Country) as country_count by user
+| where country_count > 1</code></pre>
+                        </div>
+                        <p class="guide-explanation">Users logging in from multiple countries. Could indicate compromised accounts.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: VPN usage by region</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=vpn action=connect
+| iplocation src_ip
+| stats dc(user) as unique_users, sum(bytes) as total_bytes by Country
+| sort -unique_users</code></pre>
+                        </div>
+                        <p class="guide-explanation">VPN connections by country - useful for capacity planning.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Available Geographic Fields</div>
+                    <div class="guide-detail-section">
+                        <p>After running <code>iplocation</code>, these fields are available:</p>
+                        <ul>
+                            <li><code>Country</code> - Country name</li>
+                            <li><code>Region</code> - State/province</li>
+                            <li><code>City</code> - City name</li>
+                            <li><code>lat</code> - Latitude</li>
+                            <li><code>lon</code> - Longitude</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Heads Up</div>
+                    <p>IP geolocation isn't 100% accurate, especially for VPNs, proxies, and mobile IPs. It's useful for broad patterns but don't rely on it for precise location.</p>
+                </div>
+            \`
+        },
+        {
+            id: 'viz-distribution',
+            title: 'How to visualize distribution',
+            description: 'Show how values are spread using histograms and percentiles.',
+            keywords: 'histogram distribution percentile spread range bin bucket',
+            body: \`
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to understand the spread of values - are response times mostly fast with some outliers? What's the typical file size? Is the data clustered or evenly distributed?</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Creating Histograms</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Basic histogram with bin</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| bin response_time span=100
+| stats count by response_time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Groups response times into 100ms buckets. Shows distribution shape.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Auto-binning</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| bin response_time bins=20
+| stats count by response_time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Splunk auto-picks bucket size to create 20 bins.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Log-scale buckets (for wide ranges)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy
+| eval size_bucket=case(
+    bytes<1024, "<1KB",
+    bytes<10240, "1-10KB",
+    bytes<102400, "10-100KB",
+    bytes<1048576, "100KB-1MB",
+    bytes<10485760, "1-10MB",
+    true(), ">10MB")
+| stats count by size_bucket</code></pre>
+                        </div>
+                        <p class="guide-explanation">Custom buckets for file sizes that span many orders of magnitude.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Percentile Analysis</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Key percentiles</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| stats min(response_time) as min,
+        perc50(response_time) as median,
+        perc90(response_time) as p90,
+        perc99(response_time) as p99,
+        max(response_time) as max</code></pre>
+                        </div>
+                        <p class="guide-explanation">Shows the full distribution: minimum, median, 90th and 99th percentile, and maximum.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Percentiles by category</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| stats perc50(response_time) as median,
+        perc95(response_time) as p95 by uri
+| sort -p95</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find which endpoints have the worst 95th percentile response times.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-World Scenarios</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Response time SLA compliance</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| stats count(eval(response_time<500)) as under_sla, count as total
+| eval compliance_pct=round(under_sla/total*100, 1)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Percentage of requests meeting 500ms SLA.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Identify outliers</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| eventstats perc99(response_time) as p99
+| where response_time > p99
+| table _time, uri, response_time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find the worst 1% of response times - the true outliers.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Data transfer size patterns</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy
+| bin bytes span=1048576
+| stats count by bytes
+| eval size_MB=bytes/1048576
+| table size_MB, count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Distribution of file download sizes in 1MB buckets.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>When analyzing performance data, focus on percentiles over averages. An average of 200ms doesn't tell you that 1% of users experience 5 second delays. P99 does.</p>
+                </div>
+            \`
+        },
+        {
+            id: 'viz-before-after',
+            title: 'How to create before/after comparisons',
+            description: 'Compare metrics between two time periods to show change impact.',
+            keywords: 'compare before after change impact difference delta trend',
+            body: \`
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to compare two time periods - did the firewall change reduce traffic? Are errors up after the deploy? How does this week compare to last week?</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Technique 1: appendcols</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">This week vs last week</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web status>=500 earliest=-7d
+| stats count as this_week
+| appendcols [search index=web status>=500 earliest=-14d latest=-7d
+    | stats count as last_week]
+| eval change_pct=round((this_week-last_week)/last_week*100, 1)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Compare error counts and calculate percentage change.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Before/after a specific time</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked earliest=-2d
+| stats count as after_change
+| appendcols [search index=firewall action=blocked earliest=-4d latest=-2d
+    | stats count as before_change]
+| eval reduction_pct=round((before_change-after_change)/before_change*100, 1)</code></pre>
+                        </div>
+                        <p class="guide-explanation">Measure impact of a change made 2 days ago.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Technique 2: Comparing Over Time</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Overlay this week on last week</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web
+| eval period=if(_time>relative_time(now(), "-7d"), "This Week", "Last Week")
+| eval normalized_time=if(period="Last Week", _time+604800, _time)
+| bin normalized_time span=1h
+| timechart span=1h count by period</code></pre>
+                        </div>
+                        <p class="guide-explanation">Shows both weeks on the same timeline for visual comparison.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Hour-by-hour comparison</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=web earliest=-14d
+| eval week=if(_time>relative_time(now(), "-7d"), "Current", "Previous")
+| eval hour=strftime(_time, "%H")
+| stats count by hour, week
+| xyseries hour week count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Compare traffic patterns by hour of day between two weeks.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-World Scenarios</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Post-deployment error monitoring</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=application level=ERROR
+| eval period=if(_time>strptime("2024-01-15 14:00", "%Y-%m-%d %H:%M"),
+                 "After Deploy", "Before Deploy")
+| stats count by period, error_type
+| xyseries error_type period count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Compare error types before/after a deploy at 2 PM on Jan 15.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Measure policy effectiveness</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| multisearch
+    [search index=firewall action=blocked earliest=-7d | stats count as blocked_after]
+    [search index=firewall action=blocked earliest=-14d latest=-7d | stats count as blocked_before]
+| stats values(blocked_after) as after, values(blocked_before) as before
+| eval effectiveness=round((after-before)/before*100, 1)."%"</code></pre>
+                        </div>
+                        <p class="guide-explanation">Measure if new firewall rules are blocking more threats.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>When showing before/after, always use the same time duration for both periods. Comparing 2 days before to 1 day after gives misleading results.</p>
+                </div>
+            \`
+        },
+        {
+            id: 'viz-event-timeline',
+            title: 'How to build a timeline of events',
+            description: 'Create chronological views showing the sequence of events during an incident.',
+            keywords: 'timeline sequence chronological order incident investigation transaction',
+            body: \`
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to reconstruct what happened in order - show the sequence of an attack, trace a user's activity, or understand the timeline of an incident.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Simple Event Timeline</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Basic chronological table</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=jsmith earliest=-1d
+| table _time, action, src_ip, dest, status
+| sort _time</code></pre>
+                        </div>
+                        <p class="guide-explanation">All events for a user in time order. The foundation of timeline analysis.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Formatted timestamps</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=jsmith earliest=-1d
+| eval time=strftime(_time, "%H:%M:%S")
+| table time, action, src_ip, dest
+| sort _time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Human-readable time format for easier reading.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Multi-Source Timelines</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Combine multiple data sources</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=jsmith OR src_ip=192.168.1.100
+| eval source=case(
+    sourcetype="WinEventLog:Security", "Windows",
+    sourcetype="linux_secure", "Linux",
+    sourcetype="pan:traffic", "Firewall",
+    true(), sourcetype)
+| table _time, source, action, dest, status
+| sort _time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Unified timeline across Windows, Linux, and firewall logs.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Add time gaps</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=security user=jsmith earliest=-1d
+| sort _time
+| streamstats current=false last(_time) as prev_time
+| eval gap_seconds=_time-prev_time
+| eval gap=if(gap_seconds>300, "⏸️ ".tostring(gap_seconds/60, "duration"), "")
+| table _time, gap, action, src_ip, dest</code></pre>
+                        </div>
+                        <p class="guide-explanation">Highlight time gaps longer than 5 minutes - shows breaks in activity.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Real-World Scenarios</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Attack reconstruction</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=* (user=compromised_user OR src_ip=attacker_ip) earliest=-24h
+| eval phase=case(
+    action="login", "1-Initial Access",
+    action="exec", "2-Execution",
+    action="copy", "3-Collection",
+    action="upload", "4-Exfiltration",
+    true(), "0-Other")
+| table _time, phase, host, action, details
+| sort _time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Map events to attack phases for incident reporting.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Session reconstruction</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy user=jsmith earliest=-8h
+| transaction user maxpause=30m
+| table _time, duration, eventcount, values(url)
+| sort _time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Group activity into sessions (30 min idle = new session).</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Scenario: Process execution chain</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=endpoint host=infected_host EventCode=4688 earliest=-1h
+| table _time, ParentProcessName, NewProcessName, CommandLine
+| sort _time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Process execution timeline showing what spawned what.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>For incident reports, add a <code>| eval description="..."</code> to annotate key events. This creates a narrative that's easier to follow than raw log data.</p>
+                </div>
+            \`
+        }
+    ],
+
     datasources: [
         {
             id: 'windows-event-logs',
@@ -2275,14 +3096,29 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initGuides() {
+    // Export guides data for global search
+    window.GUIDES_DATA = GUIDES_DATA;
+
     // Initialize tabs
-    SPLUNKed.initTabs('#guidesTabs', {
+    const tabController = SPLUNKed.initTabs('#guidesTabs', {
         storageKey: 'splunked-guides-tab',
         onTabChange: (category) => {
             currentCategory = category;
             renderGuides();
         }
     });
+
+    // Handle URL parameters for deep linking
+    const params = new URLSearchParams(window.location.search);
+    const urlTab = params.get('tab');
+    const openId = params.get('open');
+
+    if (urlTab && GUIDES_DATA[urlTab]) {
+        currentCategory = urlTab;
+        if (tabController) {
+            tabController.activateTab(urlTab);
+        }
+    }
 
     // Initialize search
     SPLUNKed.initSearch('guidesSearch', {
@@ -2301,6 +3137,24 @@ function initGuides() {
 
     // Add click handlers for cards
     document.addEventListener('click', handleGuideClick);
+
+    // Open specific guide if requested via URL
+    if (openId) {
+        const guide = findGuideById(openId);
+        if (guide) {
+            // Slight delay to ensure DOM is ready
+            setTimeout(() => openGuideModal(guide), 100);
+        }
+    }
+}
+
+// Find a guide by ID across all categories
+function findGuideById(id) {
+    for (const category of Object.keys(GUIDES_DATA)) {
+        const guide = GUIDES_DATA[category].find(g => g.id === id);
+        if (guide) return guide;
+    }
+    return null;
 }
 
 function renderAllCategories() {
