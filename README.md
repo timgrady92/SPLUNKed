@@ -4,7 +4,7 @@
 
 **A structured learning platform for Splunk's Search Processing Language.**
 
-SPLUNKed is an educational web application that helps security analysts learn SPL through curated reference materials, investigation guides, and progressive training scenarios. It's a sister project to [SIFTed](https://github.com/yourusername/SIFTed)—where SIFTed provides guided tooling for forensic workflows, SPLUNKed provides guided learning for SIEM query language.
+SPLUNKed is an educational web application that helps security analysts learn SPL through curated reference materials, investigation guides, and progressive training scenarios. It's a sister project to [SIFTed](https://github.com/timgrady92/SIFTed)—where SIFTed provides guided tooling for forensic workflows, SPLUNKed provides guided learning for SIEM query language.
 
 ## Quick Start
 
@@ -128,7 +128,7 @@ No Splunk installation required. SPLUNKed is an offline learning tool.
 
 ## Related Projects
 
-- **[SIFTed](https://github.com/yourusername/SIFTed)**: Guided interface for SANS SIFT forensic tools
+- **[SIFTed](https://github.com/timgrady92/SIFTed)**: Guided interface for SANS SIFT forensic tools
 
 ## License
 
