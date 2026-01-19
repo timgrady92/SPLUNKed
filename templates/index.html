@@ -3,7 +3,7 @@
 {% block title %}SPLUNKed - Learn SPL{% endblock %}
 
 {% block content %}
-{% from "_components.html" import feature_card, skill_badge %}
+{% from "_components.html" import feature_card %}
 
 <!-- Hero Section -->
 <section class="hero">
@@ -16,18 +16,34 @@
             Your educational companion for mastering SPL (Search Processing Language).
             From day-one analysts to seasoned experts.
         </p>
-        <div class="hero-cta">
-            <a href="{{ url_for('glossary') }}" class="btn btn-primary btn-large">
-                Glossary
+        <div class="hero-nav-grid">
+            <a href="{{ url_for('glossary') }}" class="hero-nav-link">
+                <span class="hero-nav-icon">&lt;/&gt;</span>
+                <span class="hero-nav-title">SPL Reference</span>
             </a>
-            <a href="{{ url_for('guides') }}" class="btn btn-secondary">
-                Guides
+            <a href="{{ url_for('references') }}" class="hero-nav-link">
+                <span class="hero-nav-icon">&#9670;</span>
+                <span class="hero-nav-title">Knowledge</span>
             </a>
-            <a href="{{ url_for('training') }}" class="btn btn-secondary">
-                Training
+            <a href="{{ url_for('enterprise_security') }}" class="hero-nav-link">
+                <span class="hero-nav-icon">&#128737;</span>
+                <span class="hero-nav-title">Enterprise Security</span>
             </a>
-            <a href="{{ url_for('prompt_builder') }}" class="btn btn-secondary">
-                Prompt Builder
+            <a href="{{ url_for('guides') }}" class="hero-nav-link">
+                <span class="hero-nav-icon">?</span>
+                <span class="hero-nav-title">Guides</span>
+            </a>
+            <a href="{{ url_for('training') }}" class="hero-nav-link">
+                <span class="hero-nav-icon">&#9655;</span>
+                <span class="hero-nav-title">Training</span>
+            </a>
+            <a href="{{ url_for('prompt_builder') }}" class="hero-nav-link">
+                <span class="hero-nav-icon">&gt;_</span>
+                <span class="hero-nav-title">Prompt Builder</span>
+            </a>
+            <a href="{{ url_for('query_library') }}" class="hero-nav-link">
+                <span class="hero-nav-icon">&#9861;</span>
+                <span class="hero-nav-title">Query Library</span>
             </a>
         </div>
     </div>
@@ -37,11 +53,27 @@
 <section class="page-container">
     <div class="features-grid">
         {{ feature_card(
-            title="SPL Glossary",
-            description="Comprehensive reference for SPL commands, eval functions, field extractions, and more. Organized by category with progressive disclosure for all skill levels.",
+            title="SPL Reference",
+            description="Commands and functions for the Search Processing Language. Syntax, examples, gotchas, and tips for every SPL command and function.",
             icon="</>",
             link=url_for('glossary'),
-            link_text="Browse Glossary"
+            link_text="Browse SPL"
+        ) }}
+
+        {{ feature_card(
+            title="Splunk Knowledge",
+            description="Platform fundamentals including concepts, fields, CIM data models, extraction techniques, macros, and common pitfalls to avoid.",
+            icon="◆",
+            link=url_for('references'),
+            link_text="Explore Knowledge"
+        ) }}
+
+        {{ feature_card(
+            title="Enterprise Security",
+            description="Splunk ES features: Risk-Based Alerting, Notable Events, Asset/Identity Framework, Threat Intelligence, and correlation searches.",
+            icon="🛡",
+            link=url_for('enterprise_security'),
+            link_text="Learn ES"
         ) }}
 
         {{ feature_card(
@@ -67,54 +99,14 @@
             link=url_for('prompt_builder'),
             link_text="Build Queries"
         ) }}
-    </div>
-</section>
 
-<!-- Skill Levels Section -->
-<section class="page-container">
-    <div class="page-header">
-        <h2 class="page-title">For Every Skill Level</h2>
-        <p class="page-subtitle">
-            SPLUNKed adapts to your experience. Each entry reveals more detail as you need it.
-        </p>
-    </div>
-
-    <div class="features-grid">
-        <div class="feature-card">
-            {{ skill_badge('beginner') }}
-            <h3 class="feature-title mt-md">Day-One Analyst</h3>
-            <p class="feature-description">
-                Just getting started with Splunk? Learn the essential commands and concepts.
-                Clear explanations, simple examples, and foundational knowledge.
-            </p>
-        </div>
-
-        <div class="feature-card">
-            {{ skill_badge('intermediate') }}
-            <h3 class="feature-title mt-md">Growing Skills</h3>
-            <p class="feature-description">
-                1-3 years with Splunk? Dive deeper into syntax variations, common patterns,
-                and practical examples for everyday investigations.
-            </p>
-        </div>
-
-        <div class="feature-card">
-            {{ skill_badge('advanced') }}
-            <h3 class="feature-title mt-md">Experienced User</h3>
-            <p class="feature-description">
-                3-5 years of experience? Explore performance considerations, gotchas,
-                and advanced patterns that separate good from great SPL.
-            </p>
-        </div>
-
-        <div class="feature-card">
-            {{ skill_badge('expert') }}
-            <h3 class="feature-title mt-md">Deep Knowledge</h3>
-            <p class="feature-description">
-                5+ years and counting? Discover edge cases, internals, and optimization
-                techniques that push Splunk to its limits.
-            </p>
-        </div>
+        {{ feature_card(
+            title="Query Library",
+            description="100 curated SPL queries for security analysts. Browse by category, search by keyword, or discover random queries for creative inspiration.",
+            icon="&#9861;",
+            link=url_for('query_library'),
+            link_text="Browse Queries"
+        ) }}
     </div>
 </section>
 
@@ -152,7 +144,7 @@
         <div class="feature-card">
             <h4 class="feature-title">Field Extraction</h4>
             <pre class="spl-example">index=web
-| rex field=_raw "user=(?<username>\w+)"
+| rex field=_raw "user=(?&lt;username&gt;\w+)"
 | stats count by username</pre>
             <p class="feature-description mt-md">
                 Extract usernames from raw events

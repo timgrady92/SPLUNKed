@@ -62,8 +62,20 @@ def index():
 
 @app.route("/glossary")
 def glossary():
-    """SPL Glossary page with searchable command reference."""
+    """SPL Glossary page with searchable command and function reference."""
     return render_template("glossary.html")
+
+
+@app.route("/references")
+def references():
+    """Splunk Knowledge page with concepts, fields, CIM, and best practices."""
+    return render_template("references.html")
+
+
+@app.route("/enterprise-security")
+def enterprise_security():
+    """Enterprise Security page with RBA, Notable Events, Asset/Identity, and Threat Intel."""
+    return render_template("enterprise-security.html")
 
 
 @app.route("/guides")
@@ -82,6 +94,12 @@ def prompt_builder():
 def training():
     """Training page with curated learning pipelines and SOC scenarios."""
     return render_template("training.html")
+
+
+@app.route("/query-library")
+def query_library():
+    """Query Library page with curated SPL queries for analyst inspiration."""
+    return render_template("query-library.html")
 
 
 # API Routes for Prompt Builder

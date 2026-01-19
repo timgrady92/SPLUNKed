@@ -1,0 +1,110 @@
+{% extends "_base.html" %}
+
+{% block title %}Query Library - SPLUNKed{% endblock %}
+
+{% block content %}
+{% from "_components.html" import search_input, view_toggle, category_tab %}
+
+<div class="page-container">
+    <!-- Page Header -->
+    <header class="page-header">
+        <h1 class="page-title">Query Library</h1>
+        <p class="page-subtitle">
+            A curated collection of SPL queries for security analysts.
+            Use these as inspiration and building blocks for your investigations.
+        </p>
+    </header>
+
+    <!-- Random Query Feature -->
+    <div class="random-query-section">
+        <button class="random-query-btn" id="randomQueryBtn">
+            <span class="random-icon">&#9861;</span>
+            <span>View Random Query</span>
+        </button>
+    </div>
+
+    <!-- Random Query Display -->
+    <div class="random-query-display hidden" id="randomQueryDisplay">
+        <div class="random-query-card">
+            <div class="random-query-header">
+                <span class="random-label">Random Query</span>
+                <button class="random-query-close" id="randomQueryClose">&times;</button>
+            </div>
+            <h3 class="random-query-title" id="randomQueryTitle"></h3>
+            <p class="random-query-description" id="randomQueryDescription"></p>
+            <div class="random-query-spl">
+                <pre class="spl-code"><code id="randomQuerySPL"></code></pre>
+                <button class="spl-copy" id="randomQueryCopy" aria-label="Copy to clipboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2"/>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="random-query-meta">
+                <span class="query-category-badge" id="randomQueryCategory"></span>
+                <span class="query-difficulty-badge" id="randomQueryDifficulty"></span>
+            </div>
+            <button class="random-query-another" id="randomQueryAnother">
+                <span class="random-icon">&#9861;</span>
+                <span>Another Random Query</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+        {{ search_input(placeholder='Search queries...', id='querySearch') }}
+        <div class="filter-group">
+            <select class="filter-select" id="categoryFilter">
+                <option value="all">All Categories</option>
+            </select>
+            <select class="filter-select" id="difficultyFilter">
+                <option value="all">All Levels</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Query Count -->
+    <div class="query-count" id="queryCount">
+        Showing <span id="visibleCount">0</span> of <span id="totalCount">0</span> queries
+    </div>
+
+    <!-- Query Grid -->
+    <div class="query-library-grid" id="queryGrid">
+        <!-- Populated by JavaScript -->
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state hidden" id="emptyState">
+        <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+            </svg>
+        </div>
+        <h3 class="empty-title">No queries found</h3>
+        <p class="empty-message">Try adjusting your search or filter criteria.</p>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="queryModalOverlay">
+    <div class="modal" id="queryModal" role="dialog" aria-labelledby="queryModalTitle">
+        <div class="modal-header">
+            <h2 class="modal-title" id="queryModalTitle"></h2>
+            <button class="modal-close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-content" id="queryModalContent">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='query-library.js') }}"></script>
+{% endblock %}

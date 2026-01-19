@@ -1,6 +1,6 @@
 {% extends "_base.html" %}
 
-{% block title %}SPL Glossary - SPLUNKed{% endblock %}
+{% block title %}SPL Reference - SPLUNKed{% endblock %}
 
 {% block content %}
 {% from "_components.html" import search_input, view_toggle, category_tab %}
@@ -8,10 +8,10 @@
 <div class="page-container">
     <!-- Page Header -->
     <header class="page-header">
-        <h1 class="page-title">SPL Glossary</h1>
+        <h1 class="page-title">SPL Reference</h1>
         <p class="page-subtitle">
-            Comprehensive reference for SPL commands, functions, and concepts.
-            Click any entry to explore further.
+            Commands and functions for the Search Processing Language.
+            Click any entry to explore syntax, examples, and tips.
         </p>
     </header>
 
@@ -20,9 +20,6 @@
         <div class="tabs-list" role="tablist">
             {{ category_tab('commands', 'Commands', active=true) }}
             {{ category_tab('functions', 'Functions') }}
-            {{ category_tab('reference', 'Reference') }}
-            {{ category_tab('enterpriseSecurity', 'Enterprise Security') }}
-            {{ category_tab('antipatterns', 'Pitfalls') }}
         </div>
     </div>
 
@@ -85,93 +82,6 @@
             </button>
         </div>
         <div class="glossary-grid" id="functionsGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
-    <div id="referencePanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="referenceInfo"></div>
-        <div class="icon-filter" id="referenceFilter">
-            <button class="icon-filter-btn active" data-filter="all">
-                <span>All</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="fields">
-                <span class="filter-icon">⬚</span>
-                <span>Fields</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="concepts">
-                <span class="filter-icon">◆</span>
-                <span>Concepts</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="cim">
-                <span class="filter-icon">⧉</span>
-                <span>CIM</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="extractions">
-                <span class="filter-icon">⋔</span>
-                <span>Extractions</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="macros">
-                <span class="filter-icon">{ }</span>
-                <span>Macros</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="engineering">
-                <span class="filter-icon">⚙</span>
-                <span>Engineering</span>
-            </button>
-        </div>
-        <div class="glossary-grid" id="referenceGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
-    <div id="enterpriseSecurityPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="enterpriseSecurityInfo"></div>
-        <div class="icon-filter" id="enterpriseSecurityFilter">
-            <button class="icon-filter-btn active" data-filter="all">
-                <span>All</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="rba">
-                <span class="filter-icon">⚡</span>
-                <span>RBA</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="notable">
-                <span class="filter-icon">🔔</span>
-                <span>Notables</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="assetIdentity">
-                <span class="filter-icon">👤</span>
-                <span>Assets/Identity</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="threatIntel">
-                <span class="filter-icon">🎯</span>
-                <span>Threat Intel</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="datamodels">
-                <span class="filter-icon">◈</span>
-                <span>Data Models</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="investigation">
-                <span class="filter-icon">🔍</span>
-                <span>Investigation</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="correlation">
-                <span class="filter-icon">🔗</span>
-                <span>Correlation</span>
-            </button>
-            <button class="icon-filter-btn" data-filter="macros">
-                <span class="filter-icon">⚙</span>
-                <span>Macros</span>
-            </button>
-        </div>
-        <div class="glossary-grid" id="enterpriseSecurityGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
-    <div id="antipatternsPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="category-info" id="antipatternsInfo"></div>
-        <div class="glossary-grid" id="antipatternsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>

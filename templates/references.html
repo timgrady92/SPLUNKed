@@ -1,0 +1,112 @@
+{% extends "_base.html" %}
+
+{% block title %}Splunk Knowledge - SPLUNKed{% endblock %}
+
+{% block content %}
+{% from "_components.html" import search_input, view_toggle, category_tab %}
+
+<div class="page-container">
+    <!-- Page Header -->
+    <header class="page-header">
+        <h1 class="page-title">Splunk Knowledge</h1>
+        <p class="page-subtitle">
+            Platform concepts, data models, and best practices.
+            Click any entry to explore further.
+        </p>
+    </header>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs-container" id="referencesTabs">
+        <div class="tabs-list" role="tablist">
+            {{ category_tab('fundamentals', 'Fundamentals', active=true) }}
+            {{ category_tab('cim', 'CIM') }}
+            {{ category_tab('antipatterns', 'Pitfalls') }}
+        </div>
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+        {{ search_input(placeholder='Search knowledge base...', id='referencesSearch') }}
+        {{ view_toggle(id='referencesView') }}
+    </div>
+
+    <!-- Tab Panels -->
+    <div id="fundamentalsPanel" class="tab-panel active" role="tabpanel">
+        <div class="category-info" id="fundamentalsInfo"></div>
+        <div class="icon-filter" id="fundamentalsFilter">
+            <button class="icon-filter-btn active" data-filter="all">
+                <span>All</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="concepts">
+                <span class="filter-icon">◆</span>
+                <span>Concepts</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="fields">
+                <span class="filter-icon">⬚</span>
+                <span>Fields</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="extractions">
+                <span class="filter-icon">⋔</span>
+                <span>Extractions</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="macros">
+                <span class="filter-icon">{ }</span>
+                <span>Macros</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="engineering">
+                <span class="filter-icon">⚙</span>
+                <span>Engineering</span>
+            </button>
+        </div>
+        <div class="glossary-grid" id="fundamentalsGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="cimPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="cimInfo"></div>
+        <div class="glossary-grid" id="cimGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="antipatternsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="antipatternsInfo"></div>
+        <div class="glossary-grid" id="antipatternsGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state hidden" id="emptyState">
+        <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+            </svg>
+        </div>
+        <h3 class="empty-title">No matches found</h3>
+        <p class="empty-message">Try adjusting your search or filter criteria.</p>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="referencesModalOverlay">
+    <div class="modal" id="referencesModal" role="dialog" aria-labelledby="referencesModalTitle">
+        <div class="modal-header">
+            <h2 class="modal-title" id="referencesModalTitle"></h2>
+            <div class="modal-header-actions">
+                <button class="modal-back" id="referencesModalBack" aria-label="Go back" hidden>&larr;</button>
+                <button class="modal-close" aria-label="Close modal">&times;</button>
+            </div>
+        </div>
+        <div class="modal-content" id="referencesModalContent">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='references.js') }}"></script>
+{% endblock %}

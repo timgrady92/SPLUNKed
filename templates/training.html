@@ -15,15 +15,39 @@
         </p>
     </header>
 
-    <!-- Skill Progression Tabs -->
-    <div class="tabs-container" id="trainingTabs">
-        <div class="tabs-list" role="tablist">
-            {{ category_tab('foundations', 'Foundations', active=true) }}
-            {{ category_tab('coreSkills', 'Core Skills') }}
-            {{ category_tab('intermediate', 'Intermediate') }}
-            {{ category_tab('advanced', 'Advanced') }}
-            {{ category_tab('expert', 'Expert') }}
-            {{ category_tab('enterpriseSecurity', 'Enterprise Security') }}
+    <!-- Navigation -->
+    <div class="training-nav" id="trainingNav">
+        <div class="training-nav-groups">
+            <button class="training-nav-group" data-level="all">
+                <span class="nav-group-icon">&#9783;</span>
+                <span class="nav-group-label">View All</span>
+            </button>
+            <button class="training-nav-group active" data-level="gettingStarted">
+                <span class="nav-group-icon">&#9654;</span>
+                <span class="nav-group-label">Getting Started</span>
+            </button>
+            <button class="training-nav-group" data-level="levelingUp">
+                <span class="nav-group-icon">&#8593;</span>
+                <span class="nav-group-label">Leveling Up</span>
+            </button>
+            <button class="training-nav-group" data-level="mastery">
+                <span class="nav-group-icon">&#9733;</span>
+                <span class="nav-group-label">Mastery</span>
+            </button>
+        </div>
+        <div class="training-nav-subs">
+            <div class="training-type-filter" id="typeFilter">
+                <button class="training-type-btn active" data-filter="all">All Types</button>
+                <button class="training-type-btn" data-filter="tutorial">
+                    <span class="type-icon">▷</span> Tutorials
+                </button>
+                <button class="training-type-btn" data-filter="scenario">
+                    <span class="type-icon">◎</span> Scenarios
+                </button>
+                <button class="training-type-btn" data-filter="challenge">
+                    <span class="type-icon">★</span> Challenges
+                </button>
+            </div>
         </div>
     </div>
 
@@ -32,119 +56,39 @@
         {{ search_input(placeholder='Search training modules...', id='trainingSearch') }}
     </div>
 
-    <!-- Filter Groups -->
-    <div class="filter-groups">
-        <div class="filter-section">
-            <span class="filter-section-label">Type</span>
-            <div class="icon-filter" id="typeFilter">
-                <button class="icon-filter-btn active" data-filter="all">
-                    <span>All</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="tutorial">
-                    <span class="filter-icon">▷</span>
-                    <span>Tutorials</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="scenario">
-                    <span class="filter-icon">◎</span>
-                    <span>Scenarios</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="challenge">
-                    <span class="filter-icon">★</span>
-                    <span>Challenges</span>
-                </button>
-            </div>
-        </div>
-        <div class="filter-section">
-            <span class="filter-section-label">Domain</span>
-            <div class="icon-filter" id="domainFilter">
-                <button class="icon-filter-btn active" data-filter="all">
-                    <span>All</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="authentication">
-                    <span class="filter-icon">⚿</span>
-                    <span>Authentication</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="network">
-                    <span class="filter-icon">⬡</span>
-                    <span>Network</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="endpoint">
-                    <span class="filter-icon">▣</span>
-                    <span>Endpoint</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="incident-response">
-                    <span class="filter-icon">⚠</span>
-                    <span>Incident Response</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="basics">
-                    <span class="filter-icon">○</span>
-                    <span>Basics</span>
-                </button>
-                <button class="icon-filter-btn" data-filter="es">
-                    <span class="filter-icon">◈</span>
-                    <span>Enterprise Security</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tab Panels -->
-    <div id="foundationsPanel" class="tab-panel active" role="tabpanel">
-        <div class="training-level-info">
-            <span class="level-badge foundations">Foundations</span>
-            <p class="level-description">SPL basics, search anatomy, time concepts, and field extraction. Start here if you're new to Splunk.</p>
-        </div>
-        <div class="training-grid" id="foundationsGrid">
+    <!-- Level Panels -->
+    <div id="allPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-grid" id="allGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="coreSkillsPanel" class="tab-panel" role="tabpanel" hidden>
+    <div id="gettingStartedPanel" class="tab-panel active" role="tabpanel">
         <div class="training-level-info">
-            <span class="level-badge coreSkills">Core Skills</span>
-            <p class="level-description">Filtering, aggregating, field manipulation, and basic correlation. Essential skills for daily SOC work.</p>
+            <span class="level-badge gettingStarted">Getting Started</span>
+            <p class="level-description">SPL basics, search anatomy, filtering, aggregating, and field manipulation. Start here if you're new to Splunk.</p>
         </div>
-        <div class="training-grid" id="coreSkillsGrid">
+        <div class="training-grid" id="gettingStartedGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="intermediatePanel" class="tab-panel" role="tabpanel" hidden>
+    <div id="levelingUpPanel" class="tab-panel" role="tabpanel" hidden>
         <div class="training-level-info">
-            <span class="level-badge intermediate">Intermediate</span>
-            <p class="level-description">Subsearches, lookups, joins, and transaction analysis. Combine data sources for deeper investigation.</p>
+            <span class="level-badge levelingUp">Leveling Up</span>
+            <p class="level-description">Subsearches, lookups, joins, statistical analysis, and threat hunting patterns. Deepen your investigation skills.</p>
         </div>
-        <div class="training-grid" id="intermediateGrid">
+        <div class="training-grid" id="levelingUpGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="advancedPanel" class="tab-panel" role="tabpanel" hidden>
+    <div id="masteryPanel" class="tab-panel" role="tabpanel" hidden>
         <div class="training-level-info">
-            <span class="level-badge advanced">Advanced</span>
-            <p class="level-description">Statistical analysis, anomaly detection, and threat hunting patterns. Proactive security techniques.</p>
+            <span class="level-badge mastery">Mastery</span>
+            <p class="level-description">Performance optimization, complex correlations, Enterprise Security, and expert-level techniques.</p>
         </div>
-        <div class="training-grid" id="advancedGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
-    <div id="expertPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="training-level-info">
-            <span class="level-badge expert">Expert</span>
-            <p class="level-description">Performance optimization, complex correlations, and custom commands. Master-level techniques.</p>
-        </div>
-        <div class="training-grid" id="expertGrid">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-
-    <div id="enterpriseSecurityPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="training-level-info">
-            <span class="level-badge es">Enterprise Security</span>
-            <p class="level-description">Transitioning from standard Splunk to ES. Learn data models, notable events, risk-based alerting, and ES-specific workflows.</p>
-        </div>
-        <div class="training-grid" id="enterpriseSecurityGrid">
+        <div class="training-grid" id="masteryGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
@@ -169,7 +113,7 @@
         <div class="training-modal-header">
             <div class="training-modal-meta">
                 <span class="training-type-badge" id="modalTypeBadge"></span>
-                <span class="training-difficulty" id="modalDifficulty"></span>
+                <span class="level-badge" id="modalLevelBadge"></span>
                 <span class="training-duration" id="modalDuration"></span>
             </div>
             <button class="training-modal-close" id="trainingModalClose" aria-label="Close modal">&times;</button>

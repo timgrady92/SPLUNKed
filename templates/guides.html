@@ -15,18 +15,48 @@
         </p>
     </header>
 
-    <!-- Tabs Navigation -->
-    <div class="tabs-container" id="guidesTabs">
-        <div class="tabs-list" role="tablist">
-            {{ category_tab('basics', 'Search Basics', active=true) }}
-            {{ category_tab('summarizing', 'Counting & Summarizing') }}
-            {{ category_tab('refining', 'Filtering & Refining') }}
-            {{ category_tab('visualizing', 'Visualizing Data') }}
-            {{ category_tab('security', 'Security & Investigation') }}
-            {{ category_tab('enterpriseSecurity', 'Enterprise Security') }}
-            {{ category_tab('datasources', 'Data Sources') }}
-            {{ category_tab('enriching', 'Enriching Data') }}
-            {{ category_tab('dashboards', 'Dashboards') }}
+    <!-- Grouped Navigation -->
+    <div class="guides-nav" id="guidesNav">
+        <div class="guides-nav-groups">
+            <button class="guides-nav-group" data-group="all">
+                <span class="nav-group-icon">&#9783;</span>
+                <span class="nav-group-label">View All</span>
+            </button>
+            <button class="guides-nav-group active" data-group="searchFilter">
+                <span class="nav-group-icon">&#128269;</span>
+                <span class="nav-group-label">Search & Filter</span>
+            </button>
+            <button class="guides-nav-group" data-group="analyzeVisualize">
+                <span class="nav-group-icon">&#128202;</span>
+                <span class="nav-group-label">Analyze & Visualize</span>
+            </button>
+            <button class="guides-nav-group" data-group="dataEnrichment">
+                <span class="nav-group-icon">&#128451;</span>
+                <span class="nav-group-label">Data & Enrichment</span>
+            </button>
+            <button class="guides-nav-group" data-group="security">
+                <span class="nav-group-icon">&#128737;</span>
+                <span class="nav-group-label">Security</span>
+            </button>
+        </div>
+        <div class="guides-nav-subs">
+            <div class="guides-sub-tabs active" data-group="searchFilter">
+                <button class="guides-sub-tab active" data-category="basics">Search Basics</button>
+                <button class="guides-sub-tab" data-category="refining">Filtering & Refining</button>
+            </div>
+            <div class="guides-sub-tabs" data-group="analyzeVisualize">
+                <button class="guides-sub-tab" data-category="summarizing">Counting & Summarizing</button>
+                <button class="guides-sub-tab" data-category="visualizing">Visualizing Data</button>
+                <button class="guides-sub-tab" data-category="dashboards">Dashboards</button>
+            </div>
+            <div class="guides-sub-tabs" data-group="dataEnrichment">
+                <button class="guides-sub-tab" data-category="datasources">Data Sources</button>
+                <button class="guides-sub-tab" data-category="enriching">Enriching Data</button>
+            </div>
+            <div class="guides-sub-tabs" data-group="security">
+                <button class="guides-sub-tab" data-category="security">Investigation</button>
+                <button class="guides-sub-tab" data-category="enterpriseSecurity">Enterprise Security</button>
+            </div>
         </div>
     </div>
 
@@ -36,6 +66,12 @@
     </div>
 
     <!-- Tab Panels -->
+    <div id="allPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="guides-grid" id="allGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
     <div id="basicsPanel" class="tab-panel active" role="tabpanel">
         <div class="guides-grid" id="basicsGrid">
             <!-- Populated by JavaScript -->

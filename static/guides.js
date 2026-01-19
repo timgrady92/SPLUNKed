@@ -5318,7 +5318,21 @@ enableAuditTrailStoreSearch = true</code></pre>
 // ============================================
 
 let currentCategory = 'basics';
+let currentGroup = 'searchFilter';
 let currentSearch = '';
+
+// Map categories to their groups
+const CATEGORY_GROUPS = {
+    basics: 'searchFilter',
+    refining: 'searchFilter',
+    summarizing: 'analyzeVisualize',
+    visualizing: 'analyzeVisualize',
+    dashboards: 'analyzeVisualize',
+    datasources: 'dataEnrichment',
+    enriching: 'dataEnrichment',
+    security: 'security',
+    enterpriseSecurity: 'security'
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     initGuides();
@@ -5328,14 +5342,8 @@ function initGuides() {
     // Export guides data for global search
     window.GUIDES_DATA = GUIDES_DATA;
 
-    // Initialize tabs
-    const tabController = SPLUNKed.initTabs('#guidesTabs', {
-        storageKey: 'splunked-guides-tab',
-        onTabChange: (category) => {
-            currentCategory = category;
-            renderGuides();
-        }
-    });
+    // Initialize grouped navigation
+    initGroupedNav();
 
     // Handle URL parameters for deep linking
     const params = new URLSearchParams(window.location.search);
@@ -5343,17 +5351,24 @@ function initGuides() {
     const openId = params.get('open');
 
     if (urlTab && GUIDES_DATA[urlTab]) {
-        currentCategory = urlTab;
-        if (tabController) {
-            tabController.activateTab(urlTab);
+        const group = CATEGORY_GROUPS[urlTab];
+        if (group) {
+            activateGroup(group);
+            activateCategory(urlTab);
         }
     }
 
-    // Initialize search
+    // Initialize search - global across all guides
     SPLUNKed.initSearch('guidesSearch', {
         onSearch: (query) => {
             currentSearch = query;
+            if (query) {
+                // Switch to View All when searching
+                activateGroup('all');
+                activateCategory('all');
+            }
             renderAllCategories();
+            renderAllGuidesPanel();
             updateEmptyState();
         }
     });
@@ -5375,6 +5390,106 @@ function initGuides() {
             setTimeout(() => openGuideModal(guide), 100);
         }
     }
+}
+
+function initGroupedNav() {
+    // Group button clicks
+    document.querySelectorAll('.guides-nav-group').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const group = btn.dataset.group;
+            activateGroup(group);
+
+            if (group === 'all') {
+                activateCategory('all');
+            } else {
+                // Activate first sub-tab in group
+                const subTabs = document.querySelector(`.guides-sub-tabs[data-group="${group}"]`);
+                if (subTabs) {
+                    const firstTab = subTabs.querySelector('.guides-sub-tab');
+                    if (firstTab) {
+                        activateCategory(firstTab.dataset.category);
+                    }
+                }
+            }
+        });
+    });
+
+    // Sub-tab clicks
+    document.querySelectorAll('.guides-sub-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            activateCategory(btn.dataset.category);
+        });
+    });
+}
+
+function activateGroup(group) {
+    currentGroup = group;
+
+    // Update group buttons
+    document.querySelectorAll('.guides-nav-group').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.group === group);
+    });
+
+    // Update sub-tabs visibility (hide all for "View All")
+    document.querySelectorAll('.guides-sub-tabs').forEach(tabs => {
+        tabs.classList.toggle('active', group !== 'all' && tabs.dataset.group === group);
+    });
+}
+
+function activateCategory(category) {
+    currentCategory = category;
+
+    // Update sub-tab buttons within current group
+    const activeSubTabs = document.querySelector('.guides-sub-tabs.active');
+    if (activeSubTabs) {
+        activeSubTabs.querySelectorAll('.guides-sub-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.category === category);
+        });
+    }
+
+    // Update panels
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        const panelCategory = panel.id.replace('Panel', '');
+        const isActive = panelCategory === category;
+        panel.classList.toggle('active', isActive);
+        panel.hidden = !isActive;
+    });
+
+    if (category === 'all') {
+        renderAllGuidesPanel();
+    } else {
+        renderGuides();
+    }
+}
+
+function renderAllGuidesPanel() {
+    const grid = document.getElementById('allGrid');
+    if (!grid) return;
+
+    // Combine all guides from all categories
+    let allGuides = [];
+    Object.keys(GUIDES_DATA).forEach(category => {
+        const guides = GUIDES_DATA[category] || [];
+        guides.forEach(guide => {
+            allGuides.push({ ...guide, category });
+        });
+    });
+
+    // Filter by search
+    const filtered = allGuides.filter(guide => {
+        if (currentSearch) {
+            const searchable = [
+                guide.title,
+                guide.description,
+                guide.keywords || ''
+            ].join(' ').toLowerCase();
+            return searchable.includes(currentSearch.toLowerCase());
+        }
+        return true;
+    });
+
+    grid.innerHTML = filtered.map(guide => createGuideCardHTML(guide)).join('');
+    updateEmptyState();
 }
 
 // Find a guide by ID across all categories

@@ -3317,15 +3317,14 @@ index=* | eval threat_indicator=if(match(src_ip, "185\\.220\\..*") OR match(dest
 // State Management
 // ============================================
 
-let currentTab = 'foundations';
+let currentLevel = 'gettingStarted';
 let currentSearch = '';
 let currentModalData = null;
 let currentScenarioStep = 0;
 let revealedHints = new Set();
 
-// Multi-select filter states (empty Set = show all)
-let typeFilters = new Set();
-let domainFilters = new Set();
+// Single-select filter state (null = show all)
+let typeFilter = null;
 
 // Unified icon mapping for training cards
 const CARD_ICONS = {
@@ -3334,129 +3333,159 @@ const CARD_ICONS = {
     challenge: { icon: '★', label: 'Challenge' }
 };
 
+// Map difficulty levels to data categories
+const LEVEL_CATEGORIES = {
+    gettingStarted: ['foundations', 'coreSkills'],
+    levelingUp: ['intermediate', 'advanced'],
+    mastery: ['expert', 'enterpriseSecurity']
+};
+
 // ============================================
 // Initialization
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    initTrainingTabs();
+    initLevelNav();
     initFilters();
     initSearch();
     initModal();
-    renderCurrentTab();
+    renderCurrentLevel();
 });
 
 // ============================================
-// Tab Management
+// Level Navigation
 // ============================================
 
-function initTrainingTabs() {
-    const savedTab = localStorage.getItem('trainingTab');
-    if (savedTab && TRAINING_DATA[savedTab]) {
-        currentTab = savedTab;
-    }
-
-    document.querySelectorAll('.tabs-list button').forEach(tab => {
-        const tabId = tab.dataset.category;
-        tab.classList.toggle('active', tabId === currentTab);
-        tab.setAttribute('aria-selected', tabId === currentTab);
-
-        tab.addEventListener('click', () => switchTab(tabId));
+function initLevelNav() {
+    document.querySelectorAll('.training-nav-group').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const level = btn.dataset.level;
+            activateLevel(level);
+        });
     });
-
-    // Show the current panel
-    updatePanelVisibility();
 }
 
-function switchTab(tabId) {
-    if (!TRAINING_DATA[tabId]) return;
+function activateLevel(level) {
+    currentLevel = level;
 
-    currentTab = tabId;
-    localStorage.setItem('trainingTab', tabId);
-
-    document.querySelectorAll('.tabs-list button').forEach(tab => {
-        const id = tab.dataset.category;
-        tab.classList.toggle('active', id === tabId);
-        tab.setAttribute('aria-selected', id === tabId);
+    // Update nav buttons
+    document.querySelectorAll('.training-nav-group').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.level === level);
     });
 
-    updatePanelVisibility();
-    renderCurrentTab();
-}
-
-function updatePanelVisibility() {
+    // Update panels
     document.querySelectorAll('.tab-panel').forEach(panel => {
-        const panelId = panel.id.replace('Panel', '');
-        const isActive = panelId === currentTab;
+        const panelLevel = panel.id.replace('Panel', '');
+        const isActive = panelLevel === level;
         panel.classList.toggle('active', isActive);
         panel.hidden = !isActive;
     });
+
+    renderCurrentLevel();
 }
+
+function renderCurrentLevel() {
+    if (currentLevel === 'all') {
+        renderLevelGrid('all', Object.keys(TRAINING_DATA));
+    } else {
+        const categories = LEVEL_CATEGORIES[currentLevel] || [];
+        renderLevelGrid(currentLevel, categories);
+    }
+    updateEmptyState();
+}
+
+function renderLevelGrid(level, categories) {
+    const grid = document.getElementById(`${level}Grid`);
+    if (!grid) return;
+
+    // Combine modules from specified categories
+    let modules = [];
+    categories.forEach(category => {
+        const categoryModules = TRAINING_DATA[category] || [];
+        categoryModules.forEach(module => {
+            // Derive the display level from the category
+            const displayLevel = Object.keys(LEVEL_CATEGORIES).find(lvl =>
+                LEVEL_CATEGORIES[lvl].includes(category)
+            ) || level;
+            modules.push({ ...module, sourceCategory: category, displayLevel });
+        });
+    });
+
+    // Apply filters
+    const filtered = filterModules(modules);
+
+    grid.innerHTML = filtered.map(module => renderTrainingCard(module)).join('');
+
+    // Add click handlers
+    grid.querySelectorAll('.training-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const moduleId = card.dataset.id;
+            const displayLevel = card.dataset.level;
+            openTrainingModal(moduleId, displayLevel);
+        });
+    });
+}
+
 
 // ============================================
 // Filtering & Search
 // ============================================
 
 function initFilters() {
-    // Initialize type filter
-    initIconFilter('typeFilter', typeFilters);
-    // Initialize domain filter
-    initIconFilter('domainFilter', domainFilters);
-}
-
-// Unified icon filter initialization - supports multi-select toggle with "All" option
-function initIconFilter(containerId, filterSet) {
-    const filterContainer = document.getElementById(containerId);
+    const filterContainer = document.getElementById('typeFilter');
     if (!filterContainer) return;
 
-    const allBtn = filterContainer.querySelector('[data-filter="all"]');
-
     filterContainer.addEventListener('click', (e) => {
-        const btn = e.target.closest('.icon-filter-btn');
+        const btn = e.target.closest('.training-type-btn');
         if (!btn) return;
 
         const filterValue = btn.dataset.filter;
 
-        if (filterValue === 'all') {
-            // "All" clicked - clear all filters and activate only "All"
-            filterSet.clear();
-            filterContainer.querySelectorAll('.icon-filter-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.filter === 'all');
-            });
-        } else {
-            // Specific filter clicked - toggle it
-            if (filterSet.has(filterValue)) {
-                filterSet.delete(filterValue);
-                btn.classList.remove('active');
-            } else {
-                filterSet.add(filterValue);
-                btn.classList.add('active');
-            }
+        // Single-select: set the active filter
+        typeFilter = (filterValue === 'all') ? null : filterValue;
 
-            // Update "All" button state
-            if (allBtn) {
-                if (filterSet.size === 0) {
-                    // No filters selected - activate "All"
-                    allBtn.classList.add('active');
-                } else {
-                    // Some filters selected - deactivate "All"
-                    allBtn.classList.remove('active');
-                }
-            }
-        }
+        // Update button states
+        filterContainer.querySelectorAll('.training-type-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.filter === filterValue);
+        });
 
-        renderCurrentTab();
+        renderCurrentLevel();
     });
 }
 
 function initSearch() {
     const searchInput = document.getElementById('trainingSearch');
+    const clearBtn = document.getElementById('trainingSearchClear');
+
     if (searchInput) {
         searchInput.addEventListener('input', debounce((e) => {
             currentSearch = e.target.value.toLowerCase();
-            renderCurrentTab();
+            if (currentSearch) {
+                // Switch to View All when searching
+                activateLevel('all');
+            } else {
+                renderCurrentLevel();
+            }
         }, 200));
     }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            currentSearch = '';
+            renderCurrentLevel();
+        });
+    }
+}
+
+function updateEmptyState() {
+    const emptyState = document.getElementById('trainingEmptyState');
+    const currentGrid = document.getElementById(`${currentLevel}Grid`);
+
+    if (!emptyState || !currentGrid) return;
+
+    const hasResults = currentGrid.children.length > 0;
+    emptyState.classList.toggle('hidden', hasResults);
 }
 
 function debounce(func, wait) {
@@ -3475,52 +3504,11 @@ function debounce(func, wait) {
 // Rendering
 // ============================================
 
-function renderCurrentTab() {
-    const grid = document.getElementById(`${currentTab}Grid`);
-    const emptyState = document.getElementById('trainingEmptyState');
-
-    if (!grid) return;
-
-    const modules = filterModules(TRAINING_DATA[currentTab] || []);
-
-    if (modules.length === 0) {
-        grid.innerHTML = '';
-        emptyState?.classList.remove('hidden');
-        return;
-    }
-
-    emptyState?.classList.add('hidden');
-    grid.innerHTML = modules.map(module => renderTrainingCard(module)).join('');
-
-    // Add click handlers
-    grid.querySelectorAll('.training-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const moduleId = card.dataset.id;
-            openTrainingModal(moduleId);
-        });
-    });
-}
-
 function filterModules(modules) {
     return modules.filter(module => {
-        // Type filter (multi-select: empty = show all)
-        if (typeFilters.size > 0 && !typeFilters.has(module.type)) {
+        // Type filter (single-select: null = show all)
+        if (typeFilter && module.type !== typeFilter) {
             return false;
-        }
-
-        // Domain filter (multi-select: empty = show all)
-        if (domainFilters.size > 0) {
-            // Check if any of the module's tags match any selected domain
-            const hasMatchingDomain = module.tags.some(tag => {
-                const tagLower = tag.toLowerCase();
-                for (const domain of domainFilters) {
-                    if (tagLower.includes(domain.toLowerCase())) {
-                        return true;
-                    }
-                }
-                return false;
-            });
-            if (!hasMatchingDomain) return false;
         }
 
         // Search filter
@@ -3535,6 +3523,13 @@ function filterModules(modules) {
     });
 }
 
+// Human-readable level names
+const LEVEL_NAMES = {
+    gettingStarted: 'Getting Started',
+    levelingUp: 'Leveling Up',
+    mastery: 'Mastery'
+};
+
 function renderTrainingCard(module) {
     const tagHtml = module.tags.slice(0, 3).map(tag =>
         `<span class="training-tag">${tag}</span>`
@@ -3547,11 +3542,13 @@ function renderTrainingCard(module) {
         cardIcon = `<span class="card-icon ${module.type}" title="${label}">${icon}</span>`;
     }
 
+    const levelName = LEVEL_NAMES[module.displayLevel] || module.displayLevel;
+
     return `
-        <div class="training-card" data-id="${module.id}" data-type="${module.type}" data-difficulty="${module.difficulty}">
+        <div class="training-card" data-id="${module.id}" data-type="${module.type}" data-level="${module.displayLevel}">
             ${cardIcon}
             <div class="training-card-header">
-                <span class="training-difficulty ${module.difficulty}">${capitalize(module.difficulty)}</span>
+                <span class="level-badge ${module.displayLevel}">${levelName}</span>
             </div>
             <h3 class="training-card-title">${module.title}</h3>
             <p class="training-card-description">${module.description}</p>
@@ -3580,17 +3577,26 @@ function initModal() {
     });
 }
 
-function findModule(moduleId) {
-    for (const tab of Object.values(TRAINING_DATA)) {
-        const module = tab.find(m => m.id === moduleId);
-        if (module) return module;
+function findModuleWithLevel(moduleId) {
+    for (const [category, modules] of Object.entries(TRAINING_DATA)) {
+        const module = modules.find(m => m.id === moduleId);
+        if (module) {
+            // Derive the display level from the category
+            const displayLevel = Object.keys(LEVEL_CATEGORIES).find(lvl =>
+                LEVEL_CATEGORIES[lvl].includes(category)
+            );
+            return { ...module, displayLevel };
+        }
     }
     return null;
 }
 
-function openTrainingModal(moduleId) {
-    const module = findModule(moduleId);
+function openTrainingModal(moduleId, displayLevel) {
+    const module = findModuleWithLevel(moduleId);
     if (!module) return;
+
+    // Use passed displayLevel or the one derived from category
+    const level = displayLevel || module.displayLevel;
 
     currentModalData = module;
     currentScenarioStep = 0;
@@ -3598,7 +3604,7 @@ function openTrainingModal(moduleId) {
 
     const modal = document.getElementById('trainingModal');
     const typeBadge = document.getElementById('modalTypeBadge');
-    const difficulty = document.getElementById('modalDifficulty');
+    const levelBadge = document.getElementById('modalLevelBadge');
     const duration = document.getElementById('modalDuration');
     const title = document.getElementById('trainingModalTitle');
     const objectives = document.getElementById('trainingModalObjectives');
@@ -3607,8 +3613,8 @@ function openTrainingModal(moduleId) {
 
     typeBadge.textContent = module.type;
     typeBadge.className = `training-type-badge ${module.type}`;
-    difficulty.textContent = capitalize(module.difficulty);
-    difficulty.className = `training-difficulty ${module.difficulty}`;
+    levelBadge.textContent = LEVEL_NAMES[level] || level;
+    levelBadge.className = `level-badge ${level}`;
     duration.textContent = module.duration;
     title.textContent = module.title;
 
