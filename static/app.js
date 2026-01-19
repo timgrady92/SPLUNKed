@@ -406,8 +406,10 @@ const SPL_SYNTAX = {
     ]
 };
 
-function highlightSPL(code) {
+function highlightSPL(code, options = {}) {
     if (!code) return code;
+
+    const { formatPipelines = true } = options;
 
     // Escape HTML to prevent XSS
     // After this: < becomes &lt;, > becomes &gt;
@@ -432,12 +434,6 @@ function highlightSPL(code) {
     // Match the escaped versions: &lt; &gt; and also = != ==
     highlighted = highlighted.replace(
         /(&lt;=?|&gt;=?|!=|==)/g,
-        '<span class="spl-operator">$1</span>'
-    );
-
-    // Highlight the pipe operator
-    highlighted = highlighted.replace(
-        /(\|)/g,
         '<span class="spl-operator">$1</span>'
     );
 
@@ -488,6 +484,37 @@ function highlightSPL(code) {
         /(?<![a-zA-Z"])=(?!=)(?!")/g,
         '<span class="spl-operator">=</span>'
     );
+
+    // Format pipes onto new lines with indentation
+    if (formatPipelines) {
+        // Replace pipe with styled pipe + line break structure
+        // Split on pipe, keeping the pipe, then wrap each segment
+        const segments = highlighted.split(/(\|)/);
+        if (segments.length > 1) {
+            let result = '';
+            let isFirst = true;
+            for (let i = 0; i < segments.length; i++) {
+                const segment = segments[i];
+                if (segment === '|') {
+                    // This is a pipe - it will be followed by the next segment
+                    continue;
+                }
+                const trimmedSegment = segment.trim();
+                if (!trimmedSegment) continue;
+
+                // Check if previous segment was a pipe
+                const hasPipe = i > 0 && segments[i - 1] === '|';
+
+                if (isFirst) {
+                    result += `<span class="spl-pipe-line">${trimmedSegment}</span>`;
+                    isFirst = false;
+                } else if (hasPipe) {
+                    result += `<span class="spl-pipe-line"><span class="spl-pipe">|</span> ${trimmedSegment}</span>`;
+                }
+            }
+            highlighted = result;
+        }
+    }
 
     return highlighted;
 }

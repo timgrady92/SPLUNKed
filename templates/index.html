@@ -17,14 +17,17 @@
             From day-one analysts to seasoned experts.
         </p>
         <div class="hero-cta">
-            <a href="{{ url_for('prompt_builder') }}" class="btn btn-primary btn-large">
-                Build a Prompt
-            </a>
-            <a href="{{ url_for('glossary') }}" class="btn btn-secondary">
-                Explore Glossary
+            <a href="{{ url_for('glossary') }}" class="btn btn-primary btn-large">
+                Glossary
             </a>
             <a href="{{ url_for('guides') }}" class="btn btn-secondary">
-                Investigation Guides
+                Guides
+            </a>
+            <a href="{{ url_for('training') }}" class="btn btn-secondary">
+                Training
+            </a>
+            <a href="{{ url_for('prompt_builder') }}" class="btn btn-secondary">
+                Prompt Builder
             </a>
         </div>
     </div>
@@ -38,7 +41,7 @@
             description="Comprehensive reference for SPL commands, eval functions, field extractions, and more. Organized by category with progressive disclosure for all skill levels.",
             icon="</>",
             link=url_for('glossary'),
-            link_text="Browse Commands"
+            link_text="Browse Glossary"
         ) }}
 
         {{ feature_card(
@@ -50,19 +53,19 @@
         ) }}
 
         {{ feature_card(
-            title="Prompt Builder",
-            description="Compose SPL queries visually using reusable search objects. Select data sources, add filters, and generate production-ready SPL without memorizing syntax.",
-            icon=">_",
-            link=url_for('prompt_builder'),
-            link_text="Build Queries"
+            title="Training Center",
+            description="Hands-on tutorials, realistic scenarios, and skill challenges. Progress from foundations to expert-level techniques at your own pace.",
+            icon="▷",
+            link=url_for('training'),
+            link_text="Start Training"
         ) }}
 
         {{ feature_card(
-            title="Progressive Learning",
-            description="Content organized by skill level - beginner, intermediate, advanced, and expert. Start where you are and grow your expertise.",
-            icon="+",
-            link=url_for('glossary'),
-            link_text="Start Learning"
+            title="Prompt Builder",
+            description="Compose SPL queries visually using reusable search objects. Select data sources, add filters, and generate production-ready SPL.",
+            icon=">_",
+            link=url_for('prompt_builder'),
+            link_text="Build Queries"
         ) }}
     </div>
 </section>

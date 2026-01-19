@@ -22,13 +22,13 @@
                class="nav-link {{ 'active' if current_endpoint == 'guides' else '' }}">
                 Guides
             </a>
-            <a href="{{ url_for('prompt_builder') }}"
-               class="nav-link {{ 'active' if current_endpoint == 'prompt_builder' else '' }}">
-                Builder
-            </a>
             <a href="{{ url_for('training') }}"
                class="nav-link {{ 'active' if current_endpoint == 'training' else '' }}">
                 Training
+            </a>
+            <a href="{{ url_for('prompt_builder') }}"
+               class="nav-link {{ 'active' if current_endpoint == 'prompt_builder' else '' }}">
+                Builder
             </a>
         </div>
 
@@ -65,8 +65,8 @@
             <a href="{{ url_for('index') }}" class="sidebar-nav-link">Home</a>
             <a href="{{ url_for('glossary') }}" class="sidebar-nav-link">Glossary</a>
             <a href="{{ url_for('guides') }}" class="sidebar-nav-link">Guides</a>
-            <a href="{{ url_for('prompt_builder') }}" class="sidebar-nav-link">Prompt Builder</a>
             <a href="{{ url_for('training') }}" class="sidebar-nav-link">Training</a>
+            <a href="{{ url_for('prompt_builder') }}" class="sidebar-nav-link">Prompt Builder</a>
         </nav>
         <div class="sidebar-section">
             <h4 class="sidebar-section-title">Skill Levels</h4>

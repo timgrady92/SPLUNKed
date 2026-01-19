@@ -583,7 +583,7 @@ const GLOSSARY_DATA = {
                         'lookup': 'Much faster for static reference data - use lookups when possible',
                         'stats': 'For self-correlation: stats values() by key is often more efficient',
                         'append + stats': 'Alternative pattern: append results then use stats to merge',
-                        'subsearch': 'For simple value lists, subsearch with format may be faster'
+                        'Subsearches': 'For simple value lists, subsearch with format may be faster'
                     }
                 }
             },
@@ -1489,8 +1489,7 @@ const GLOSSARY_DATA = {
                     internals: 'Creates N copies of each event where N is the multivalue count. Memory usage multiplies.',
                     vsAlternatives: {
                         'mvzip': 'Combines multiple multivalue fields in parallel',
-                        'mvjoin': 'Converts multivalue to single value string (opposite direction)',
-                        'foreach': 'Iterate over multivalue without expanding events'
+                        'mvjoin': 'Converts multivalue to single value string (opposite direction)'
                     }
                 }
             },
@@ -1704,6 +1703,31 @@ const GLOSSARY_DATA = {
                 }
             },
             relatedCommands: ['stats', 'datamodel', 'mstats']
+        },
+        {
+            id: 'rest',
+            name: 'rest',
+            category: 'commands',
+            subcategory: 'generating',
+            purpose: 'get',
+            difficulty: 'advanced',
+            takeaway: 'Query Splunk REST API endpoints',
+            what: 'Retrieves data from Splunk REST API endpoints. Returns configuration data, system status, user information, and other Splunk metadata.',
+            why: 'Access Splunk configuration and status without leaving SPL. Useful for auditing, capacity planning, and building admin dashboards.',
+            syntax: 'rest <endpoint> [count=<int>] [splunk_server=<server>]',
+            examples: [
+                { spl: '| rest /services/server/info | table serverName, version, os_name', explanation: 'Get Splunk server information' },
+                { spl: '| rest /services/saved/searches | table title, search, cron_schedule', explanation: 'List all saved searches' },
+                { spl: '| rest /services/authentication/users | table title, roles, email', explanation: 'List Splunk users and their roles' },
+                { spl: '| rest /services/data/indexes | table title, currentDBSizeMB, maxTotalDataSizeMB', explanation: 'Index size and capacity' }
+            ],
+            gotchas: [
+                'Requires admin or appropriate capabilities for most endpoints',
+                'Results are from Splunk config, not indexed data',
+                'Use splunk_server=local or splunk_server=* for distributed environments',
+                'Some endpoints require count=0 to return all results'
+            ],
+            relatedCommands: ['makeresults', 'inputlookup', 'metadata']
         },
         {
             id: 'return',
@@ -2931,7 +2955,7 @@ const GLOSSARY_DATA = {
                 },
                 deep: {
                     performance: 'Performance same as running the saved search directly.',
-                    vsAlternatives: { 'from': 'Can also run saved searches: from savedsearch:name', 'macros': 'For reusable search fragments' }
+                    vsAlternatives: { 'from': 'Can also run saved searches: from savedsearch:name', 'Macro Basics': 'For reusable search fragments' }
                 }
             },
             relatedCommands: ['from', 'search', 'inputlookup']
@@ -3185,11 +3209,11 @@ const GLOSSARY_DATA = {
                     vsAlternatives: {
                         'join': 'Use join for simple key matching; map for complex iterative logic',
                         'lookup': 'Use lookup for static enrichment; map for dynamic searches',
-                        'subsearch': 'Subsearch runs once; map runs per row'
+                        'Subsearches': 'Subsearch runs once; map runs per row'
                     }
                 }
             },
-            relatedCommands: ['join', 'lookup', 'append', 'foreach']
+            relatedCommands: ['join', 'lookup', 'append']
         },
         {
             id: 'cluster',
@@ -3235,12 +3259,11 @@ const GLOSSARY_DATA = {
                     internals: 'Uses locality-sensitive hashing for efficient similarity matching. The t parameter controls the Jaccard similarity threshold.',
                     vsAlternatives: {
                         'dedup': 'For exact duplicates only',
-                        'transaction': 'For grouping by field values and time, not similarity',
-                        'kmeans': 'For numeric clustering with k predefined groups'
+                        'transaction': 'For grouping by field values and time, not similarity'
                     }
                 }
             },
-            relatedCommands: ['dedup', 'transaction', 'kmeans', 'anomalydetection']
+            relatedCommands: ['dedup', 'transaction', 'anomalydetection']
         },
         {
             id: 'diff',
@@ -4005,6 +4028,52 @@ const GLOSSARY_DATA = {
             relatedCommands: ['isnull', 'coalesce', 'if']
         },
         {
+            id: 'isnum',
+            name: 'isnum()',
+            category: 'functions',
+            subcategory: 'informational',
+            purpose: 'type',
+            difficulty: 'intermediate',
+            takeaway: 'Check if a value is numeric',
+            what: 'Returns true if the value is a number (integer or float). Returns false for strings, nulls, or non-numeric values.',
+            why: 'Validate data types before numeric operations, handle mixed-type fields gracefully, identify data quality issues.',
+            syntax: 'isnum(field)',
+            examples: [
+                { spl: '| where isnum(bytes)', explanation: 'Filter for events where bytes is a valid number' },
+                { spl: '| eval safe_bytes=if(isnum(bytes), bytes, 0)', explanation: 'Use 0 for non-numeric bytes' },
+                { spl: '| stats count(eval(isnum(response_time))) as valid, count(eval(NOT isnum(response_time))) as invalid', explanation: 'Count valid vs invalid numeric values' }
+            ],
+            gotchas: [
+                'String "123" may or may not be considered numeric depending on context',
+                'Null values return false',
+                'Useful before mathematical operations to avoid errors'
+            ],
+            relatedCommands: ['isstr', 'isnull', 'tonumber', 'typeof']
+        },
+        {
+            id: 'isstr',
+            name: 'isstr()',
+            category: 'functions',
+            subcategory: 'informational',
+            purpose: 'type',
+            difficulty: 'intermediate',
+            takeaway: 'Check if a value is a string',
+            what: 'Returns true if the value is a string type. Returns false for numbers, nulls, or other types.',
+            why: 'Validate data types, handle mixed-type fields, ensure string operations are safe.',
+            syntax: 'isstr(field)',
+            examples: [
+                { spl: '| where isstr(user)', explanation: 'Filter for events where user is a string' },
+                { spl: '| eval display=if(isstr(value), value, tostring(value))', explanation: 'Ensure value is string for display' },
+                { spl: '| eval type=case(isnum(field), "number", isstr(field), "string", isnull(field), "null", 1=1, "other")', explanation: 'Classify field type' }
+            ],
+            gotchas: [
+                'Empty string "" returns true (it is a string)',
+                'Null values return false',
+                'Numbers stored as strings may return true'
+            ],
+            relatedCommands: ['isnum', 'isnull', 'tostring', 'typeof']
+        },
+        {
             id: 'nullif',
             name: 'nullif()',
             category: 'functions',
@@ -4568,7 +4637,7 @@ const GLOSSARY_DATA = {
                     performance: 'Very fast - simple arithmetic.',
                     vsAlternatives: {
                         'floor': 'Always rounds down',
-                        'ceiling': 'Always rounds up',
+                        'ceil': 'Always rounds up',
                         'tonumber with format': 'For more control over display format'
                     }
                 }
@@ -4940,6 +5009,30 @@ const GLOSSARY_DATA = {
             relatedCommands: ['split', 'mvindex', 'mvcount', 'mvappend']
         },
         {
+            id: 'mvzip',
+            name: 'mvzip()',
+            category: 'functions',
+            subcategory: 'multivalue',
+            purpose: 'multivalue',
+            difficulty: 'advanced',
+            takeaway: 'Combine multivalue fields element by element',
+            what: 'Zips two or more multivalue fields together, combining corresponding elements with a delimiter.',
+            why: 'Process parallel arrays together, combine related multivalue fields into pairs or tuples.',
+            syntax: 'mvzip(mvfield1, mvfield2, [delimiter])',
+            examples: [
+                { spl: '| eval pairs=mvzip(keys, values, "=")', explanation: 'Create key=value pairs from parallel arrays' },
+                { spl: '| eval combined=mvzip(names, scores, ": ")', explanation: 'Create "name: score" entries' },
+                { spl: '| eval user_role=mvzip(users, roles)', explanation: 'Default delimiter is comma' }
+            ],
+            gotchas: [
+                'Fields must have same number of values for clean pairing',
+                'Default delimiter is comma if not specified',
+                'Missing values result in empty elements',
+                'Useful when fields were extracted in parallel from same source'
+            ],
+            relatedCommands: ['mvappend', 'mvjoin', 'mvexpand', 'split']
+        },
+        {
             id: 'mvappend',
             name: 'mvappend()',
             category: 'functions',
@@ -5179,7 +5272,31 @@ const GLOSSARY_DATA = {
                     }
                 }
             },
-            relatedCommands: ['like', 'replace', 'rex', 'in']
+            relatedCommands: ['like', 'replace', 'rex', 'searchmatch']
+        },
+        {
+            id: 'searchmatch',
+            name: 'searchmatch()',
+            category: 'functions',
+            subcategory: 'text',
+            purpose: 'validate',
+            difficulty: 'advanced',
+            takeaway: 'Match using Splunk search syntax',
+            what: 'Returns true if the event matches a Splunk search expression. Uses the same syntax as the search command.',
+            why: 'Apply complex Splunk search logic within eval expressions. Useful when you need full search syntax capabilities in a calculation.',
+            syntax: 'searchmatch(search_expression)',
+            examples: [
+                { spl: '| eval is_error=if(searchmatch("error OR fail*"), "yes", "no")', explanation: 'Check if event matches search terms' },
+                { spl: '| where searchmatch("src_ip=10.* dest_ip!=10.*")', explanation: 'Internal source to external destination' },
+                { spl: '| eval priority=case(searchmatch("critical OR emergency"), "high", searchmatch("error OR warn*"), "medium", 1=1, "low")', explanation: 'Classify by search match' }
+            ],
+            gotchas: [
+                'Uses Splunk search syntax, not regex',
+                'Matches against _raw and extracted fields',
+                'Can be slower than specific field comparisons',
+                'Wildcards use * not %'
+            ],
+            relatedCommands: ['match', 'like', 'search', 'where']
         },
         {
             id: 'like',
@@ -5354,7 +5471,7 @@ const GLOSSARY_DATA = {
                 'Approximation may occur with very large datasets (use estdc for explicit estimation)'
             ],
             performance: 'More expensive than count(). For very high cardinality, consider estdc() which uses HyperLogLog estimation.',
-            relatedCommands: ['count', 'values', 'estdc']
+            relatedCommands: ['count', 'values']
         },
         {
             id: 'stats_earliest',
@@ -5376,7 +5493,7 @@ const GLOSSARY_DATA = {
                 'Returns value from earliest event, not earliest value',
                 'Use earliest_time() to get the actual timestamp'
             ],
-            relatedCommands: ['latest', 'first', 'earliest_time', 'min']
+            relatedCommands: ['latest', 'first', 'earliest_time() / latest_time()', 'min']
         },
         {
             id: 'stats_earliest_time',
@@ -5462,7 +5579,7 @@ const GLOSSARY_DATA = {
                 'Returns value from latest event, not latest value',
                 'Use latest_time() to get the actual timestamp'
             ],
-            relatedCommands: ['earliest', 'last', 'latest_time', 'max']
+            relatedCommands: ['earliest', 'last', 'earliest_time() / latest_time()', 'max']
         },
         {
             id: 'stats_list',
@@ -5526,7 +5643,7 @@ const GLOSSARY_DATA = {
                 'Equivalent to perc50() or p50()',
                 'Requires sorting internally - more expensive than avg()'
             ],
-            relatedCommands: ['avg', 'perc', 'mode']
+            relatedCommands: ['avg', 'perc<N>() / p<N>()', 'mode']
         },
         {
             id: 'stats_min',
@@ -5632,7 +5749,7 @@ const GLOSSARY_DATA = {
                 'Often used with timechart for rate visualization',
                 'Alternative: use delta and manual calculation'
             ],
-            relatedCommands: ['sum', 'per_second']
+            relatedCommands: ['sum', 'avg']
         },
         {
             id: 'stats_stdev',
@@ -5653,7 +5770,7 @@ const GLOSSARY_DATA = {
                 'Higher stdev = more variability = less predictable',
                 'Useful with avg() to define "normal" ranges'
             ],
-            relatedCommands: ['avg', 'var', 'range']
+            relatedCommands: ['avg', 'range']
         },
         {
             id: 'stats_sum',
@@ -5782,6 +5899,26 @@ const GLOSSARY_DATA = {
                 'Array access uses {}: items{}.name'
             ],
             relatedCommands: ['rex', 'kvform', 'xmlkv']
+        },
+        {
+            id: 'field_alias',
+            name: 'alias',
+            category: 'extractions',
+            difficulty: 'intermediate',
+            takeaway: 'Persistent field renaming defined in props.conf',
+            what: 'Field aliases in props.conf provide persistent, search-time field renames. Defines alternative names for existing fields without modifying the data.',
+            why: 'Normalize field names across different data sources at search time. Makes searches consistent without re-indexing.',
+            examples: [
+                { spl: '[myapp:logs]\nFIELDALIAS-user = username AS user', explanation: 'Create user alias for username field' },
+                { spl: '[firewall:traffic]\nFIELDALIAS-src = source_address AS src_ip', explanation: 'Normalize IP field name' }
+            ],
+            gotchas: [
+                'Defined in props.conf, not in search',
+                'Original field still exists - alias is additional name',
+                'Requires app deployment or Splunk restart to take effect',
+                'Use rename command for one-time renames in search'
+            ],
+            relatedCommands: ['rename', 'props.conf', 'eval']
         }
 ],
 
@@ -6847,7 +6984,7 @@ const GLOSSARY_DATA = {
                 'Forwarders queue data locally if indexers are unavailable',
                 'Check forwarder queue sizes during outages to prevent data loss'
             ],
-            relatedCommands: ['inputs.conf', 'server.conf']
+            relatedCommands: ['inputs.conf', 'Splunk Architecture']
         },
         {
             id: 'eng-indexes-conf',
@@ -6867,7 +7004,7 @@ const GLOSSARY_DATA = {
                 'Metrics indexes require datatype = metric and different storage',
                 'Index changes require restart; adding new index is safe, changing existing is risky'
             ],
-            relatedCommands: ['props.conf', 'data-onboarding']
+            relatedCommands: ['props.conf', 'Data Onboarding']
         },
         {
             id: 'eng-architecture',
@@ -6887,7 +7024,7 @@ const GLOSSARY_DATA = {
                 'Search heads need fast disks for search artifacts, indexers need lots of storage',
                 'Network bandwidth between forwarders and indexers is critical'
             ],
-            relatedCommands: ['deployment-server', 'indexer-cluster', 'search-head-cluster']
+            relatedCommands: ['Deployment Server', 'Indexer Clustering', 'Search Head Clustering']
         },
         {
             id: 'eng-data-onboarding',
@@ -6927,7 +7064,7 @@ const GLOSSARY_DATA = {
                 'Intermediate HF adds latency but reduces indexer parsing load',
                 'Consider Splunk Connect for Syslog for high-volume syslog aggregation'
             ],
-            relatedCommands: ['outputs.conf', 'inputs.conf', 'architecture']
+            relatedCommands: ['outputs.conf', 'inputs.conf', 'Splunk Architecture']
         },
         {
             id: 'eng-deployment-server',
@@ -6947,7 +7084,7 @@ const GLOSSARY_DATA = {
                 'Changes require reload: splunk reload deploy-server',
                 'Test with a small server class before deploying broadly'
             ],
-            relatedCommands: ['architecture', 'forwarder-types']
+            relatedCommands: ['Splunk Architecture', 'Universal vs Heavy Forwarder']
         },
         {
             id: 'eng-indexer-cluster',
@@ -6967,7 +7104,7 @@ const GLOSSARY_DATA = {
                 'Cluster manager is single point of failure for cluster management (not searching)',
                 'Rolling restart required for many configuration changes'
             ],
-            relatedCommands: ['architecture', 'search-head-cluster']
+            relatedCommands: ['Splunk Architecture', 'Search Head Clustering']
         },
         {
             id: 'eng-search-head-cluster',
@@ -6987,7 +7124,7 @@ const GLOSSARY_DATA = {
                 'Some apps are not cluster-compatible - check before deploying',
                 'Load balancer in front of SHC for user access'
             ],
-            relatedCommands: ['architecture', 'indexer-cluster']
+            relatedCommands: ['Splunk Architecture', 'Indexer Clustering']
         },
         {
             id: 'eng-btool',
@@ -7027,7 +7164,7 @@ const GLOSSARY_DATA = {
                 'Dev/Test licenses have lower limits - dont use in production',
                 'Monitor license usage trends to predict when you need more capacity'
             ],
-            relatedCommands: ['architecture', 'indexes.conf']
+            relatedCommands: ['Splunk Architecture', 'indexes.conf']
         }
     ]
 };
@@ -7849,9 +7986,15 @@ function renderDeepZone(zone) {
                 <div class="tabbed-section-header">VS. ALTERNATIVES</div>
                 <div class="tabbed-section-content">
                     <ul class="alternatives-list">
-                        ${Object.entries(zone.vsAlternatives).map(([cmd, desc]) => `
-                            <li><code class="command-link" data-command="${escapeHtml(cmd)}">${escapeHtml(cmd)}</code> — ${escapeHtml(desc)}</li>
-                        `).join('')}
+                        ${Object.entries(zone.vsAlternatives).map(([cmd, desc]) => {
+                            // Only make it a link if the entry exists in the glossary
+                            const hasEntry = findCommandData(cmd) !== null;
+                            if (hasEntry) {
+                                return `<li><code class="command-link" data-command="${escapeHtml(cmd)}">${escapeHtml(cmd)}</code> — ${escapeHtml(desc)}</li>`;
+                            } else {
+                                return `<li><code class="alt-code">${escapeHtml(cmd)}</code> — ${escapeHtml(desc)}</li>`;
+                            }
+                        }).join('')}
                     </ul>
                 </div>
             </div>
@@ -7920,10 +8063,20 @@ function ensureTooltipElement() {
 
 function findCommandData(commandName) {
     // Search through all categories for the command
+    const searchName = commandName.toLowerCase();
     for (const category of Object.keys(GLOSSARY_DATA)) {
         const entries = GLOSSARY_DATA[category];
-        const found = entries.find(e => e.name.toLowerCase() === commandName.toLowerCase());
+        // Try exact match first
+        let found = entries.find(e => e.name.toLowerCase() === searchName);
         if (found) return found;
+        // Try with () appended (for functions like coalesce -> coalesce())
+        found = entries.find(e => e.name.toLowerCase() === searchName + '()');
+        if (found) return found;
+        // Try without () (for references like coalesce() -> coalesce)
+        if (searchName.endsWith('()')) {
+            found = entries.find(e => e.name.toLowerCase() === searchName.slice(0, -2));
+            if (found) return found;
+        }
     }
     return null;
 }

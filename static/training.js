@@ -560,6 +560,17 @@ const TRAINING_DATA = {
                         hint: 'Think about counting events over time periods. Which command creates time-based charts?',
                         spl: 'index=wineventlog EventCode=4625 earliest=-4h | timechart span=10m count',
                         analysis: 'This shows failed login (EventCode 4625) volume in 10-minute buckets over the last 4 hours.',
+                        output: {
+                            columns: ['_time', 'count'],
+                            rows: [
+                                { '_time': '2024-01-15 10:00', 'count': '18' },
+                                { '_time': '2024-01-15 10:10', 'count': '22' },
+                                { '_time': '2024-01-15 10:20', 'count': '19' },
+                                { '_time': '2024-01-15 11:50', 'count': '487' },
+                                { '_time': '2024-01-15 12:00', 'count': '523' }
+                            ],
+                            truncated: 'Showing 5 of 24 time buckets'
+                        },
                         finding: 'Confirmed: We see a clear spike starting around 2 hours ago, with counts jumping from baseline ~20 to over 500 per 10-minute window.'
                     },
                     {
@@ -567,6 +578,17 @@ const TRAINING_DATA = {
                         hint: 'You need to count failures grouped by the target account field.',
                         spl: 'index=wineventlog EventCode=4625 earliest=-2h | stats count by TargetUserName | sort -count | head 20',
                         analysis: 'This counts failed logins by target username and shows the top 20.',
+                        output: {
+                            columns: ['TargetUserName', 'count'],
+                            rows: [
+                                { 'TargetUserName': 'administrator', 'count': '3247' },
+                                { 'TargetUserName': 'admin', 'count': '3189' },
+                                { 'TargetUserName': 'root', 'count': '412' },
+                                { 'TargetUserName': 'svc_backup', 'count': '5' },
+                                { 'TargetUserName': 'svc_sql', 'count': '3' }
+                            ],
+                            truncated: 'Showing 5 of 20 results'
+                        },
                         finding: 'Critical: The "administrator" and "admin" accounts have 3,000+ failures each. Service accounts like "svc_backup" show only normal baseline failures (~5 each).'
                     },
                     {
@@ -574,6 +596,12 @@ const TRAINING_DATA = {
                         hint: 'Look at source IP addresses or workstation names.',
                         spl: 'index=wineventlog EventCode=4625 earliest=-2h TargetUserName IN ("administrator", "admin") | stats count by IpAddress | sort -count',
                         analysis: 'This shows which IP addresses are generating the failed logins for admin accounts.',
+                        output: {
+                            columns: ['IpAddress', 'count'],
+                            rows: [
+                                { 'IpAddress': '10.45.23.99', 'count': '6436' }
+                            ]
+                        },
                         finding: 'All 6,000+ failures originate from a single IP: 10.45.23.99. This is NOT distributed - it\'s one source.'
                     },
                     {
@@ -581,6 +609,11 @@ const TRAINING_DATA = {
                         hint: 'EventCode 4624 is successful login. Look for the suspicious IP.',
                         spl: 'index=wineventlog EventCode=4624 earliest=-2h IpAddress="10.45.23.99" | stats count by TargetUserName, LogonType',
                         analysis: 'This checks if the attacking IP has any successful authentications.',
+                        output: {
+                            columns: ['TargetUserName', 'LogonType', 'count'],
+                            rows: [],
+                            emptyMessage: 'No results found'
+                        },
                         finding: 'Good news: Zero successful logins from the attacking IP. The brute force attempt has not succeeded.'
                     },
                     {
@@ -588,6 +621,12 @@ const TRAINING_DATA = {
                         hint: 'Check asset inventory or DHCP logs for IP context.',
                         spl: 'index=asset_inventory ip="10.45.23.99" | table hostname, department, owner, last_seen',
                         analysis: 'Cross-reference with asset inventory to identify the source machine.',
+                        output: {
+                            columns: ['hostname', 'department', 'owner', 'last_seen'],
+                            rows: [
+                                { 'hostname': 'WKS-RECEPTION-02', 'department': 'Lobby', 'owner': 'Shared Kiosk', 'last_seen': '2024-01-15 12:05' }
+                            ]
+                        },
                         finding: 'The IP belongs to "WKS-RECEPTION-02" in the Lobby. This is a shared kiosk PC that shouldn\'t be making admin login attempts.'
                     }
                 ],
@@ -723,6 +762,165 @@ const TRAINING_DATA = {
                     }
                 ]
             }
+        },
+        {
+            id: 'found-011',
+            title: 'Where vs Search: Choosing the Right Filter',
+            type: 'tutorial',
+            difficulty: 'beginner',
+            duration: '15 min',
+            objectives: [
+                'Understand when to use search vs where',
+                'Avoid common filtering mistakes',
+                'Write efficient filters for each situation'
+            ],
+            tags: ['basics', 'where', 'search', 'filtering', 'performance'],
+            description: 'Learn when to use the search command vs the where command - a common source of confusion.',
+            content: {
+                sections: [
+                    {
+                        title: 'Two Ways to Filter',
+                        body: `<p>SPL has two main filtering commands:</p>
+                        <ul>
+                            <li><code>search</code> - Filter using search syntax (field=value, wildcards, AND/OR/NOT)</li>
+                            <li><code>where</code> - Filter using eval expressions (comparisons, functions)</li>
+                        </ul>
+                        <p>They often give the same results, but they work differently and have different strengths.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'Use search For: Simple Matching',
+                        body: `<p>The <code>search</code> command excels at:</p>
+                        <ul>
+                            <li>Field=value matching</li>
+                            <li>Wildcard patterns</li>
+                            <li>Case-insensitive text</li>
+                            <li>Boolean logic (AND, OR, NOT)</li>
+                        </ul>`,
+                        spl: 'index=web status=404 uri_path="/api/*" NOT host=test*',
+                        explanation: 'Simple field matching with wildcards - search handles this naturally.'
+                    },
+                    {
+                        title: 'Use where For: Comparisons and Functions',
+                        body: `<p>The <code>where</code> command excels at:</p>
+                        <ul>
+                            <li>Numeric comparisons (>, <, >=, !=)</li>
+                            <li>Calculations and expressions</li>
+                            <li>Function calls (isnull, like, match, cidrmatch)</li>
+                            <li>Case-sensitive matching</li>
+                        </ul>`,
+                        spl: 'index=firewall | where bytes > 1000000 AND duration < 60',
+                        explanation: 'Numeric comparisons require where - search can\'t do greater-than.'
+                    },
+                    {
+                        title: 'Key Difference: Case Sensitivity',
+                        body: `<p>This trips up many analysts:</p>
+                        <ul>
+                            <li><code>search</code> is <strong>case-insensitive</strong> by default</li>
+                            <li><code>where</code> is <strong>case-sensitive</strong></li>
+                        </ul>`,
+                        spl: `| makeresults | eval user="Admin"
+| search user=admin
+| where user="admin"`,
+                        explanation: 'search finds "Admin" with user=admin. where does NOT find "Admin" with user="admin" - cases must match!'
+                    },
+                    {
+                        title: 'Key Difference: Null Handling',
+                        body: `<p>When a field doesn't exist:</p>
+                        <ul>
+                            <li><code>search field=*</code> - Finds events where field exists</li>
+                            <li><code>where isnotnull(field)</code> - Same result, explicit null check</li>
+                            <li><code>where field="value"</code> - Silently excludes nulls</li>
+                        </ul>`,
+                        spl: 'index=auth | where isnull(error_code) | stats count',
+                        explanation: 'Use isnull()/isnotnull() in where to explicitly check for missing fields.'
+                    },
+                    {
+                        title: 'Key Difference: Wildcards',
+                        body: `<p>Pattern matching syntax differs:</p>
+                        <ul>
+                            <li><code>search</code> uses <code>*</code> for wildcards: <code>user=admin*</code></li>
+                            <li><code>where</code> uses <code>like()</code> with <code>%</code>: <code>like(user, "admin%")</code></li>
+                            <li><code>where</code> also supports <code>match()</code> for regex</li>
+                        </ul>`,
+                        spl: '... | where like(uri_path, "/api/v%/users/%") OR match(user, "^svc_.*")',
+                        explanation: 'where uses SQL-style % wildcards with like() and full regex with match().'
+                    },
+                    {
+                        title: 'Performance Tip',
+                        body: `<p>When filtering at the <strong>start</strong> of a search, use search syntax in the initial query - it's optimized at the indexer level:</p>`,
+                        spl: `index=web status>=400 host=prod* earliest=-1h
+| where response_time > 5000`,
+                        explanation: 'Put index, sourcetype, and simple field matches early. Use where for numeric comparisons on extracted fields.'
+                    },
+                    {
+                        title: 'Quick Reference',
+                        body: `<table style="width:100%; border-collapse: collapse; margin: 10px 0;">
+                            <tr style="background: rgba(255,255,255,0.1);"><td style="padding:8px; border:1px solid #444;"><strong>Need</strong></td><td style="padding:8px; border:1px solid #444;"><strong>Use</strong></td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">field=value (exact match)</td><td style="padding:8px; border:1px solid #444;">search</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Wildcards (user=admin*)</td><td style="padding:8px; border:1px solid #444;">search</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Case-insensitive matching</td><td style="padding:8px; border:1px solid #444;">search</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Numeric comparison (>100)</td><td style="padding:8px; border:1px solid #444;">where</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Function calls (cidrmatch, len)</td><td style="padding:8px; border:1px solid #444;">where</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Check for null</td><td style="padding:8px; border:1px solid #444;">where isnull()</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Regex patterns</td><td style="padding:8px; border:1px solid #444;">where match()</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Calculated conditions</td><td style="padding:8px; border:1px solid #444;">where (bytes/1024 > 100)</td></tr>
+                        </table>`,
+                        spl: null,
+                        explanation: null
+                    }
+                ]
+            }
+        },
+        {
+            id: 'found-012',
+            title: 'Time Bucketing and Trends',
+            type: 'challenge',
+            difficulty: 'beginner',
+            duration: '15 min',
+            objectives: [
+                'Use bin to group events into time buckets',
+                'Create trend analysis with timechart',
+                'Compare time periods effectively'
+            ],
+            tags: ['basics', 'timechart', 'bin', 'trends', 'time'],
+            description: 'Learn to analyze trends over time using bin and timechart.',
+            content: {
+                problem: 'Your manager asks: "Are we getting more errors this week compared to last week?" Using web server logs, create a visualization that shows error counts (status >= 400) by hour, so you can compare patterns between the two weeks.',
+                hints: [
+                    'Use timechart with span=1h to bucket by hour',
+                    'timechart count creates a count over time',
+                    'The earliest and latest modifiers control your time range',
+                    'You can also use bin _time span=1h with stats for more control'
+                ],
+                solution: {
+                    spl: `index=web status>=400 earliest=-14d
+| timechart span=1h count as errors`,
+                    explanation: 'timechart automatically buckets by time (span=1h) and counts events. The result shows errors per hour over 14 days, making weekly patterns visible.'
+                },
+                variations: [
+                    {
+                        description: 'Compare current hour to same hour yesterday:',
+                        spl: `index=web status>=400 earliest=-1h
+| stats count as current_hour
+| appendcols [search index=web status>=400 earliest=-25h latest=-24h | stats count as yesterday_same_hour]
+| eval change_pct = round(((current_hour - yesterday_same_hour) / yesterday_same_hour) * 100, 1)`
+                    },
+                    {
+                        description: 'Break down errors by type over time:',
+                        spl: 'index=web status>=400 | timechart span=1h count by status'
+                    },
+                    {
+                        description: 'Use bin for more control over grouping:',
+                        spl: 'index=web status>=400 | bin _time span=1h | stats count, dc(src_ip) as unique_ips by _time | where count > 100'
+                    },
+                    {
+                        description: 'See hourly pattern by day of week:',
+                        spl: 'index=web status>=400 | eval hour=strftime(_time,"%H"), dow=strftime(_time,"%A") | stats count by dow, hour | sort dow, hour'
+                    }
+                ]
+            }
         }
     ],
 
@@ -799,6 +997,12 @@ const TRAINING_DATA = {
                         hint: 'Look at the /api/login endpoint and calculate success vs failure percentages.',
                         spl: 'index=web uri_path="/api/login" | stats count as total, count(eval(status=200)) as success, count(eval(status=401)) as failure | eval failure_rate=round((failure/total)*100, 2)',
                         analysis: 'This calculates the overall success/failure ratio for login attempts.',
+                        output: {
+                            columns: ['total', 'success', 'failure', 'failure_rate'],
+                            rows: [
+                                { 'total': '50247', 'success': '3014', 'failure': '47233', 'failure_rate': '94.00' }
+                            ]
+                        },
                         finding: 'Alarming: 94% failure rate on login attempts (47,000 failures out of 50,000 attempts in the last hour). Normal is ~5%.'
                     },
                     {
@@ -806,6 +1010,17 @@ const TRAINING_DATA = {
                         hint: 'Count failures by source IP to see the distribution.',
                         spl: 'index=web uri_path="/api/login" status=401 | stats count by src_ip | sort -count | head 20',
                         analysis: 'Shows how failures are distributed across source IPs.',
+                        output: {
+                            columns: ['src_ip', 'count'],
+                            rows: [
+                                { 'src_ip': '198.51.100.47', 'count': '487' },
+                                { 'src_ip': '203.0.113.22', 'count': '456' },
+                                { 'src_ip': '192.0.2.88', 'count': '421' },
+                                { 'src_ip': '198.51.100.103', 'count': '398' },
+                                { 'src_ip': '203.0.113.156', 'count': '367' }
+                            ],
+                            truncated: 'Showing 5 of 20 results'
+                        },
                         finding: 'Distributed attack: Top 20 IPs each have 200-500 failures. No single IP dominates - this is coordinated.'
                     },
                     {
@@ -813,6 +1028,15 @@ const TRAINING_DATA = {
                         hint: 'Compare unique usernames to unique passwords per source IP.',
                         spl: 'index=web uri_path="/api/login" status=401 | stats dc(username) as unique_users, dc(password) as unique_passwords, count as attempts by src_ip | where attempts > 50 | eval ratio=round(unique_users/unique_passwords, 2)',
                         analysis: 'This reveals the attack strategy - credential stuffing typically has high user:password ratios.',
+                        output: {
+                            columns: ['src_ip', 'unique_users', 'unique_passwords', 'attempts', 'ratio'],
+                            rows: [
+                                { 'src_ip': '198.51.100.47', 'unique_users': '487', 'unique_passwords': '10', 'attempts': '487', 'ratio': '48.70' },
+                                { 'src_ip': '203.0.113.22', 'unique_users': '456', 'unique_passwords': '9', 'attempts': '456', 'ratio': '50.67' },
+                                { 'src_ip': '192.0.2.88', 'unique_users': '421', 'unique_passwords': '8', 'attempts': '421', 'ratio': '52.63' }
+                            ],
+                            truncated: 'Showing 3 of 47 attacking IPs'
+                        },
                         finding: 'Credential stuffing confirmed: ratio of ~50 unique users per password. They\'re trying known passwords across many accounts.'
                     },
                     {
@@ -820,6 +1044,18 @@ const TRAINING_DATA = {
                         hint: 'Count attempts by username and look for patterns.',
                         spl: 'index=web uri_path="/api/login" status=401 | stats count by username | sort -count | head 30',
                         analysis: 'Shows which accounts are receiving the most attempts.',
+                        output: {
+                            columns: ['username', 'count'],
+                            rows: [
+                                { 'username': 'admin', 'count': '847' },
+                                { 'username': 'administrator', 'count': '823' },
+                                { 'username': 'jsmith@company.com', 'count': '156' },
+                                { 'username': 'mwilson@company.com', 'count': '142' },
+                                { 'username': 'demo@company.com', 'count': '134' },
+                                { 'username': 'test', 'count': '98' }
+                            ],
+                            truncated: 'Showing 6 of 30 results'
+                        },
                         finding: 'Top targets include: admin, administrator, test, demo, and several real employee email addresses. The attackers have some internal knowledge.'
                     },
                     {
@@ -827,6 +1063,14 @@ const TRAINING_DATA = {
                         hint: 'Cross-reference attacking IPs with successful authentication events.',
                         spl: `index=web uri_path="/api/login" status=401 | stats dc(username) as attempts by src_ip | where attempts > 50 | fields src_ip | map search="search index=web uri_path=\\"/api/login\\" status=200 src_ip=$src_ip$ | stats count by username, src_ip"`,
                         analysis: 'Check if any attacking IPs achieved successful logins.',
+                        output: {
+                            columns: ['username', 'src_ip', 'count'],
+                            rows: [
+                                { 'username': 'jsmith@company.com', 'src_ip': '198.51.100.47', 'count': '1' },
+                                { 'username': 'mwilson@company.com', 'src_ip': '203.0.113.22', 'count': '1' },
+                                { 'username': 'demo@company.com', 'src_ip': '192.0.2.88', 'count': '1' }
+                            ]
+                        },
                         finding: 'CRITICAL: 3 successful logins from attacking IPs! Users jsmith@company.com, mwilson@company.com, and demo@company.com were compromised.'
                     }
                 ],
@@ -864,6 +1108,17 @@ const TRAINING_DATA = {
                         hint: 'Sum up bytes transferred over time from the Finance IP range.',
                         spl: 'index=firewall src_ip="10.20.30.*" | timechart span=5m sum(bytes_out) as bytes_out | eval MB=round(bytes_out/1024/1024, 2)',
                         analysis: 'Shows outbound traffic from Finance in 5-minute windows.',
+                        output: {
+                            columns: ['_time', 'bytes_out', 'MB'],
+                            rows: [
+                                { '_time': '2024-01-15 09:00', 'bytes_out': '52428800', 'MB': '50.00' },
+                                { '_time': '2024-01-15 09:05', 'bytes_out': '838860800', 'MB': '800.00' },
+                                { '_time': '2024-01-15 09:10', 'bytes_out': '891289600', 'MB': '850.00' },
+                                { '_time': '2024-01-15 09:15', 'bytes_out': '943718400', 'MB': '900.00' },
+                                { '_time': '2024-01-15 09:20', 'bytes_out': '864026624', 'MB': '824.00' }
+                            ],
+                            truncated: 'Showing 5 of 48 time buckets'
+                        },
                         finding: 'Confirmed: Sustained 800+ MB per 5 minutes (roughly 20 Mbps average, with spikes to 50+ Mbps). Normal baseline is ~5 Mbps.'
                     },
                     {
@@ -871,6 +1126,16 @@ const TRAINING_DATA = {
                         hint: 'Aggregate bytes by source IP and find the top consumers.',
                         spl: 'index=firewall src_ip="10.20.30.*" | stats sum(bytes_out) as total_bytes by src_ip | sort -total_bytes | eval GB=round(total_bytes/1024/1024/1024, 2) | head 10',
                         analysis: 'Ranks Finance IPs by total outbound traffic.',
+                        output: {
+                            columns: ['src_ip', 'total_bytes', 'GB'],
+                            rows: [
+                                { 'src_ip': '10.20.30.47', 'total_bytes': '48318382080', 'GB': '45.00' },
+                                { 'src_ip': '10.20.30.15', 'total_bytes': '2147483648', 'GB': '2.00' },
+                                { 'src_ip': '10.20.30.88', 'total_bytes': '1610612736', 'GB': '1.50' },
+                                { 'src_ip': '10.20.30.22', 'total_bytes': '1073741824', 'GB': '1.00' }
+                            ],
+                            truncated: 'Showing 4 of 10 results'
+                        },
                         finding: 'Single outlier: 10.20.30.47 has transferred 45GB outbound today. Next highest is 2GB. This IP is the problem.'
                     },
                     {
@@ -878,6 +1143,16 @@ const TRAINING_DATA = {
                         hint: 'Look at destination IPs and ports for this source.',
                         spl: 'index=firewall src_ip="10.20.30.47" | stats sum(bytes_out) as bytes, dc(dest_port) as ports by dest_ip | sort -bytes | eval GB=round(bytes/1024/1024/1024, 2) | head 10',
                         analysis: 'Shows where the traffic is going.',
+                        output: {
+                            columns: ['dest_ip', 'bytes', 'ports', 'GB'],
+                            rows: [
+                                { 'dest_ip': '185.199.108.133', 'bytes': '21474836480', 'ports': '1', 'GB': '20.00' },
+                                { 'dest_ip': '185.199.109.133', 'bytes': '16106127360', 'ports': '1', 'GB': '15.00' },
+                                { 'dest_ip': '185.199.110.133', 'bytes': '5368709120', 'ports': '1', 'GB': '5.00' },
+                                { 'dest_ip': '10.1.1.50', 'bytes': '1073741824', 'ports': '3', 'GB': '1.00' }
+                            ],
+                            truncated: 'Showing 4 of 10 results'
+                        },
                         finding: 'Bulk of traffic (40GB+) going to 185.199.x.x range - this is a cloud storage provider. Single port 443 suggests HTTPS uploads.'
                     },
                     {
@@ -885,6 +1160,12 @@ const TRAINING_DATA = {
                         hint: 'Cross-reference with asset inventory.',
                         spl: 'index=asset_inventory ip="10.20.30.47" | table hostname, department, owner, asset_type',
                         analysis: 'Identify the device and owner.',
+                        output: {
+                            columns: ['hostname', 'department', 'owner', 'asset_type'],
+                            rows: [
+                                { 'hostname': 'FIN-WKS-JONES', 'department': 'Finance', 'owner': 'Patricia Jones', 'asset_type': 'Desktop PC' }
+                            ]
+                        },
                         finding: 'Asset: FIN-WKS-JONES (workstation), Owner: Patricia Jones, Department: Finance, Asset Type: Desktop PC'
                     },
                     {
@@ -892,6 +1173,13 @@ const TRAINING_DATA = {
                         hint: 'Look at connection patterns - user agent, app signatures, or process info if available.',
                         spl: 'index=firewall src_ip="10.20.30.47" dest_ip="185.199.*" | stats count, sum(bytes_out) as bytes by app_category, app_name | sort -bytes',
                         analysis: 'Identify the application responsible.',
+                        output: {
+                            columns: ['app_category', 'app_name', 'count', 'bytes'],
+                            rows: [
+                                { 'app_category': 'cloud-storage', 'app_name': 'Dropbox', 'count': '4827', 'bytes': '42949672960' },
+                                { 'app_category': 'web-browsing', 'app_name': 'Chrome', 'count': '156', 'bytes': '52428800' }
+                            ]
+                        },
                         finding: 'Application identified: "Dropbox" - 40GB uploaded. This is likely an authorized backup or sync, not exfiltration. But the volume is excessive.'
                     }
                 ],
@@ -1054,6 +1342,14 @@ const TRAINING_DATA = {
                         hint: 'Look for logon events (4624) on the compromised system.',
                         spl: 'index=wineventlog EventCode=4624 host="WKS-HR-022" earliest=-24h | stats values(TargetUserName) as users, count by LogonType | sort -count',
                         analysis: 'Shows all users who logged into the compromised workstation.',
+                        output: {
+                            columns: ['LogonType', 'users', 'count'],
+                            rows: [
+                                { 'LogonType': '2', 'users': 'jmorgan, admin_jmorgan', 'count': '50' },
+                                { 'LogonType': '5', 'users': 'svc_backup', 'count': '12' },
+                                { 'LogonType': '3', 'users': 'SYSTEM', 'count': '8' }
+                            ]
+                        },
                         finding: 'Three users logged in: jmorgan (interactive, 47 times), svc_backup (service, 12 times), and admin_jmorgan (interactive, 3 times). The admin account is concerning.'
                     },
                     {
@@ -1061,6 +1357,14 @@ const TRAINING_DATA = {
                         hint: 'Look for network logon events (Type 3) where the source is the compromised workstation.',
                         spl: 'index=wineventlog EventCode=4624 LogonType=3 IpAddress="10.10.50.22" | stats count, dc(host) as systems by TargetUserName | sort -systems',
                         analysis: 'Shows accounts used to authenticate TO other systems FROM the compromised workstation.',
+                        output: {
+                            columns: ['TargetUserName', 'systems', 'count'],
+                            rows: [
+                                { 'TargetUserName': 'admin_jmorgan', 'systems': '14', 'count': '87' },
+                                { 'TargetUserName': 'jmorgan', 'systems': '2', 'count': '5' },
+                                { 'TargetUserName': 'svc_backup', 'systems': '1', 'count': '12' }
+                            ]
+                        },
                         finding: 'admin_jmorgan connected to 14 different systems from the compromised machine. This is highly unusual for a 24-hour period.'
                     },
                     {
@@ -1068,6 +1372,15 @@ const TRAINING_DATA = {
                         hint: 'Track the authentication events for admin_jmorgan from the compromised source.',
                         spl: 'index=wineventlog EventCode=4624 LogonType=3 IpAddress="10.10.50.22" TargetUserName="admin_jmorgan" | stats earliest(_time) as first, latest(_time) as last, count by host | sort first | table host, first, last, count',
                         analysis: 'Creates a timeline of lateral movement.',
+                        output: {
+                            columns: ['host', 'first', 'last', 'count'],
+                            rows: [
+                                { 'host': 'FILESRV-01', 'first': '2024-01-15 02:15:33', 'last': '2024-01-15 02:18:47', 'count': '3' },
+                                { 'host': 'DC-CORP-01', 'first': '2024-01-15 02:22:15', 'last': '2024-01-15 03:47:22', 'count': '24' },
+                                { 'host': 'SQLDB-PROD-01', 'first': '2024-01-15 03:12:08', 'last': '2024-01-15 03:45:19', 'count': '18' },
+                                { 'host': 'BACKUP-01', 'first': '2024-01-15 03:48:55', 'last': '2024-01-15 04:02:33', 'count': '7' }
+                            ]
+                        },
                         finding: 'Movement chain identified: WKS-HR-022 → FILESRV-01 → DC-CORP-01 → SQLDB-PROD-01 → BACKUP-01. Attacker accessed domain controller and production database!'
                     },
                     {
@@ -1075,6 +1388,16 @@ const TRAINING_DATA = {
                         hint: 'Look for privileged actions on the DC from the compromised credentials.',
                         spl: 'index=wineventlog host="DC-CORP-01" TargetUserName="admin_jmorgan" earliest=-24h | stats count by EventCode | lookup wineventcode_lookup EventCode OUTPUT EventDescription | sort -count',
                         analysis: 'Shows what events the compromised account generated on the domain controller.',
+                        output: {
+                            columns: ['EventCode', 'EventDescription', 'count'],
+                            rows: [
+                                { 'EventCode': '4624', 'EventDescription': 'Successful logon', 'count': '24' },
+                                { 'EventCode': '4672', 'EventDescription': 'Special privileges assigned', 'count': '24' },
+                                { 'EventCode': '4728', 'EventDescription': 'Member added to security-enabled global group', 'count': '1' },
+                                { 'EventCode': '4720', 'EventDescription': 'User account was created', 'count': '1' },
+                                { 'EventCode': '4738', 'EventDescription': 'User account was changed', 'count': '1' }
+                            ]
+                        },
                         finding: 'CRITICAL: EventCode 4728 (member added to security group) and 4738 (user account changed) detected. Attacker may have created persistence!'
                     },
                     {
@@ -1082,6 +1405,13 @@ const TRAINING_DATA = {
                         hint: 'Look at account creation and group modification events.',
                         spl: 'index=wineventlog host="DC-CORP-01" EventCode IN (4720, 4728, 4732) earliest=-24h | table _time, EventCode, TargetUserName, SubjectUserName, GroupName | sort _time',
                         analysis: 'Shows account creation and group membership changes.',
+                        output: {
+                            columns: ['_time', 'EventCode', 'TargetUserName', 'SubjectUserName', 'GroupName'],
+                            rows: [
+                                { '_time': '2024-01-15 03:47:01', 'EventCode': '4720', 'TargetUserName': 'support_temp', 'SubjectUserName': 'admin_jmorgan', 'GroupName': '-' },
+                                { '_time': '2024-01-15 03:47:15', 'EventCode': '4728', 'TargetUserName': 'support_temp', 'SubjectUserName': 'admin_jmorgan', 'GroupName': 'Domain Admins' }
+                            ]
+                        },
                         finding: 'Attacker created account "support_temp" and added it to "Domain Admins" group at 03:47 AM. This is a backdoor account!'
                     }
                 ],
@@ -1122,6 +1452,13 @@ const TRAINING_DATA = {
                         hint: 'Calculate average daily outbound bytes for this user over the past 30 days.',
                         spl: 'index=proxy user="mchen" earliest=-30d latest=-1d | bin _time span=1d | stats sum(bytes_out) as daily_bytes by _time | stats avg(daily_bytes) as avg_daily, stdev(daily_bytes) as stdev_daily, max(daily_bytes) as max_daily',
                         analysis: 'Establish baseline transfer patterns.',
+                        output: {
+                            columns: ['avg_daily', 'stdev_daily', 'max_daily'],
+                            rows: [
+                                { 'avg_daily': '157286400', 'stdev_daily': '47185920', 'max_daily': '293601280' }
+                            ],
+                            note: '(avg: ~150MB, stdev: ~45MB, max: ~280MB)'
+                        },
                         finding: 'Baseline: Average 150MB/day, std dev 45MB, max 280MB. Anything significantly above 300MB would be anomalous.'
                     },
                     {
@@ -1129,6 +1466,12 @@ const TRAINING_DATA = {
                         hint: 'Sum today\'s outbound bytes and compare to the baseline we just established.',
                         spl: 'index=proxy user="mchen" earliest=@d | stats sum(bytes_out) as today_bytes | eval today_MB=round(today_bytes/1024/1024, 2) | eval baseline_avg_MB=150, anomaly_threshold_MB=300 | eval status=if(today_MB>anomaly_threshold_MB, "ANOMALOUS", "NORMAL")',
                         analysis: 'Compare today to baseline.',
+                        output: {
+                            columns: ['today_bytes', 'today_MB', 'baseline_avg_MB', 'anomaly_threshold_MB', 'status'],
+                            rows: [
+                                { 'today_bytes': '2469606195', 'today_MB': '2355.20', 'baseline_avg_MB': '150', 'anomaly_threshold_MB': '300', 'status': 'ANOMALOUS' }
+                            ]
+                        },
                         finding: 'ANOMALOUS: User mchen has transferred 2.3GB today - 15x their normal average!'
                     },
                     {
@@ -1136,6 +1479,16 @@ const TRAINING_DATA = {
                         hint: 'Group outbound traffic by destination domain or IP.',
                         spl: 'index=proxy user="mchen" earliest=@d | stats sum(bytes_out) as bytes by dest_domain | sort -bytes | eval MB=round(bytes/1024/1024, 2) | head 10',
                         analysis: 'Identify where data is being sent.',
+                        output: {
+                            columns: ['dest_domain', 'bytes', 'MB'],
+                            rows: [
+                                { 'dest_domain': 'mega.nz', 'bytes': '2202009600', 'MB': '2100.00' },
+                                { 'dest_domain': 'drive.google.com', 'bytes': '125829120', 'MB': '120.00' },
+                                { 'dest_domain': 'pastebin.com', 'bytes': '47185920', 'MB': '45.00' },
+                                { 'dest_domain': 'outlook.office365.com', 'bytes': '52428800', 'MB': '50.00' }
+                            ],
+                            truncated: 'Showing 4 of 10 results'
+                        },
                         finding: 'Top destination: mega.nz (cloud storage) with 2.1GB. Also: drive.google.com (120MB), pastebin.com (45MB). These are file-sharing services!'
                     },
                     {
@@ -1143,6 +1496,15 @@ const TRAINING_DATA = {
                         hint: 'Look at content types, file extensions, or request patterns in proxy logs.',
                         spl: 'index=proxy user="mchen" dest_domain IN ("mega.nz", "drive.google.com") action=upload | stats count, sum(bytes_out) as bytes by content_type, filename | sort -bytes',
                         analysis: 'Identify what types of files are being exfiltrated.',
+                        output: {
+                            columns: ['content_type', 'filename', 'count', 'bytes'],
+                            rows: [
+                                { 'content_type': 'application/zip', 'filename': 'Customer_Database_Export.zip', 'count': '1', 'bytes': '1258291200' },
+                                { 'content_type': 'application/vnd.ms-excel', 'filename': 'Q4_Financial_Report.xlsx', 'count': '1', 'bytes': '524288000' },
+                                { 'content_type': 'application/vnd.ms-powerpoint', 'filename': 'Strategy_2024.pptx', 'count': '1', 'bytes': '314572800' },
+                                { 'content_type': 'application/pdf', 'filename': 'Employee_Directory.pdf', 'count': '1', 'bytes': '104857600' }
+                            ]
+                        },
                         finding: 'Uploaded files include: "Q4_Financial_Report.xlsx", "Customer_Database_Export.zip", "Strategy_2024.pptx". These are clearly sensitive documents!'
                     },
                     {
@@ -1150,6 +1512,15 @@ const TRAINING_DATA = {
                         hint: 'Create a timeline of the suspicious uploads.',
                         spl: 'index=proxy user="mchen" dest_domain="mega.nz" action=upload | timechart span=1h sum(bytes_out) as bytes_uploaded | eval MB=round(bytes_uploaded/1024/1024, 2)',
                         analysis: 'Shows when the uploads occurred.',
+                        output: {
+                            columns: ['_time', 'bytes_uploaded', 'MB'],
+                            rows: [
+                                { '_time': '2024-01-15 23:00', 'bytes_uploaded': '524288000', 'MB': '500.00' },
+                                { '_time': '2024-01-16 00:00', 'bytes_uploaded': '838860800', 'MB': '800.00' },
+                                { '_time': '2024-01-16 01:00', 'bytes_uploaded': '629145600', 'MB': '600.00' },
+                                { '_time': '2024-01-16 02:00', 'bytes_uploaded': '209715200', 'MB': '200.00' }
+                            ]
+                        },
                         finding: 'Bulk uploads occurred between 11 PM and 2 AM - outside business hours. User may have tried to avoid detection.'
                     }
                 ],
@@ -1244,6 +1615,409 @@ const TRAINING_DATA = {
                     }
                 ]
             }
+        },
+        {
+            id: 'int-006',
+            title: 'Correlating Data Sources',
+            type: 'tutorial',
+            difficulty: 'intermediate',
+            duration: '25 min',
+            objectives: [
+                'Choose the right correlation technique',
+                'Combine data from multiple indexes',
+                'Enrich events with context from other sources'
+            ],
+            tags: ['correlation', 'join', 'append', 'lookup', 'enrichment'],
+            description: 'Learn to combine data from different sources - a critical skill for security investigations.',
+            content: {
+                sections: [
+                    {
+                        title: 'Why Correlate?',
+                        body: `<p>Real investigations require data from multiple sources:</p>
+                        <ul>
+                            <li>Auth logs + Endpoint logs = Who did what on which machine</li>
+                            <li>Firewall + Proxy = Complete picture of network activity</li>
+                            <li>Events + Asset inventory = Business context</li>
+                        </ul>
+                        <p>SPL offers several ways to combine data. Choosing the right one matters for both correctness and performance.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'Method 1: Subsearch (for filtering)',
+                        body: `<p>Use subsearch when you want to <strong>filter</strong> one dataset based on another:</p>
+                        <p><em>"Show me web activity from IPs that had failed logins"</em></p>`,
+                        spl: `index=web [search index=auth action=failure | stats count by src_ip | where count > 10 | fields src_ip]
+| stats count by src_ip, uri_path`,
+                        explanation: 'Subsearch finds IPs with >10 failed logins, main search filters web logs to those IPs. Fast, but limited to ~10K results from subsearch.'
+                    },
+                    {
+                        title: 'Method 2: Join (for combining fields)',
+                        body: `<p>Use join when you need to <strong>add fields</strong> from one dataset to another:</p>
+                        <p><em>"Add user department to authentication events"</em></p>`,
+                        spl: `index=auth action=failure
+| join type=left user [search index=hr_data | fields user, department, manager]
+| stats count by user, department`,
+                        explanation: 'Left join keeps all auth events, adds department from HR data where user matches. Missing matches get null values.'
+                    },
+                    {
+                        title: 'Method 3: Lookup (for enrichment)',
+                        body: `<p>Use lookup for <strong>static reference data</strong> - it's faster than join:</p>
+                        <p><em>"Add threat intel context to firewall events"</em></p>`,
+                        spl: `index=firewall
+| lookup threat_intel.csv ip as dest_ip OUTPUT threat_type, severity, description
+| where isnotnull(threat_type)
+| stats count by dest_ip, threat_type, severity`,
+                        explanation: 'Lookups are optimized for enrichment from CSV files. Much faster than joining to a search.'
+                    },
+                    {
+                        title: 'Method 4: Append (for stacking)',
+                        body: `<p>Use append when you want to <strong>combine rows</strong> from different searches:</p>
+                        <p><em>"Show all login failures from both Windows and Linux"</em></p>`,
+                        spl: `index=wineventlog EventCode=4625 | stats count by user, src_ip | eval source="windows"
+| append [search index=linux_secure "authentication failure" | stats count by user, src_ip | eval source="linux"]
+| stats sum(count) as total_failures by user, src_ip`,
+                        explanation: 'Append stacks results vertically. Use when combining similar data from different indexes.'
+                    },
+                    {
+                        title: 'Method 5: Union (for combining with normalization)',
+                        body: `<p>Use union when datasets have <strong>different field names</strong>:</p>`,
+                        spl: `| union
+    [search index=proxy | fields _time, user, url as target, bytes]
+    [search index=firewall | fields _time, user, dest_ip as target, bytes_out as bytes]
+| stats sum(bytes) by user, target`,
+                        explanation: 'Union is like append but better handles field name differences. Normalizes at query time.'
+                    },
+                    {
+                        title: 'Decision Guide',
+                        body: `<table style="width:100%; border-collapse: collapse; margin: 10px 0;">
+                            <tr style="background: rgba(255,255,255,0.1);"><td style="padding:8px; border:1px solid #444;"><strong>Need</strong></td><td style="padding:8px; border:1px solid #444;"><strong>Use</strong></td><td style="padding:8px; border:1px solid #444;"><strong>Performance</strong></td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Filter events by values from another search</td><td style="padding:8px; border:1px solid #444;">Subsearch</td><td style="padding:8px; border:1px solid #444;">Good (if <10K values)</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Add fields from static CSV file</td><td style="padding:8px; border:1px solid #444;">Lookup</td><td style="padding:8px; border:1px solid #444;">Excellent</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Add fields from another search</td><td style="padding:8px; border:1px solid #444;">Join</td><td style="padding:8px; border:1px solid #444;">Moderate (memory heavy)</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Stack rows from different sources</td><td style="padding:8px; border:1px solid #444;">Append/Union</td><td style="padding:8px; border:1px solid #444;">Good</td></tr>
+                            <tr><td style="padding:8px; border:1px solid #444;">Compare datasets (what's in A not B)</td><td style="padding:8px; border:1px solid #444;">set diff</td><td style="padding:8px; border:1px solid #444;">Good</td></tr>
+                        </table>`,
+                        spl: null,
+                        explanation: null
+                    }
+                ]
+            }
+        },
+        {
+            id: 'int-007',
+            title: 'Phishing Investigation',
+            type: 'scenario',
+            difficulty: 'intermediate',
+            duration: '30 min',
+            objectives: [
+                'Trace phishing email to endpoint activity',
+                'Identify affected users and systems',
+                'Determine scope of compromise'
+            ],
+            tags: ['phishing', 'email', 'endpoint', 'incident-response'],
+            description: 'Investigate a reported phishing email and determine if anyone clicked.',
+            content: {
+                situation: `A user reports a suspicious email with subject "Urgent: Update Your Password" containing a link to "secure-login-update[.]com". Security received the report 2 hours after the email was sent. You need to determine how many users received it, who clicked, and if any systems are compromised.`,
+                steps: [
+                    {
+                        question: 'First, find all recipients of this phishing email in the mail logs.',
+                        hint: 'Search email logs for the subject line or sender domain.',
+                        spl: 'index=email subject="*Urgent*Update Your Password*" OR sender_domain="*secure-login-update*" | stats count by recipient, sender, subject, _time | sort _time',
+                        analysis: 'Identify all recipients to understand the scope of the campaign.',
+                        output: {
+                            columns: ['recipient', 'sender', 'subject', '_time'],
+                            rows: [
+                                { 'recipient': 'jsmith@company.com', 'sender': 'it-support@secure-login-update.com', 'subject': 'Urgent: Update Your Password', '_time': '2024-01-15 09:15:22' },
+                                { 'recipient': 'mwilson@company.com', 'sender': 'it-support@secure-login-update.com', 'subject': 'Urgent: Update Your Password', '_time': '2024-01-15 09:15:24' },
+                                { 'recipient': 'pjones@company.com', 'sender': 'it-support@secure-login-update.com', 'subject': 'Urgent: Update Your Password', '_time': '2024-01-15 09:15:25' },
+                                { 'recipient': 'rthompson@company.com', 'sender': 'it-support@secure-login-update.com', 'subject': 'Urgent: Update Your Password', '_time': '2024-01-15 09:15:27' },
+                                { 'recipient': 'admin@company.com', 'sender': 'it-support@secure-login-update.com', 'subject': 'Urgent: Update Your Password', '_time': '2024-01-15 09:15:28' }
+                            ],
+                            truncated: 'Showing 5 of 47 recipients'
+                        },
+                        finding: '47 employees received the phishing email within a 2-minute window at 9:15 AM. This was a targeted campaign against the organization.'
+                    },
+                    {
+                        question: 'Check proxy logs - did anyone click the malicious link?',
+                        hint: 'Look for the phishing domain in web proxy logs.',
+                        spl: 'index=proxy url="*secure-login-update*" | stats count, values(url) as urls by user, src_ip, _time | sort _time',
+                        analysis: 'Proxy logs show who visited the malicious domain.',
+                        output: {
+                            columns: ['user', 'src_ip', 'urls', '_time', 'count'],
+                            rows: [
+                                { 'user': 'mwilson', 'src_ip': '10.10.25.44', 'urls': 'https://secure-login-update.com/portal/login.php', '_time': '2024-01-15 09:23:17', 'count': '3' },
+                                { 'user': 'pjones', 'src_ip': '10.10.32.18', 'urls': 'https://secure-login-update.com/portal/login.php', '_time': '2024-01-15 09:45:08', 'count': '1' }
+                            ]
+                        },
+                        finding: 'Two users clicked the link: mwilson (3 visits) and pjones (1 visit). mwilson accessed it 8 minutes after receiving the email.'
+                    },
+                    {
+                        question: 'Did the users submit credentials? Look for POST requests or form submissions.',
+                        hint: 'Filter proxy logs for POST method or content submission to the phishing site.',
+                        spl: 'index=proxy url="*secure-login-update*" http_method=POST | table _time, user, src_ip, url, bytes_out, content_type',
+                        analysis: 'POST requests with data submission indicate credential entry.',
+                        output: {
+                            columns: ['_time', 'user', 'src_ip', 'url', 'bytes_out', 'content_type'],
+                            rows: [
+                                { '_time': '2024-01-15 09:24:02', 'user': 'mwilson', 'src_ip': '10.10.25.44', 'url': 'https://secure-login-update.com/portal/submit.php', 'bytes_out': '847', 'content_type': 'application/x-www-form-urlencoded' }
+                            ]
+                        },
+                        finding: 'CRITICAL: mwilson submitted data (847 bytes) to the phishing site. Credentials are likely compromised. pjones clicked but did not submit.'
+                    },
+                    {
+                        question: 'Check for post-compromise activity. Did anyone authenticate using mwilson\'s credentials from an unusual location?',
+                        hint: 'Look for authentication events for the compromised user from IPs other than their workstation.',
+                        spl: 'index=auth user="mwilson" action=success earliest="01/15/2024:09:24:00" | where src_ip!="10.10.25.44" | stats count by src_ip, app, action, _time',
+                        analysis: 'Look for successful logins from IPs other than the user\'s workstation.',
+                        output: {
+                            columns: ['src_ip', 'app', 'action', '_time', 'count'],
+                            rows: [
+                                { 'src_ip': '185.220.101.54', 'app': 'OWA', 'action': 'success', '_time': '2024-01-15 09:31:15', 'count': '1' },
+                                { 'src_ip': '185.220.101.54', 'app': 'VPN', 'action': 'success', '_time': '2024-01-15 09:35:42', 'count': '1' }
+                            ]
+                        },
+                        finding: 'CONFIRMED COMPROMISE: Within 7 minutes of credential theft, attacker logged into OWA and VPN from IP 185.220.101.54 (located in Netherlands based on GeoIP).'
+                    },
+                    {
+                        question: 'What did the attacker do after gaining access? Check email and file access.',
+                        hint: 'Look for email forwarding rules, sent emails, or file downloads from the compromised account.',
+                        spl: 'index=email (sender="mwilson@company.com" OR mailbox_rule_created=*) earliest="01/15/2024:09:30:00" | eval activity=coalesce(mailbox_rule_created, "sent email") | stats count by activity, recipient, subject | head 10',
+                        analysis: 'Check for data exfiltration or further phishing from compromised account.',
+                        output: {
+                            columns: ['activity', 'recipient', 'subject', 'count'],
+                            rows: [
+                                { 'activity': 'forward-to: attacker@protonmail.com', 'recipient': '-', 'subject': '-', 'count': '1' },
+                                { 'activity': 'sent email', 'recipient': 'finance-team@company.com', 'subject': 'Re: Q4 Wire Transfer', 'count': '1' },
+                                { 'activity': 'sent email', 'recipient': 'ceo@company.com', 'subject': 'Urgent: Account Access Required', 'count': '1' }
+                            ]
+                        },
+                        finding: 'Attacker created a forwarding rule to protonmail.com and sent targeted emails to finance team and CEO. This is Business Email Compromise (BEC) in progress!'
+                    }
+                ],
+                conclusion: `<strong>Investigation Complete - Active Incident</strong><br><br>
+                    <strong>Timeline:</strong><br>
+                    <ul>
+                        <li>9:15 AM - Phishing email sent to 47 employees</li>
+                        <li>9:23 AM - mwilson clicks link</li>
+                        <li>9:24 AM - mwilson submits credentials</li>
+                        <li>9:31 AM - Attacker logs into OWA from Netherlands</li>
+                        <li>9:35 AM - Attacker accesses VPN</li>
+                        <li>9:40 AM - Email forwarding rule created, BEC emails sent</li>
+                    </ul><br>
+                    <strong>Immediate Actions Required:</strong>
+                    <ol>
+                        <li>Disable mwilson's account immediately</li>
+                        <li>Remove the malicious forwarding rule</li>
+                        <li>Alert finance team and CEO about fraudulent emails</li>
+                        <li>Block IP 185.220.101.54 and domain secure-login-update.com</li>
+                        <li>Force password reset for mwilson</li>
+                        <li>Review all emails sent from mwilson's account since 9:30 AM</li>
+                        <li>Check pjones workstation for any compromise (clicked but didn't submit)</li>
+                    </ol>`
+            }
+        },
+        {
+            id: 'int-008',
+            title: 'Impossible Travel Detection',
+            type: 'scenario',
+            difficulty: 'intermediate',
+            duration: '25 min',
+            objectives: [
+                'Detect geographically impossible logins',
+                'Calculate travel velocity',
+                'Distinguish legitimate from suspicious patterns'
+            ],
+            tags: ['authentication', 'geo', 'account-compromise', 'travel'],
+            description: 'Find users authenticating from locations too far apart to travel between.',
+            content: {
+                situation: `Your organization has users worldwide, but you've been asked to detect "impossible travel" - when a user logs in from two geographic locations so far apart that physical travel between them in the time span would be impossible. This often indicates credential theft.`,
+                steps: [
+                    {
+                        question: 'First, let\'s get authentication events with geolocation data and calculate time between consecutive logins per user.',
+                        hint: 'Use iplocation to get geo data, then streamstats to calculate time delta.',
+                        spl: 'index=auth action=success | iplocation src_ip | where isnotnull(Country) | sort user, _time | streamstats window=2 current=t earliest(_time) as prev_time, earliest(City) as prev_city, earliest(Country) as prev_country, earliest(lat) as prev_lat, earliest(lon) as prev_lon by user | where isnotnull(prev_time) AND prev_time != _time',
+                        analysis: 'Get consecutive logins per user with their geographic coordinates.',
+                        output: {
+                            columns: ['_time', 'user', 'City', 'Country', 'prev_city', 'prev_country'],
+                            rows: [
+                                { '_time': '2024-01-15 14:23:17', 'user': 'jsmith', 'City': 'New York', 'Country': 'United States', 'prev_city': 'London', 'prev_country': 'United Kingdom' },
+                                { '_time': '2024-01-15 09:45:33', 'user': 'mwilson', 'City': 'Chicago', 'Country': 'United States', 'prev_city': 'Chicago', 'prev_country': 'United States' },
+                                { '_time': '2024-01-15 11:22:08', 'user': 'pjones', 'City': 'Tokyo', 'Country': 'Japan', 'prev_city': 'San Francisco', 'prev_country': 'United States' }
+                            ],
+                            truncated: 'Showing 3 of 1,247 login pairs'
+                        },
+                        finding: 'We now have consecutive logins per user with geographic info. Need to calculate distances and travel time.'
+                    },
+                    {
+                        question: 'Calculate the distance between consecutive logins and the time elapsed. Flag physically impossible travel.',
+                        hint: 'Use the Haversine formula or a distance approximation. 500 mph is a reasonable max air travel speed.',
+                        spl: `index=auth action=success | iplocation src_ip | where isnotnull(lat) | sort user, _time
+| streamstats window=2 current=t earliest(_time) as prev_time, earliest(lat) as prev_lat, earliest(lon) as prev_lon, earliest(City) as prev_city by user
+| where isnotnull(prev_time) AND prev_time != _time
+| eval time_hours = (_time - prev_time) / 3600
+| eval distance_km = 6371 * acos(cos(pi()/180 * lat) * cos(pi()/180 * prev_lat) * cos(pi()/180 * (lon - prev_lon)) + sin(pi()/180 * lat) * sin(pi()/180 * prev_lat))
+| eval required_speed_kmh = distance_km / time_hours
+| where required_speed_kmh > 800
+| table _time, user, prev_city, City, time_hours, distance_km, required_speed_kmh`,
+                        analysis: 'Calculate required travel speed. Flag if >800 km/h (faster than commercial flight).',
+                        output: {
+                            columns: ['_time', 'user', 'prev_city', 'City', 'time_hours', 'distance_km', 'required_speed_kmh'],
+                            rows: [
+                                { '_time': '2024-01-15 14:23:17', 'user': 'jsmith', 'prev_city': 'London', 'City': 'New York', 'time_hours': '0.5', 'distance_km': '5570', 'required_speed_kmh': '11140' },
+                                { '_time': '2024-01-15 11:22:08', 'user': 'pjones', 'prev_city': 'San Francisco', 'City': 'Tokyo', 'time_hours': '2.3', 'distance_km': '8270', 'required_speed_kmh': '3596' }
+                            ]
+                        },
+                        finding: 'Two impossible travel events detected: jsmith (London→NYC in 30 min = 11,140 km/h!) and pjones (SFO→Tokyo in 2.3 hours = 3,596 km/h). Both physically impossible.'
+                    },
+                    {
+                        question: 'Filter out VPN and known proxy IPs that might cause false positives.',
+                        hint: 'Exclude corporate VPN egress points and cloud provider IPs.',
+                        spl: `index=auth action=success | iplocation src_ip | where isnotnull(lat)
+| search NOT src_ip IN ("203.0.113.*", "198.51.100.*")
+| sort user, _time
+| streamstats window=2 current=t earliest(_time) as prev_time, earliest(lat) as prev_lat, earliest(lon) as prev_lon, earliest(City) as prev_city, earliest(src_ip) as prev_ip by user
+| where isnotnull(prev_time) AND prev_time != _time
+| eval time_hours = (_time - prev_time) / 3600
+| eval distance_km = 6371 * acos(cos(pi()/180 * lat) * cos(pi()/180 * prev_lat) * cos(pi()/180 * (lon - prev_lon)) + sin(pi()/180 * lat) * sin(pi()/180 * prev_lat))
+| where distance_km > 500 AND time_hours < 1
+| table _time, user, prev_city, prev_ip, City, src_ip, time_hours, distance_km`,
+                        analysis: 'Exclude VPN ranges and require significant distance (>500km) in short time (<1hr).',
+                        output: {
+                            columns: ['_time', 'user', 'prev_city', 'prev_ip', 'City', 'src_ip', 'time_hours', 'distance_km'],
+                            rows: [
+                                { '_time': '2024-01-15 14:23:17', 'user': 'jsmith', 'prev_city': 'London', 'prev_ip': '51.148.23.99', 'City': 'New York', 'src_ip': '74.125.23.100', 'time_hours': '0.5', 'distance_km': '5570' }
+                            ]
+                        },
+                        finding: 'After filtering VPN IPs, jsmith remains flagged. pjones was using corporate VPN (false positive). Focus investigation on jsmith.'
+                    },
+                    {
+                        question: 'Investigate jsmith\'s account - is this a compromised credential or legitimate activity?',
+                        hint: 'Check login patterns, user agent, and whether both sessions were active simultaneously.',
+                        spl: `index=auth user="jsmith" earliest="01/15/2024:13:00:00" latest="01/15/2024:15:00:00"
+| iplocation src_ip
+| stats count, values(action) as actions, values(user_agent) as agents, values(app) as apps by src_ip, City, Country
+| sort -count`,
+                        analysis: 'Look for anomalies in the login pattern and user agents.',
+                        output: {
+                            columns: ['src_ip', 'City', 'Country', 'actions', 'agents', 'apps', 'count'],
+                            rows: [
+                                { 'src_ip': '51.148.23.99', 'City': 'London', 'Country': 'United Kingdom', 'actions': 'success', 'agents': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'apps': 'Outlook, SharePoint', 'count': '12' },
+                                { 'src_ip': '74.125.23.100', 'City': 'New York', 'Country': 'United States', 'actions': 'success', 'agents': 'Python-urllib/3.9', 'apps': 'API', 'count': '47' }
+                            ]
+                        },
+                        finding: 'SUSPICIOUS: London IP uses normal browser for Outlook/SharePoint. NYC IP uses Python script for API access (47 calls in 2 hours). Different user agents + simultaneous sessions = likely credential theft.'
+                    },
+                    {
+                        question: 'What was the suspicious NYC session accessing?',
+                        hint: 'Look at API calls and data access patterns.',
+                        spl: 'index=api_access user="jsmith" src_ip="74.125.23.100" | stats count by endpoint, http_method, response_code | sort -count',
+                        analysis: 'Identify what data the suspicious session was accessing.',
+                        output: {
+                            columns: ['endpoint', 'http_method', 'response_code', 'count'],
+                            rows: [
+                                { 'endpoint': '/api/v1/users/list', 'http_method': 'GET', 'response_code': '200', 'count': '15' },
+                                { 'endpoint': '/api/v1/contacts/export', 'http_method': 'GET', 'response_code': '200', 'count': '12' },
+                                { 'endpoint': '/api/v1/documents/search', 'http_method': 'GET', 'response_code': '200', 'count': '20' }
+                            ]
+                        },
+                        finding: 'Attacker is using API to enumerate users, export contacts, and search documents. This is systematic data exfiltration using stolen credentials.'
+                    }
+                ],
+                conclusion: `<strong>Investigation Complete - Credential Compromise Confirmed</strong><br><br>
+                    <strong>Finding:</strong> jsmith's credentials are being used simultaneously from London (legitimate) and New York (attacker).<br><br>
+                    <strong>Evidence:</strong>
+                    <ul>
+                        <li>Impossible travel: London → NYC in 30 minutes</li>
+                        <li>Different user agents: Browser (legitimate) vs Python script (attacker)</li>
+                        <li>Simultaneous active sessions</li>
+                        <li>NYC session performing bulk API data extraction</li>
+                    </ul><br>
+                    <strong>Actions:</strong>
+                    <ol>
+                        <li>Revoke all active sessions for jsmith</li>
+                        <li>Force password reset and MFA re-enrollment</li>
+                        <li>Block IP 74.125.23.100</li>
+                        <li>Review all API access from that IP</li>
+                        <li>Check for data exfiltration (contacts export, document downloads)</li>
+                        <li>Investigate how credentials were compromised (phishing, malware, reuse)</li>
+                    </ol>`
+            }
+        },
+        {
+            id: 'int-009',
+            title: 'Building Severity Scores',
+            type: 'challenge',
+            difficulty: 'intermediate',
+            duration: '20 min',
+            objectives: [
+                'Use conditional logic to categorize events',
+                'Build composite risk scores',
+                'Prioritize alerts effectively'
+            ],
+            tags: ['eval', 'case', 'scoring', 'prioritization', 'alerting'],
+            description: 'Learn to build severity and risk scores using conditional logic.',
+            content: {
+                problem: 'Your SOC receives too many alerts. Build a severity scoring system for firewall events that considers: bytes transferred (data exfiltration risk), destination reputation (threat intel), time of day (after-hours is suspicious), and connection frequency (scanning behavior). Output events with a composite score sorted by highest risk.',
+                hints: [
+                    'Use case() for multi-condition severity levels',
+                    'Create individual scores for each factor, then combine them',
+                    'eval can reference previously defined fields in the same command',
+                    'Use strftime to check time of day'
+                ],
+                solution: {
+                    spl: `index=firewall action=allowed
+| lookup threat_intel.csv ip as dest_ip OUTPUT threat_score
+| eval threat_score = coalesce(threat_score, 0)
+| eval hour = strftime(_time, "%H")
+| eval bytes_score = case(
+    bytes_out > 100000000, 4,
+    bytes_out > 10000000, 3,
+    bytes_out > 1000000, 2,
+    bytes_out > 100000, 1,
+    true(), 0)
+| eval time_score = if(hour >= 22 OR hour < 6, 2, 0)
+| eval dest_score = case(
+    threat_score >= 80, 4,
+    threat_score >= 50, 3,
+    threat_score >= 20, 2,
+    threat_score > 0, 1,
+    true(), 0)
+| stats count as connections, sum(bytes_out) as total_bytes, max(bytes_score) as bytes_score, max(time_score) as time_score, max(dest_score) as dest_score by src_ip, dest_ip
+| eval freq_score = case(connections > 1000, 3, connections > 100, 2, connections > 10, 1, true(), 0)
+| eval total_score = bytes_score + time_score + dest_score + freq_score
+| eval severity = case(total_score >= 8, "critical", total_score >= 5, "high", total_score >= 3, "medium", true(), "low")
+| where severity IN ("critical", "high")
+| sort -total_score
+| table src_ip, dest_ip, severity, total_score, connections, total_bytes, bytes_score, time_score, dest_score, freq_score`,
+                    explanation: 'We build individual scores for each risk factor (bytes, time, threat intel, frequency) on a consistent scale (0-4). Then combine them into a total score and map to severity levels. This creates a prioritized, explainable alert queue.'
+                },
+                variations: [
+                    {
+                        description: 'Add geographic risk (connections to high-risk countries):',
+                        spl: `... | iplocation dest_ip
+| eval geo_score = case(
+    Country IN ("Russia", "China", "North Korea", "Iran"), 3,
+    Country IN ("Ukraine", "Romania", "Brazil"), 2,
+    isnull(Country), 1,
+    true(), 0)
+| eval total_score = bytes_score + time_score + dest_score + freq_score + geo_score`
+                    },
+                    {
+                        description: 'Weight certain factors more heavily:',
+                        spl: '... | eval total_score = (bytes_score * 2) + time_score + (dest_score * 3) + freq_score'
+                    },
+                    {
+                        description: 'Add user context for insider threat scoring:',
+                        spl: `... | lookup user_risk.csv user OUTPUT user_risk_score, department
+| eval user_score = case(department="Finance" AND bytes_out > 10000000, 3, user_risk_score > 50, 2, true(), 0)`
+                    },
+                    {
+                        description: 'Create severity with icons for dashboards:',
+                        spl: '... | eval severity_icon = case(severity="critical", "🔴", severity="high", "🟠", severity="medium", "🟡", true(), "🟢")'
+                    }
+                ]
+            }
         }
     ],
 
@@ -1311,6 +2085,17 @@ const TRAINING_DATA = {
                         hint: 'Filter to HTTPS (port 443) to external IPs and count connections per pair.',
                         spl: 'index=firewall dest_port=443 NOT dest_ip="10.*" NOT dest_ip="192.168.*" NOT dest_ip="172.16.*" | stats count by src_ip, dest_ip | where count > 20 | sort -count',
                         analysis: 'Find frequently communicating pairs.',
+                        output: {
+                            columns: ['src_ip', 'dest_ip', 'count'],
+                            rows: [
+                                { 'src_ip': '10.10.25.44', 'dest_ip': '185.220.101.54', 'count': '288' },
+                                { 'src_ip': '10.10.33.78', 'dest_ip': '91.219.237.99', 'count': '144' },
+                                { 'src_ip': '10.10.42.19', 'dest_ip': '45.33.32.156', 'count': '96' },
+                                { 'src_ip': '10.10.15.22', 'dest_ip': '142.250.185.46', 'count': '87' },
+                                { 'src_ip': '10.10.18.55', 'dest_ip': '13.107.42.14', 'count': '72' }
+                            ],
+                            truncated: 'Showing 5 of 847 IP pairs'
+                        },
                         finding: 'Found 847 IP pairs with 20+ connections today. Need to narrow down to those with beacon-like regularity.'
                     },
                     {
@@ -1318,6 +2103,12 @@ const TRAINING_DATA = {
                         hint: 'Use streamstats to calculate time between events, then look at consistency.',
                         spl: 'index=firewall dest_port=443 src_ip="10.10.25.44" dest_ip="185.220.101.54" | sort _time | streamstats window=2 current=t earliest(_time) as prev_time by src_ip, dest_ip | eval delta=_time-prev_time | where isnotnull(delta) | stats avg(delta) as avg_delta, stdev(delta) as stdev_delta, count | eval consistency=stdev_delta/avg_delta',
                         analysis: 'Low consistency ratio (stdev/avg) means regular timing - beacon behavior.',
+                        output: {
+                            columns: ['avg_delta', 'stdev_delta', 'count', 'consistency'],
+                            rows: [
+                                { 'avg_delta': '300.12', 'stdev_delta': '15.03', 'count': '287', 'consistency': '0.050' }
+                            ]
+                        },
                         finding: 'This pair shows avg_delta=300 seconds (5 minutes) with stdev=15 (consistency=0.05). Extremely regular - strong beacon indicator!'
                     },
                     {
@@ -1325,6 +2116,15 @@ const TRAINING_DATA = {
                         hint: 'Apply the timing analysis to all pairs with sufficient data points.',
                         spl: 'index=firewall dest_port=443 NOT dest_ip="10.*" NOT dest_ip="192.168.*" | sort _time | streamstats window=2 current=t earliest(_time) as prev_time by src_ip, dest_ip | eval delta=_time-prev_time | where isnotnull(delta) AND delta > 60 AND delta < 3600 | stats avg(delta) as avg_delta, stdev(delta) as stdev_delta, count by src_ip, dest_ip | where count > 10 | eval consistency=round(stdev_delta/avg_delta, 3) | where consistency < 0.15 | sort consistency | head 20',
                         analysis: 'Find pairs with high count, 1-60 minute intervals, and consistency < 0.15.',
+                        output: {
+                            columns: ['src_ip', 'dest_ip', 'avg_delta', 'stdev_delta', 'count', 'consistency'],
+                            rows: [
+                                { 'src_ip': '10.10.25.44', 'dest_ip': '185.220.101.54', 'avg_delta': '300.12', 'stdev_delta': '15.03', 'count': '287', 'consistency': '0.050' },
+                                { 'src_ip': '10.10.33.78', 'dest_ip': '91.219.237.99', 'avg_delta': '600.45', 'stdev_delta': '48.04', 'count': '143', 'consistency': '0.080' },
+                                { 'src_ip': '10.10.42.19', 'dest_ip': '45.33.32.156', 'avg_delta': '900.22', 'stdev_delta': '99.02', 'count': '95', 'consistency': '0.110' }
+                            ],
+                            truncated: 'Showing top 3 beacon candidates'
+                        },
                         finding: 'Top 3 beacon candidates:\n1. 10.10.25.44 → 185.220.101.54: 5-min interval, consistency=0.05\n2. 10.10.33.78 → 91.219.237.99: 10-min interval, consistency=0.08\n3. 10.10.42.19 → 45.33.32.156: 15-min interval, consistency=0.11'
                     },
                     {
@@ -1332,6 +2132,14 @@ const TRAINING_DATA = {
                         hint: 'Cross-reference with threat intel and check reverse DNS.',
                         spl: 'index=firewall dest_ip IN ("185.220.101.54", "91.219.237.99", "45.33.32.156") | iplocation dest_ip | lookup threat_intel_ip ip as dest_ip OUTPUT threat_type, malware_family | stats count, values(src_ip) as infected_hosts by dest_ip, dest_country, threat_type, malware_family',
                         analysis: 'Enrich beacon destinations with context.',
+                        output: {
+                            columns: ['dest_ip', 'dest_country', 'threat_type', 'malware_family', 'count', 'infected_hosts'],
+                            rows: [
+                                { 'dest_ip': '185.220.101.54', 'dest_country': 'Netherlands', 'threat_type': 'C2', 'malware_family': 'Cobalt Strike', 'count': '288', 'infected_hosts': '10.10.25.44' },
+                                { 'dest_ip': '91.219.237.99', 'dest_country': 'Germany', 'threat_type': 'TOR Exit', 'malware_family': '-', 'count': '144', 'infected_hosts': '10.10.33.78' },
+                                { 'dest_ip': '45.33.32.156', 'dest_country': 'United States', 'threat_type': '-', 'malware_family': '-', 'count': '96', 'infected_hosts': '10.10.42.19' }
+                            ]
+                        },
                         finding: 'CONFIRMED: 185.220.101.54 matches known Cobalt Strike C2 infrastructure in threat intel. 91.219.237.99 is TOR exit node. 45.33.32.156 is clean (legitimate SaaS - false positive).'
                     },
                     {
@@ -1339,6 +2147,17 @@ const TRAINING_DATA = {
                         hint: 'Look at data volume over time for the malicious connection.',
                         spl: 'index=firewall dest_ip="185.220.101.54" | timechart span=1h sum(bytes_in) as bytes_in, sum(bytes_out) as bytes_out | eval in_MB=round(bytes_in/1024/1024,2), out_MB=round(bytes_out/1024/1024,2)',
                         analysis: 'Analyze data transfer patterns to/from C2.',
+                        output: {
+                            columns: ['_time', 'bytes_in', 'bytes_out', 'in_MB', 'out_MB'],
+                            rows: [
+                                { '_time': '2024-01-15 00:00', 'bytes_in': '52428', 'bytes_out': '5242', 'in_MB': '0.05', 'out_MB': '0.01' },
+                                { '_time': '2024-01-15 01:00', 'bytes_in': '48576', 'bytes_out': '4857', 'in_MB': '0.05', 'out_MB': '0.00' },
+                                { '_time': '2024-01-15 02:00', 'bytes_in': '51200', 'bytes_out': '5120', 'in_MB': '0.05', 'out_MB': '0.00' },
+                                { '_time': '2024-01-15 03:00', 'bytes_in': '102400', 'bytes_out': '47185920', 'in_MB': '0.10', 'out_MB': '45.00' },
+                                { '_time': '2024-01-15 04:00', 'bytes_in': '49152', 'bytes_out': '4915', 'in_MB': '0.05', 'out_MB': '0.00' }
+                            ],
+                            truncated: 'Showing 5 of 24 hours'
+                        },
                         finding: 'Pattern shows small outbound (commands ~5KB) but larger inbound (responses ~50KB). Also one spike of 45MB outbound at 3 AM - possible data exfiltration event!'
                     }
                 ],
@@ -1381,6 +2200,13 @@ const TRAINING_DATA = {
                         hint: 'Registry events with paths containing "Run" or "RunOnce" are persistence indicators.',
                         spl: 'index=sysmon EventCode=13 | where match(TargetObject, "(?i)(Run|RunOnce)") | stats count, values(Details) as commands by TargetObject, Image, user | sort -count',
                         analysis: 'Sysmon EventCode 13 is registry value set. We filter to Run keys.',
+                        output: {
+                            columns: ['TargetObject', 'Image', 'user', 'commands', 'count'],
+                            rows: [
+                                { 'TargetObject': 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsUpdater', 'Image': 'C:\\Windows\\System32\\reg.exe', 'user': 'admin_jmorgan', 'commands': 'C:\\Users\\Public\\updater.exe', 'count': '1' },
+                                { 'TargetObject': 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\SecurityHealth', 'Image': 'C:\\Windows\\System32\\reg.exe', 'user': 'SYSTEM', 'commands': 'C:\\Program Files\\Windows Defender\\MSASCuiL.exe', 'count': '1' }
+                            ]
+                        },
                         finding: 'Suspicious entry found: "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsUpdater" pointing to "C:\\Users\\Public\\updater.exe". This is NOT a Microsoft binary.'
                     },
                     {
@@ -1388,6 +2214,13 @@ const TRAINING_DATA = {
                         hint: 'Event 4698 is scheduled task creation. Look for unusual task paths or executables.',
                         spl: 'index=wineventlog EventCode=4698 | rex field=TaskContent "<Command>(?<command>[^<]+)</Command>" | rex field=TaskContent "<Arguments>(?<arguments>[^<]*)</Arguments>" | rex field=TaskContent "<UserId>(?<run_as>[^<]+)</UserId>" | stats count by TaskName, command, arguments, run_as, SubjectUserName | sort -count',
                         analysis: 'Parse scheduled task creation events to see what\'s being scheduled.',
+                        output: {
+                            columns: ['TaskName', 'command', 'arguments', 'run_as', 'SubjectUserName', 'count'],
+                            rows: [
+                                { 'TaskName': 'GoogleUpdate', 'command': 'C:\\Windows\\Temp\\update.exe', 'arguments': '-silent', 'run_as': 'SYSTEM', 'SubjectUserName': 'admin_jmorgan', 'count': '1' },
+                                { 'TaskName': 'MicrosoftEdgeUpdateTaskMachine', 'command': 'C:\\Program Files\\Microsoft\\EdgeUpdate\\MicrosoftEdgeUpdate.exe', 'arguments': '/c', 'run_as': 'SYSTEM', 'SubjectUserName': 'SYSTEM', 'count': '1' }
+                            ]
+                        },
                         finding: 'Suspicious task "GoogleUpdate" running C:\\Windows\\Temp\\update.exe as SYSTEM. Created by admin_jmorgan. Google doesn\'t put updates in TEMP!'
                     },
                     {
@@ -1395,6 +2228,12 @@ const TRAINING_DATA = {
                         hint: 'Event 4697 or 7045 indicates new service installation.',
                         spl: 'index=wineventlog EventCode IN (4697, 7045) | rex field=ServiceFileName "(?<service_path>[^\"]+)" | stats count by ServiceName, ServiceType, service_path, SubjectUserName | where NOT match(service_path, "(?i)(System32|SysWOW64|Program Files)")',
                         analysis: 'New services running from unusual paths are suspicious.',
+                        output: {
+                            columns: ['ServiceName', 'ServiceType', 'service_path', 'SubjectUserName', 'count'],
+                            rows: [
+                                { 'ServiceName': 'WindowsHelper', 'ServiceType': 'user mode service', 'service_path': 'C:\\ProgramData\\helper.exe', 'SubjectUserName': 'admin_jmorgan', 'count': '1' }
+                            ]
+                        },
                         finding: 'Service "WindowsHelper" installed from "C:\\ProgramData\\helper.exe" - services should NOT run from ProgramData!'
                     },
                     {
@@ -1402,6 +2241,14 @@ const TRAINING_DATA = {
                         hint: 'Look at timestamps across all three persistence types.',
                         spl: '(index=sysmon EventCode=13 TargetObject="*Run*WindowsUpdater*") OR (index=wineventlog EventCode=4698 TaskName="GoogleUpdate") OR (index=wineventlog EventCode=7045 ServiceName="WindowsHelper") | eval persistence_type=case(EventCode=13, "Registry", EventCode=4698, "ScheduledTask", EventCode=7045, "Service") | table _time, persistence_type, host, SubjectUserName | sort _time',
                         analysis: 'Timeline the persistence installations.',
+                        output: {
+                            columns: ['_time', 'persistence_type', 'host', 'SubjectUserName'],
+                            rows: [
+                                { '_time': '2024-01-15 02:41:17', 'persistence_type': 'Registry', 'host': 'WKS-HR-022', 'SubjectUserName': 'admin_jmorgan' },
+                                { '_time': '2024-01-15 02:43:08', 'persistence_type': 'ScheduledTask', 'host': 'WKS-HR-022', 'SubjectUserName': 'admin_jmorgan' },
+                                { '_time': '2024-01-15 02:45:22', 'persistence_type': 'Service', 'host': 'WKS-HR-022', 'SubjectUserName': 'admin_jmorgan' }
+                            ]
+                        },
                         finding: 'All three created within 4 minutes of each other (2:41-2:45 AM) by admin_jmorgan. This is a coordinated persistence installation!'
                     },
                     {
@@ -1409,6 +2256,14 @@ const TRAINING_DATA = {
                         hint: 'Look for network connections from these suspicious paths.',
                         spl: 'index=sysmon EventCode=3 | where match(Image, "(?i)(updater|update|helper)\\.exe") | stats count, values(DestinationIp) as dest_ips, values(DestinationPort) as dest_ports by Image | where count > 0',
                         analysis: 'Check network activity from suspected malicious binaries.',
+                        output: {
+                            columns: ['Image', 'dest_ips', 'dest_ports', 'count'],
+                            rows: [
+                                { 'Image': 'C:\\Users\\Public\\updater.exe', 'dest_ips': '185.220.101.54', 'dest_ports': '443', 'count': '47' },
+                                { 'Image': 'C:\\Windows\\Temp\\update.exe', 'dest_ips': '185.220.101.54', 'dest_ports': '443', 'count': '23' },
+                                { 'Image': 'C:\\ProgramData\\helper.exe', 'dest_ips': '185.220.101.54', 'dest_ports': '443', 'count': '31' }
+                            ]
+                        },
                         finding: 'Confirmed: All three executables connecting to 185.220.101.54:443 - same C2 identified in beaconing detection!'
                     }
                 ],
@@ -1501,6 +2356,15 @@ const TRAINING_DATA = {
                         hint: 'Look for file creation or process execution events around 4:32 AM.',
                         spl: 'index=sysmon host="FILESRV-02" EventCode IN (1, 11) earliest="01/15/2024:04:25:00" latest="01/15/2024:04:35:00" | eval event_type=case(EventCode=1, "ProcessCreate", EventCode=11, "FileCreate") | table _time, event_type, Image, ParentImage, TargetFilename, User | sort _time',
                         analysis: 'Look for the ransomware execution event.',
+                        output: {
+                            columns: ['_time', 'event_type', 'Image', 'ParentImage', 'TargetFilename', 'User'],
+                            rows: [
+                                { '_time': '2024-01-15 04:31:42', 'event_type': 'ProcessCreate', 'Image': 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', 'ParentImage': 'C:\\Windows\\System32\\services.exe', 'TargetFilename': '-', 'User': 'SYSTEM' },
+                                { '_time': '2024-01-15 04:31:45', 'event_type': 'ProcessCreate', 'Image': 'C:\\Windows\\Temp\\locker.exe', 'ParentImage': 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', 'TargetFilename': '-', 'User': 'SYSTEM' },
+                                { '_time': '2024-01-15 04:31:47', 'event_type': 'FileCreate', 'Image': 'C:\\Windows\\Temp\\locker.exe', 'ParentImage': '-', 'TargetFilename': 'D:\\Shares\\Finance\\README_ENCRYPTED.txt', 'User': 'SYSTEM' }
+                            ],
+                            truncated: 'Showing 3 of 847 events'
+                        },
                         finding: 'Ransomware "locker.exe" launched at 4:31:45 from C:\\Windows\\Temp\\. Parent process: powershell.exe running as SYSTEM. PowerShell was spawned by services.exe - indicates scheduled task or service abuse.'
                     },
                     {
@@ -1508,6 +2372,14 @@ const TRAINING_DATA = {
                         hint: 'Look for file creation of locker.exe and network connections to the server.',
                         spl: 'index=sysmon host="FILESRV-02" EventCode=11 TargetFilename="*locker.exe" | append [search index=sysmon host="FILESRV-02" EventCode=3 DestinationPort IN (445, 139, 5985)] | sort _time | table _time, EventCode, Image, TargetFilename, SourceIp, DestinationPort, User',
                         analysis: 'Track how the ransomware binary arrived.',
+                        output: {
+                            columns: ['_time', 'EventCode', 'Image', 'TargetFilename', 'SourceIp', 'DestinationPort', 'User'],
+                            rows: [
+                                { '_time': '2024-01-15 04:14:22', 'EventCode': '3', 'Image': 'System', 'TargetFilename': '-', 'SourceIp': '10.10.25.44', 'DestinationPort': '5985', 'User': 'SYSTEM' },
+                                { '_time': '2024-01-15 04:14:25', 'EventCode': '3', 'Image': 'C:\\Windows\\System32\\wsmprovhost.exe', 'TargetFilename': '-', 'SourceIp': '10.10.25.44', 'DestinationPort': '5985', 'User': 'admin_rthompson' },
+                                { '_time': '2024-01-15 04:15:03', 'EventCode': '11', 'Image': 'C:\\Windows\\System32\\wbem\\wmiprvse.exe', 'TargetFilename': 'C:\\Windows\\Temp\\locker.exe', 'SourceIp': '-', 'DestinationPort': '-', 'User': 'SYSTEM' }
+                            ]
+                        },
                         finding: 'locker.exe created at 4:15 AM by wmiprvse.exe (WMI). Inbound WMI connection (port 5985) from 10.10.25.44 at 4:14. That\'s the source of lateral movement!'
                     },
                     {
@@ -1515,6 +2387,16 @@ const TRAINING_DATA = {
                         hint: 'Look for suspicious activity on the attacking workstation.',
                         spl: 'index=sysmon host="10.10.25.44" earliest="01/15/2024:00:00:00" latest="01/15/2024:04:30:00" EventCode IN (1, 3, 11) | where NOT match(Image, "(?i)(svchost|csrss|lsass|explorer|chrome|edge)") | stats count by Image, ParentImage | sort -count | head 20',
                         analysis: 'Profile unusual process activity on patient zero.',
+                        output: {
+                            columns: ['Image', 'ParentImage', 'count'],
+                            rows: [
+                                { 'Image': 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', 'ParentImage': 'C:\\Windows\\System32\\cmd.exe', 'count': '47' },
+                                { 'Image': 'C:\\Users\\rthompson\\AppData\\Local\\Temp\\mimikatz.exe', 'ParentImage': 'C:\\Windows\\System32\\cmd.exe', 'count': '12' },
+                                { 'Image': 'C:\\Windows\\System32\\wbem\\wmic.exe', 'ParentImage': 'C:\\Windows\\System32\\cmd.exe', 'count': '8' },
+                                { 'Image': 'C:\\Windows\\System32\\cmd.exe', 'ParentImage': 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', 'count': '6' }
+                            ],
+                            truncated: 'Showing 4 of 20 results'
+                        },
                         finding: 'Suspicious activity: mimikatz.exe, powershell encoded commands, wmic.exe remote execution. Classic attack toolkit. Earliest malicious activity: 1:47 AM.'
                     },
                     {
@@ -1522,6 +2404,13 @@ const TRAINING_DATA = {
                         hint: 'Look at email, web browsing, or VPN access for the user of that workstation.',
                         spl: 'index=proxy src_ip="10.10.25.44" earliest="01/14/2024:08:00:00" latest="01/15/2024:02:00:00" | where match(url, "(?i)(\\.exe|\\.dll|\\.zip|\\.js|\\.hta)") OR category="malware" | table _time, url, content_type, bytes, category, user',
                         analysis: 'Look for initial payload download.',
+                        output: {
+                            columns: ['_time', 'url', 'content_type', 'bytes', 'category', 'user'],
+                            rows: [
+                                { '_time': '2024-01-14 23:47:15', 'url': 'hxxps://malicious-site[.]com/docs/invoice_12847.zip', 'content_type': 'application/zip', 'bytes': '245760', 'category': 'uncategorized', 'user': 'rthompson' },
+                                { '_time': '2024-01-14 23:52:08', 'url': 'hxxps://cdn-payload[.]com/update.dll', 'content_type': 'application/octet-stream', 'bytes': '524288', 'category': 'malware', 'user': 'rthompson' }
+                            ]
+                        },
                         finding: 'At 11:47 PM on Jan 14, user rthompson downloaded "invoice_12847.zip" from hxxps://malicious-site[.]com. EDR logs show the ZIP contained a macro-enabled document.'
                     },
                     {
@@ -1529,6 +2418,18 @@ const TRAINING_DATA = {
                         hint: 'Track all lateral movement from patient zero using authentication and network logs.',
                         spl: 'index=wineventlog EventCode=4624 LogonType=3 IpAddress="10.10.25.44" earliest="01/15/2024:00:00:00" | append [search index=sysmon EventCode=3 SourceIp="10.10.25.44" earliest="01/15/2024:00:00:00" | where match(DestinationPort, "(445|139|5985|5986|3389)")] | stats earliest(_time) as first_access, latest(_time) as last_access, dc(DestinationPort) as ports by ComputerName, TargetUserName | sort first_access',
                         analysis: 'Full lateral movement map.',
+                        output: {
+                            columns: ['ComputerName', 'TargetUserName', 'first_access', 'last_access', 'ports'],
+                            rows: [
+                                { 'ComputerName': 'WKS-FIN-04', 'TargetUserName': 'admin_rthompson', 'first_access': '2024-01-15 02:15:22', 'last_access': '2024-01-15 02:18:45', 'ports': '2' },
+                                { 'ComputerName': 'WKS-HR-22', 'TargetUserName': 'admin_rthompson', 'first_access': '2024-01-15 02:22:08', 'last_access': '2024-01-15 02:25:33', 'ports': '1' },
+                                { 'ComputerName': 'FILESRV-01', 'TargetUserName': 'admin_rthompson', 'first_access': '2024-01-15 02:45:17', 'last_access': '2024-01-15 03:12:44', 'ports': '2' },
+                                { 'ComputerName': 'DC-CORP-01', 'TargetUserName': 'admin_rthompson', 'first_access': '2024-01-15 02:48:55', 'last_access': '2024-01-15 03:47:22', 'ports': '3' },
+                                { 'ComputerName': 'SQLDB-PROD', 'TargetUserName': 'admin_rthompson', 'first_access': '2024-01-15 03:15:08', 'last_access': '2024-01-15 03:45:19', 'ports': '2' },
+                                { 'ComputerName': 'BACKUP-01', 'TargetUserName': 'admin_rthompson', 'first_access': '2024-01-15 03:52:33', 'last_access': '2024-01-15 04:02:11', 'ports': '1' },
+                                { 'ComputerName': 'FILESRV-02', 'TargetUserName': 'admin_rthompson', 'first_access': '2024-01-15 04:14:22', 'last_access': '2024-01-15 04:31:45', 'ports': '2' }
+                            ]
+                        },
                         finding: 'Attacker accessed 7 systems: WKS-FIN-04, WKS-HR-22, FILESRV-01, FILESRV-02, DC-CORP-01, SQLDB-PROD, BACKUP-01. Domain controller was compromised!'
                     }
                 ],
@@ -1568,6 +2469,13 @@ const TRAINING_DATA = {
                         hint: 'Look for legitimate tools (certutil, bitsadmin, mshta) with unusual parent processes.',
                         spl: 'index=sysmon EventCode=1 Image IN ("*\\\\certutil.exe", "*\\\\bitsadmin.exe", "*\\\\mshta.exe", "*\\\\regsvr32.exe", "*\\\\rundll32.exe", "*\\\\msiexec.exe") | where NOT match(ParentImage, "(?i)(explorer|services|svchost|cmd|powershell)") | stats count, values(CommandLine) as commands by Image, ParentImage, User | sort -count',
                         analysis: 'Find LOLBins spawned by unusual parents.',
+                        output: {
+                            columns: ['Image', 'ParentImage', 'User', 'commands', 'count'],
+                            rows: [
+                                { 'Image': 'C:\\Windows\\System32\\certutil.exe', 'ParentImage': 'C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE', 'User': 'jsmith', 'commands': 'certutil -urlcache -split -f hxxps://cdn-update[.]com/font.txt C:\\Users\\jsmith\\AppData\\Local\\Temp\\font.txt', 'count': '3' },
+                                { 'Image': 'C:\\Windows\\System32\\rundll32.exe', 'ParentImage': 'C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE', 'User': 'mwilson', 'commands': 'rundll32.exe C:\\Users\\mwilson\\AppData\\Local\\Temp\\update.dll,Initialize', 'count': '2' }
+                            ]
+                        },
                         finding: 'Suspicious: certutil.exe spawned by WINWORD.EXE on 3 systems. This indicates Office macro downloading payloads using certutil.'
                     },
                     {
@@ -1575,6 +2483,15 @@ const TRAINING_DATA = {
                         hint: 'Parse the certutil command line for URLs or file operations.',
                         spl: 'index=sysmon EventCode=1 Image="*\\\\certutil.exe" ParentImage="*\\\\WINWORD.EXE" | rex field=CommandLine "(?<url>https?://[^\\s]+)" | rex field=CommandLine "-decode\\s+(?<encoded_file>[^\\s]+)\\s+(?<decoded_file>[^\\s]+)" | table _time, host, User, url, encoded_file, decoded_file, CommandLine',
                         analysis: 'Extract the payload details.',
+                        output: {
+                            columns: ['_time', 'host', 'User', 'url', 'encoded_file', 'decoded_file'],
+                            rows: [
+                                { '_time': '2024-01-15 09:23:17', 'host': 'WKS-SALES-04', 'User': 'jsmith', 'url': 'hxxps://cdn-update[.]com/font.txt', 'encoded_file': '-', 'decoded_file': '-' },
+                                { '_time': '2024-01-15 09:23:45', 'host': 'WKS-SALES-04', 'User': 'jsmith', 'url': '-', 'encoded_file': 'C:\\...\\Temp\\font.txt', 'decoded_file': 'C:\\...\\Temp\\update.dll' },
+                                { '_time': '2024-01-15 10:15:33', 'host': 'WKS-MKT-07', 'User': 'mwilson', 'url': 'hxxps://cdn-update[.]com/font.txt', 'encoded_file': '-', 'decoded_file': '-' },
+                                { '_time': '2024-01-15 11:42:08', 'host': 'WKS-HR-12', 'User': 'pjones', 'url': 'hxxps://cdn-update[.]com/font.txt', 'encoded_file': '-', 'decoded_file': '-' }
+                            ]
+                        },
                         finding: 'certutil downloading from hxxps://cdn-update[.]com/font.txt and decoding to C:\\Users\\[user]\\AppData\\Local\\Temp\\update.dll. Classic base64 encoded payload technique!'
                     },
                     {
@@ -1582,6 +2499,13 @@ const TRAINING_DATA = {
                         hint: 'Look for rundll32 or regsvr32 loading this DLL.',
                         spl: 'index=sysmon (EventCode=1 Image="*rundll32.exe" CommandLine="*update.dll*") OR (EventCode=7 ImageLoaded="*update.dll*") | table _time, host, EventCode, Image, ImageLoaded, CommandLine, User | sort _time',
                         analysis: 'Track DLL execution.',
+                        output: {
+                            columns: ['_time', 'host', 'EventCode', 'Image', 'ImageLoaded', 'CommandLine', 'User'],
+                            rows: [
+                                { '_time': '2024-01-15 09:24:02', 'host': 'WKS-SALES-04', 'EventCode': '1', 'Image': 'C:\\Windows\\System32\\rundll32.exe', 'ImageLoaded': '-', 'CommandLine': 'rundll32.exe update.dll,Initialize', 'User': 'jsmith' },
+                                { '_time': '2024-01-15 09:24:05', 'host': 'WKS-SALES-04', 'EventCode': '7', 'Image': 'C:\\Windows\\System32\\svchost.exe', 'ImageLoaded': 'C:\\...\\Temp\\update.dll', 'CommandLine': '-', 'User': 'SYSTEM' }
+                            ]
+                        },
                         finding: 'rundll32.exe loading update.dll with export function "Initialize". DLL also loaded by svchost.exe - indicates process injection!'
                     },
                     {
@@ -1589,6 +2513,12 @@ const TRAINING_DATA = {
                         hint: 'Sysmon EventCode 8 (CreateRemoteThread) and 10 (ProcessAccess) show injection.',
                         spl: 'index=sysmon EventCode IN (8, 10) SourceImage="*\\\\svchost.exe" | where NOT match(TargetImage, "(?i)(svchost|csrss|lsass|services)") | stats count, values(TargetImage) as targets by SourceImage, GrantedAccess | where count > 0',
                         analysis: 'Detect process injection.',
+                        output: {
+                            columns: ['SourceImage', 'GrantedAccess', 'targets', 'count'],
+                            rows: [
+                                { 'SourceImage': 'C:\\Windows\\System32\\svchost.exe', 'GrantedAccess': '0x1F0FFF', 'targets': 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe, C:\\Users\\jsmith\\AppData\\Local\\Microsoft\\Teams\\current\\Teams.exe', 'count': '12' }
+                            ]
+                        },
                         finding: 'svchost.exe injecting into multiple processes including chrome.exe, teams.exe. GrantedAccess 0x1F0FFF indicates full process access - this is malware!'
                     },
                     {
@@ -1596,6 +2526,13 @@ const TRAINING_DATA = {
                         hint: 'Look for unusual network connections from processes that normally don\'t connect to the internet.',
                         spl: 'index=sysmon EventCode=3 Image IN ("*\\\\svchost.exe", "*\\\\chrome.exe") | where NOT match(DestinationIp, "^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1]))") | stats count, dc(DestinationIp) as unique_dests, values(DestinationIp) as dest_ips by Image, host | where unique_dests > 5 AND unique_dests < 20',
                         analysis: 'Find C2 connections from injected processes.',
+                        output: {
+                            columns: ['Image', 'host', 'unique_dests', 'dest_ips', 'count'],
+                            rows: [
+                                { 'Image': 'C:\\Windows\\System32\\svchost.exe', 'host': 'WKS-SALES-04', 'unique_dests': '8', 'dest_ips': '185.220.101.54, 91.219.237.99, 45.33.32.156, 104.21.44.108, 172.67.182.31, 23.227.38.65, 143.204.215.14, 52.84.150.11', 'count': '156' },
+                                { 'Image': 'C:\\Windows\\System32\\svchost.exe', 'host': 'WKS-MKT-07', 'unique_dests': '6', 'dest_ips': '185.220.101.54, 91.219.237.99, 104.21.44.108, 172.67.182.31, 23.227.38.65, 143.204.215.14', 'count': '89' }
+                            ]
+                        },
                         finding: 'Injected svchost.exe connecting to 8 unique IPs, all on port 443. One IP matches "cdn-update[.]com" - the same domain used for payload delivery. C2 confirmed!'
                     }
                 ],
@@ -2045,123 +2982,102 @@ function renderScenarioContent(content) {
     `;
 
     const stepsHtml = content.steps.map((step, index) => `
-        <div class="scenario-step ${index === 0 ? 'current' : ''}" data-step="${index}">
-            <div class="scenario-step-header">
-                <span class="scenario-step-number">${index + 1}</span>
-                <p class="scenario-step-question">${step.question}</p>
+        <div class="scenario-card" data-step="${index}">
+            <div class="scenario-card-header">
+                <span class="scenario-card-number">${index + 1}</span>
+                <p class="scenario-card-question">${step.question}</p>
+                <span class="scenario-card-toggle">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
             </div>
-            <div class="scenario-step-content">
-                <button class="hint-toggle" data-step="${index}">Show Hint</button>
-                <div class="hint-content" data-step="${index}">${step.hint}</div>
-                <button class="spl-reveal-btn" data-step="${index}">Reveal SPL Query</button>
-                <div class="spl-hidden" data-step="${index}">
-                    ${renderSplBlock(step.spl, step.analysis)}
-                    <div class="scenario-finding">
-                        <h5>Finding</h5>
-                        <p>${step.finding}</p>
-                    </div>
+            <div class="scenario-card-body">
+                ${renderSplBlock(step.spl, step.analysis)}
+                ${step.output ? renderScenarioOutput(step.output) : ''}
+                <div class="scenario-card-finding">
+                    <p>${step.finding}</p>
                 </div>
             </div>
         </div>
     `).join('');
 
     const conclusionHtml = `
-        <div class="scenario-conclusion hidden" id="scenarioConclusion">
+        <div class="scenario-conclusion">
             <h3>Conclusion</h3>
             <p>${content.conclusion}</p>
         </div>
     `;
 
-    return situationHtml + '<div class="scenario-steps">' + stepsHtml + '</div>' + conclusionHtml;
+    return situationHtml + '<div class="scenario-narrative">' + stepsHtml + '</div>' + conclusionHtml;
 }
 
-function renderScenarioNav(totalSteps) {
+function renderScenarioOutput(output) {
+    if (!output || !output.columns) return '';
+
+    // Handle empty results
+    if (output.rows.length === 0) {
+        return `
+            <div class="scenario-output">
+                <div class="scenario-output-header">
+                    <span class="scenario-output-label">Results</span>
+                </div>
+                <div class="scenario-output-empty">${output.emptyMessage || 'No results found'}</div>
+            </div>
+        `;
+    }
+
+    // Build table header
+    const headerHtml = output.columns.map(col => `<th>${col}</th>`).join('');
+
+    // Build table rows
+    const rowsHtml = output.rows.map(row => {
+        const cells = output.columns.map(col => `<td>${row[col] || '-'}</td>`).join('');
+        return `<tr>${cells}</tr>`;
+    }).join('');
+
+    // Truncation indicator
+    const truncatedHtml = output.truncated
+        ? `<div class="scenario-output-truncated">${output.truncated}</div>`
+        : '';
+
+    // Note (for additional context like unit conversions)
+    const noteHtml = output.note
+        ? `<div class="scenario-output-note">${output.note}</div>`
+        : '';
+
     return `
-        <button class="nav-btn" id="scenarioPrev" disabled>Previous</button>
-        <span class="step-progress">Step <span id="currentStepNum">1</span> of ${totalSteps}</span>
-        <button class="nav-btn primary" id="scenarioNext">Reveal & Continue</button>
+        <div class="scenario-output">
+            <div class="scenario-output-header">
+                <span class="scenario-output-label">Results</span>
+            </div>
+            <div class="scenario-output-table-wrapper">
+                <table class="scenario-output-table">
+                    <thead><tr>${headerHtml}</tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+            ${noteHtml}
+            ${truncatedHtml}
+        </div>
     `;
 }
 
+function renderScenarioNav(totalSteps) {
+    // Scenarios are now narrative walkthroughs - no navigation needed
+    return '';
+}
+
 function initScenarioInteractivity() {
-    // Hint toggles
-    document.querySelectorAll('.hint-toggle').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const step = btn.dataset.step;
-            btn.classList.toggle('active');
-            const hintContent = document.querySelector(`.hint-content[data-step="${step}"]`);
-            hintContent.classList.toggle('visible');
-            btn.textContent = btn.classList.contains('active') ? 'Hide Hint' : 'Show Hint';
+    // Collapsible scenario cards
+    document.querySelectorAll('.scenario-card-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const card = header.closest('.scenario-card');
+            card.classList.toggle('expanded');
         });
     });
-
-    // SPL reveal buttons
-    document.querySelectorAll('.spl-reveal-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const step = btn.dataset.step;
-            btn.classList.add('revealed');
-            document.querySelector(`.spl-hidden[data-step="${step}"]`).style.display = 'block';
-        });
-    });
-
-    // Navigation
-    const prevBtn = document.getElementById('scenarioPrev');
-    const nextBtn = document.getElementById('scenarioNext');
-
-    if (prevBtn) prevBtn.addEventListener('click', () => navigateScenario(-1));
-    if (nextBtn) nextBtn.addEventListener('click', () => navigateScenario(1));
 }
 
-function navigateScenario(direction) {
-    if (!currentModalData || currentModalData.type !== 'scenario') return;
-
-    const steps = currentModalData.content.steps;
-    const stepElements = document.querySelectorAll('.scenario-step');
-    const conclusion = document.getElementById('scenarioConclusion');
-
-    // Reveal current step content before moving forward
-    if (direction > 0) {
-        const currentStepEl = stepElements[currentScenarioStep];
-        currentStepEl.classList.add('revealed');
-
-        // Show SPL
-        const splBtn = currentStepEl.querySelector('.spl-reveal-btn');
-        if (splBtn) splBtn.classList.add('revealed');
-        const splHidden = currentStepEl.querySelector('.spl-hidden');
-        if (splHidden) splHidden.style.display = 'block';
-    }
-
-    // Update step
-    currentScenarioStep = Math.max(0, Math.min(steps.length - 1, currentScenarioStep + direction));
-
-    // Update UI
-    stepElements.forEach((el, index) => {
-        el.classList.remove('current');
-        if (index === currentScenarioStep) {
-            el.classList.add('current');
-        }
-    });
-
-    // Update nav
-    document.getElementById('currentStepNum').textContent = currentScenarioStep + 1;
-    document.getElementById('scenarioPrev').disabled = currentScenarioStep === 0;
-
-    const nextBtn = document.getElementById('scenarioNext');
-    if (currentScenarioStep === steps.length - 1 && stepElements[currentScenarioStep].classList.contains('revealed')) {
-        nextBtn.textContent = 'Complete';
-        nextBtn.addEventListener('click', () => {
-            conclusion.classList.remove('hidden');
-            nextBtn.disabled = true;
-        }, { once: true });
-    } else {
-        nextBtn.textContent = 'Reveal & Continue';
-    }
-
-    // Scroll step into view
-    stepElements[currentScenarioStep].scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
 
 // ============================================
 // Challenge Rendering
@@ -2256,11 +3172,11 @@ function renderSplBlock(spl, explanation) {
     `;
 }
 
-function highlightSpl(spl) {
+function highlightSpl(spl, formatPipelines = true) {
     if (!spl) return '';
 
     // Escape HTML first
-    let highlighted = spl.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let highlighted = spl.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     // Use placeholders to avoid regex conflicts between replacements
     const placeholders = [];
@@ -2274,13 +3190,18 @@ function highlightSpl(spl) {
     highlighted = highlighted.replace(/"([^"]+)"/g, (match, content) => {
         return addPlaceholder(`"${content}"`, 'spl-string');
     });
+    highlighted = highlighted.replace(/'([^']+)'/g, (match, content) => {
+        return addPlaceholder(`'${content}'`, 'spl-string');
+    });
 
     // Keywords (commands)
     const keywords = ['index', 'search', 'where', 'stats', 'eval', 'table', 'sort', 'head', 'tail',
                       'rex', 'rename', 'fields', 'lookup', 'join', 'append', 'appendcols', 'timechart',
                       'chart', 'transaction', 'eventstats', 'streamstats', 'bin', 'bucket', 'dedup',
                       'tstats', 'map', 'return', 'format', 'subsearch', 'iplocation', 'inputlookup',
-                      'outputlookup', 'fillnull', 'makemv', 'mvexpand', 'earliest', 'latest', 'span'];
+                      'outputlookup', 'fillnull', 'makemv', 'mvexpand', 'earliest', 'latest', 'span',
+                      'top', 'rare', 'multisearch', 'union', 'datamodel', 'from', 'pivot', 'collect',
+                      'outputcsv', 'inputcsv', 'metadata', 'rest', 'mstats', 'mcatalog', 'spath'];
 
     keywords.forEach(kw => {
         const regex = new RegExp(`\\b(${kw})\\b`, 'gi');
@@ -2291,21 +3212,46 @@ function highlightSpl(spl) {
     const functions = ['count', 'sum', 'avg', 'min', 'max', 'dc', 'values', 'list', 'first', 'last',
                        'stdev', 'perc\\d+', 'if', 'case', 'match', 'isnull', 'isnotnull', 'coalesce',
                        'round', 'floor', 'ceil', 'len', 'substr', 'replace', 'split', 'mvcount',
-                       'strftime', 'strptime', 'now', 'relative_time', 'tonumber', 'tostring'];
+                       'strftime', 'strptime', 'now', 'relative_time', 'tonumber', 'tostring',
+                       'mvjoin', 'mvindex', 'mvfilter', 'mvappend', 'mvzip', 'cidrmatch', 'like',
+                       'searchmatch', 'typeof', 'nullif', 'true', 'false', 'null', 'earliest', 'latest'];
 
     functions.forEach(fn => {
         const regex = new RegExp(`\\b(${fn})\\(`, 'gi');
         highlighted = highlighted.replace(regex, (match, fn) => addPlaceholder(fn, 'spl-function') + '(');
     });
 
-    // Operators
-    highlighted = highlighted.replace(/(\|)/g, (match) => addPlaceholder(match, 'spl-operator'));
+    // Operators (but not pipes yet - handle those in formatting)
     highlighted = highlighted.replace(/\b(AND|OR|NOT|AS|BY|IN)\b/gi, (match) => addPlaceholder(match, 'spl-operator'));
 
     // Replace all placeholders with actual spans
     placeholders.forEach(({ id, text, className }) => {
         highlighted = highlighted.replace(id, `<span class="${className}">${text}</span>`);
     });
+
+    // Format pipes onto new lines with indentation (matches glossary styling)
+    if (formatPipelines) {
+        const segments = highlighted.split(/(\|)/);
+        if (segments.length > 1) {
+            let result = '';
+            let isFirst = true;
+            for (let i = 0; i < segments.length; i++) {
+                const segment = segments[i];
+                if (segment === '|') continue;
+                const trimmedSegment = segment.trim();
+                if (!trimmedSegment) continue;
+
+                const hasPipe = i > 0 && segments[i - 1] === '|';
+                if (isFirst) {
+                    result += `<span class="spl-pipe-line">${trimmedSegment}</span>`;
+                    isFirst = false;
+                } else if (hasPipe) {
+                    result += `<span class="spl-pipe-line"><span class="spl-pipe">|</span> ${trimmedSegment}</span>`;
+                }
+            }
+            highlighted = result;
+        }
+    }
 
     return highlighted;
 }
