@@ -4367,6 +4367,948 @@ index=notable status="resolved" OR status="closed" | stats count</code></pre>
                     <p>When building ES dashboards, always use tstats against data models for aggregate panels. Save raw index searches for drilldowns and detailed investigation.</p>
                 </div>
             `
+        },
+        {
+            id: 'es-data-models-intro',
+            title: 'Understanding ES Data Models',
+            description: 'How data models work in ES and why they matter for your searches.',
+            keywords: 'data model datamodel cim common information model authentication network endpoint es',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">Why Data Models?</div>
+                    <div class="guide-detail-section">
+                        <p>In standard Splunk, you search raw indexes. In ES, you search <strong>data models</strong> - pre-defined schemas that normalize data from different sources into common field names.</p>
+                        <p>This means a "failed login" looks the same whether it came from Windows, Linux, or your cloud provider.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">The Mental Shift</div>
+                    <div class="guide-detail-section">
+                        <table class="guide-comparison-table">
+                            <tr>
+                                <th>Standard Splunk</th>
+                                <th>Enterprise Security</th>
+                            </tr>
+                            <tr>
+                                <td><code>index=wineventlog EventCode=4625</code></td>
+                                <td><code>| from datamodel:Authentication where action="failure"</code></td>
+                            </tr>
+                            <tr>
+                                <td>Know your indexes and sourcetypes</td>
+                                <td>Know your data models and CIM fields</td>
+                            </tr>
+                            <tr>
+                                <td>Field names vary by source</td>
+                                <td>Field names are normalized</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Core ES Data Models</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Authentication</strong> - Logins, logouts, privilege changes</li>
+                            <li><strong>Network_Traffic</strong> - Firewall, IDS/IPS, network flows</li>
+                            <li><strong>Endpoint</strong> - Process execution, file changes, services</li>
+                            <li><strong>Web</strong> - HTTP traffic, proxy logs</li>
+                            <li><strong>Malware</strong> - Antivirus, EDR detections</li>
+                            <li><strong>Intrusion_Detection</strong> - IDS alerts, threat detections</li>
+                            <li><strong>Change</strong> - System and configuration changes</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Finding Data Model Fields</div>
+                    <div class="guide-detail-section">
+                        <p>To see what fields are available in a data model:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| datamodel Authentication search | head 10</code></pre>
+                        </div>
+                        <p class="guide-explanation">Returns sample events with all normalized fields visible.</p>
+                        <p>Or check Settings → Data Models in ES to browse the schema.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Data models only contain events that match the model's constraints. If your data isn't showing up in a data model, check that the sourcetype is properly mapped and the required CIM fields are being extracted.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-notable-events-guide',
+            title: 'Working with Notable Events',
+            description: 'How to investigate, update, and manage notable events in your ES workflow.',
+            keywords: 'notable event alert investigation incident response workflow status owner',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">What Are Notable Events?</div>
+                    <div class="guide-detail-section">
+                        <p>In standard Splunk, alerts trigger actions (email, webhook, etc.). In ES, alerts create <strong>notable events</strong> - structured incidents stored in an index that analysts can investigate, assign, and track.</p>
+                        <p>Think of notable events as your security incident queue.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Notable Event Lifecycle</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li><strong>New</strong> - Just created, no one has looked at it</li>
+                            <li><strong>In Progress</strong> - An analyst is investigating</li>
+                            <li><strong>Pending</strong> - Waiting for external action</li>
+                            <li><strong>Resolved</strong> - Investigation complete</li>
+                            <li><strong>Closed</strong> - Final disposition recorded</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Searching Notable Events</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Find all notable events</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable</code></pre>
+                        </div>
+                        <p class="guide-explanation">The notable index stores all generated notable events.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Filter by rule name</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable search_name="Access - Brute Force*"</code></pre>
+                        </div>
+                        <p class="guide-explanation"><code>search_name</code> contains the correlation search that triggered the notable.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Find unassigned notables</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable status_group="new" owner="unassigned"</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Key Notable Event Fields</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><code>search_name</code> - The correlation search that triggered it</li>
+                            <li><code>rule_name</code> - Display name of the alert</li>
+                            <li><code>urgency</code> - critical, high, medium, low, informational</li>
+                            <li><code>status</code> - Current workflow status</li>
+                            <li><code>owner</code> - Assigned analyst</li>
+                            <li><code>security_domain</code> - access, endpoint, network, threat, identity</li>
+                            <li><code>src</code>, <code>dest</code>, <code>user</code> - Key entities involved</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Use the Incident Review dashboard (Security Intelligence → Incident Review) for triage rather than raw searches. It provides a proper workflow interface with bulk actions, drilldowns, and history.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-risk-based-alerting',
+            title: 'Risk-Based Alerting Fundamentals',
+            description: 'How RBA works and why it reduces alert fatigue in ES environments.',
+            keywords: 'risk rba alert fatigue threshold score risk_score risk_object entity attribution',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Alert Fatigue Problem</div>
+                    <div class="guide-detail-section">
+                        <p>Traditional alerting: Each rule fires its own alert. 50 rules × 100 events = 5,000 alerts. Most are noise.</p>
+                        <p>Risk-based alerting: Each rule adds risk points to an entity. Alert only when cumulative risk exceeds a threshold.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">How RBA Works</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li><strong>Detection</strong> - Correlation search detects suspicious activity</li>
+                            <li><strong>Attribution</strong> - Risk is attributed to an entity (user, host, IP)</li>
+                            <li><strong>Accumulation</strong> - Risk scores stack up in the risk index</li>
+                            <li><strong>Threshold</strong> - Notable created when entity exceeds risk threshold</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">The Risk Index</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">View recent risk events</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=risk
+| table _time risk_object risk_object_type risk_score risk_message source</code></pre>
+                        </div>
+                        <p class="guide-explanation">Each row is a risk attribution - some activity that added risk to an entity.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Calculate total risk per entity</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=risk earliest=-24h
+| stats sum(risk_score) as total_risk values(source) as contributing_rules by risk_object
+| sort - total_risk</code></pre>
+                        </div>
+                        <p class="guide-explanation">Shows which entities have accumulated the most risk and what rules contributed.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Key RBA Fields</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><code>risk_object</code> - The entity receiving risk (username, hostname, IP)</li>
+                            <li><code>risk_object_type</code> - user, system, or other</li>
+                            <li><code>risk_score</code> - Points assigned by this rule</li>
+                            <li><code>risk_message</code> - Description of the risky behavior</li>
+                            <li><code>source</code> - The rule that created this risk event</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Start with risk-only rules (no direct notable) for high-volume detections. Reserve direct notable creation for high-fidelity alerts. This gives you detection coverage without drowning in alerts.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-tstats-conversion',
+            title: 'Converting Searches to tstats',
+            description: 'How to translate your standard Splunk searches to efficient tstats queries.',
+            keywords: 'tstats stats performance optimization data model conversion translate',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">Why Convert to tstats?</div>
+                    <div class="guide-detail-section">
+                        <p><code>tstats</code> queries accelerated data models and can be 10-100x faster than raw index searches. For dashboards and reports, this makes a huge difference.</p>
+                        <p>The tradeoff: tstats only works with indexed fields in data models, not arbitrary fields.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Conversion Patterns</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Simple count</div>
+                        <p class="conversion-label">Standard Splunk:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth action=failure | stats count</code></pre>
+                        </div>
+                        <p class="conversion-label">Enterprise Security:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Authentication where Authentication.action="failure"</code></pre>
+                        </div>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Count by field</div>
+                        <p class="conversion-label">Standard Splunk:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth | stats count by user</code></pre>
+                        </div>
+                        <p class="conversion-label">Enterprise Security:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Authentication by Authentication.user</code></pre>
+                        </div>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Time chart</div>
+                        <p class="conversion-label">Standard Splunk:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth | timechart count by action</code></pre>
+                        </div>
+                        <p class="conversion-label">Enterprise Security:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats prestats=true count from datamodel=Authentication by _time Authentication.action span=1h
+| timechart span=1h count by Authentication.action</code></pre>
+                        </div>
+                        <p class="guide-explanation">Note: timechart after tstats requires <code>prestats=true</code>.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">tstats Syntax Rules</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li>Fields must be fully qualified: <code>Authentication.user</code> not just <code>user</code></li>
+                            <li>Use <code>where</code> clause for filtering, not search terms</li>
+                            <li>Only aggregation functions work: count, sum, avg, min, max, dc, values</li>
+                            <li><code>summariesonly=true</code> for speed (may miss recent data)</li>
+                            <li><code>prestats=true</code> required before timechart or chart</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">When to Use Raw Search Instead</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li>Ad-hoc investigation with unknown fields</li>
+                            <li>Drilldowns that need raw event details</li>
+                            <li>Fields not included in the data model</li>
+                            <li>Complex string manipulation or regex</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Use the "Pivot" interface (Settings → Data Models → your model → Pivot) to build tstats queries visually. It generates the SPL for you.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-correlation-searches',
+            title: 'Creating Correlation Searches',
+            description: 'Build your own ES detection rules that create notables or risk events.',
+            keywords: 'correlation search detection rule notable risk adaptive response action',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">What's a Correlation Search?</div>
+                    <div class="guide-detail-section">
+                        <p>In standard Splunk, you create "Alerts". In ES, you create "Correlation Searches" - scheduled searches that detect threats and trigger adaptive response actions (create notable, add risk, send email, etc.).</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Anatomy of a Correlation Search</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li><strong>Search Logic</strong> - The SPL that detects the condition</li>
+                            <li><strong>Schedule</strong> - How often to run (cron or interval)</li>
+                            <li><strong>Throttling</strong> - Prevent duplicate alerts for same entity</li>
+                            <li><strong>Adaptive Response Actions</strong> - What happens when triggered</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Example: Brute Force Detection</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Authentication
+    where Authentication.action="failure"
+    by Authentication.src Authentication.user _time span=5m
+| where count > 10
+| rename Authentication.src as src, Authentication.user as user</code></pre>
+                        </div>
+                        <p class="guide-explanation">Detects more than 10 failed logins in 5 minutes. The rename at the end makes fields available for notable event enrichment.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Adaptive Response Actions</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Create Notable Event</strong> - For high-fidelity detections requiring investigation</li>
+                            <li><strong>Create Risk Event</strong> - For lower-fidelity signals that contribute to RBA</li>
+                            <li><strong>Send Email</strong> - Immediate notification</li>
+                            <li><strong>Run Script</strong> - Custom automation</li>
+                            <li><strong>Send to UBA</strong> - Feed Splunk UBA for behavior analysis</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Setting Up in ES</div>
+                    <div class="guide-detail-section">
+                        <p>Navigate to: Configure → Content → Content Management → Create New Content → Correlation Search</p>
+                        <p>Fill in: Search, schedule, throttle window, and select adaptive response actions.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Always include <code>src</code>, <code>dest</code>, and <code>user</code> fields in your correlation search output when applicable. ES uses these for asset/identity enrichment and investigation drilldowns.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-asset-identity',
+            title: 'Asset and Identity Enrichment',
+            description: 'How ES enriches events with context from your asset and identity databases.',
+            keywords: 'asset identity enrichment lookup context business criticality priority owner',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Power of Context</div>
+                    <div class="guide-detail-section">
+                        <p>Raw logs tell you WHAT happened. Asset and identity data tells you WHO and WHERE. ES automatically enriches events with this context.</p>
+                        <p>Example: "10.1.1.50" becomes "Finance Server - Critical - Owned by Treasury Dept"</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">How Enrichment Works</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li><strong>Asset/Identity Lists</strong> - CSV or lookup tables with context data</li>
+                            <li><strong>ES Correlation</strong> - Matches IPs, hostnames, usernames against lists</li>
+                            <li><strong>Field Enrichment</strong> - Adds fields like priority, business_unit, owner</li>
+                            <li><strong>Notable Enhancement</strong> - Notables include enriched context</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Key Enrichment Fields</div>
+                    <div class="guide-detail-section">
+                        <table class="guide-comparison-table">
+                            <tr>
+                                <th>Field</th>
+                                <th>Description</th>
+                            </tr>
+                            <tr>
+                                <td><code>priority</code></td>
+                                <td>critical, high, medium, low, unknown</td>
+                            </tr>
+                            <tr>
+                                <td><code>bunit</code></td>
+                                <td>Business unit (Finance, Engineering, etc.)</td>
+                            </tr>
+                            <tr>
+                                <td><code>category</code></td>
+                                <td>Asset type (server, workstation, network device)</td>
+                            </tr>
+                            <tr>
+                                <td><code>owner</code></td>
+                                <td>Responsible person or team</td>
+                            </tr>
+                            <tr>
+                                <td><code>is_expected</code></td>
+                                <td>Whether asset/user is known/expected</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Checking Enrichment Status</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">View asset lookup</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| inputlookup asset_lookup_by_str | head 20</code></pre>
+                        </div>
+                        <div class="guide-detail-label">View identity lookup</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| inputlookup identity_lookup_expanded | head 20</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using Priority in Searches</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable src_priority="critical" OR dest_priority="critical"
+| table _time rule_name src dest src_priority dest_priority</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find notables involving critical assets. Priority is automatically added by enrichment.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Invest in your asset and identity data. Good enrichment dramatically improves triage speed. Analysts instantly know if an alert involves a critical server vs. a test machine.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-investigation-workflow',
+            title: 'ES Investigation Workflow',
+            description: 'Step-by-step process for investigating notable events efficiently.',
+            keywords: 'investigation workflow triage drilldown pivot analyst playbook',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Investigation Mindset</div>
+                    <div class="guide-detail-section">
+                        <p>In standard Splunk, you write queries. In ES, you follow a structured workflow using purpose-built dashboards and drilldowns. The goal is speed and consistency.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step-by-Step Workflow</div>
+                    <div class="guide-detail-section">
+                        <ol>
+                            <li><strong>Triage</strong> - Review notable in Incident Review, check enrichment context</li>
+                            <li><strong>Claim</strong> - Assign to yourself, set status to "In Progress"</li>
+                            <li><strong>Pivot</strong> - Click entities (user, IP, host) to see related activity</li>
+                            <li><strong>Drilldown</strong> - Open Investigation dashboards for deeper analysis</li>
+                            <li><strong>Document</strong> - Add comments to the notable event</li>
+                            <li><strong>Resolve</strong> - Set final status and disposition</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Key ES Dashboards</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Incident Review</strong> - Notable event queue and triage</li>
+                            <li><strong>Asset Investigator</strong> - All activity for a specific host/IP</li>
+                            <li><strong>Identity Investigator</strong> - All activity for a specific user</li>
+                            <li><strong>Risk Analysis</strong> - Risk scores and contributing events</li>
+                            <li><strong>Protocol Intelligence</strong> - Network traffic analysis</li>
+                            <li><strong>Access Anomalies</strong> - Unusual authentication patterns</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Quick Investigation Queries</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">All activity for an IP</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Network_Traffic where All_Traffic.src="10.1.1.100" OR All_Traffic.dest="10.1.1.100" by _time All_Traffic.action span=1h</code></pre>
+                        </div>
+                        <div class="guide-detail-label">All activity for a user</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Authentication where Authentication.user="jsmith" by _time Authentication.action Authentication.src</code></pre>
+                        </div>
+                        <div class="guide-detail-label">Risk events for an entity</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=risk risk_object="jsmith"
+| table _time source risk_score risk_message</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Right-click on values in ES dashboards to see the "Actions" menu. You can pivot to other dashboards, add to a notable, or search for that value across all data models.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-common-cim-fields',
+            title: 'Common CIM Field Reference',
+            description: 'Quick reference for the most-used CIM fields across ES data models.',
+            keywords: 'cim common information model fields reference standard normalized',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">Why CIM Fields?</div>
+                    <div class="guide-detail-section">
+                        <p>CIM (Common Information Model) standardizes field names across data sources. Learning these fields once means you can search any data model effectively.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Universal Fields</div>
+                    <div class="guide-detail-section">
+                        <table class="guide-comparison-table">
+                            <tr><th>Field</th><th>Meaning</th></tr>
+                            <tr><td><code>src</code></td><td>Source IP or hostname</td></tr>
+                            <tr><td><code>dest</code></td><td>Destination IP or hostname</td></tr>
+                            <tr><td><code>user</code></td><td>Username involved</td></tr>
+                            <tr><td><code>action</code></td><td>What happened (allowed, blocked, success, failure)</td></tr>
+                            <tr><td><code>app</code></td><td>Application name</td></tr>
+                            <tr><td><code>vendor_product</code></td><td>Source system identifier</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Authentication Fields</div>
+                    <div class="guide-detail-section">
+                        <table class="guide-comparison-table">
+                            <tr><th>Field</th><th>Meaning</th></tr>
+                            <tr><td><code>Authentication.action</code></td><td>success, failure</td></tr>
+                            <tr><td><code>Authentication.user</code></td><td>Account attempting auth</td></tr>
+                            <tr><td><code>Authentication.src</code></td><td>Source of auth attempt</td></tr>
+                            <tr><td><code>Authentication.dest</code></td><td>Target system</td></tr>
+                            <tr><td><code>Authentication.app</code></td><td>Authentication method/app</td></tr>
+                            <tr><td><code>Authentication.authentication_method</code></td><td>password, key, cert, etc.</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Network Traffic Fields</div>
+                    <div class="guide-detail-section">
+                        <table class="guide-comparison-table">
+                            <tr><th>Field</th><th>Meaning</th></tr>
+                            <tr><td><code>All_Traffic.src</code></td><td>Source IP</td></tr>
+                            <tr><td><code>All_Traffic.dest</code></td><td>Destination IP</td></tr>
+                            <tr><td><code>All_Traffic.src_port</code></td><td>Source port</td></tr>
+                            <tr><td><code>All_Traffic.dest_port</code></td><td>Destination port</td></tr>
+                            <tr><td><code>All_Traffic.action</code></td><td>allowed, blocked, dropped</td></tr>
+                            <tr><td><code>All_Traffic.bytes_in</code></td><td>Inbound bytes</td></tr>
+                            <tr><td><code>All_Traffic.bytes_out</code></td><td>Outbound bytes</td></tr>
+                            <tr><td><code>All_Traffic.transport</code></td><td>tcp, udp, icmp</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Endpoint Fields</div>
+                    <div class="guide-detail-section">
+                        <table class="guide-comparison-table">
+                            <tr><th>Field</th><th>Meaning</th></tr>
+                            <tr><td><code>Processes.process_name</code></td><td>Executable name</td></tr>
+                            <tr><td><code>Processes.process_path</code></td><td>Full path to executable</td></tr>
+                            <tr><td><code>Processes.parent_process_name</code></td><td>Parent process</td></tr>
+                            <tr><td><code>Processes.user</code></td><td>User running process</td></tr>
+                            <tr><td><code>Processes.dest</code></td><td>Endpoint hostname</td></tr>
+                            <tr><td><code>Processes.process_id</code></td><td>PID</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Bookmark the official CIM documentation. When you need a field that's not in this quick reference, the full CIM spec has every field for every data model.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-audit-trail',
+            title: 'Auditing ES Configuration Changes',
+            description: 'Track who enables, disables, or modifies correlation searches and ES rules.',
+            keywords: 'audit trail configuration change correlation search enable disable modify governance compliance',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">Why Audit ES Changes?</div>
+                    <div class="guide-detail-section">
+                        <p>Enterprise Security gives teams granular control over detection rules. With that power comes risk - a disabled correlation search means blind spots. An overly broad modification can flood the queue with false positives.</p>
+                        <p>Auditing ES changes answers: <strong>Who changed what, when, and why?</strong></p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Where ES Stores Audit Data</div>
+                    <div class="guide-detail-section">
+                        <p>Splunk tracks configuration changes in several locations:</p>
+                        <ul>
+                            <li><code>index=_audit</code> - Core Splunk audit events (REST API calls, config changes)</li>
+                            <li><code>index=_internal</code> - Scheduler activity, saved search execution</li>
+                            <li><code>index=_configtracker</code> - Configuration file changes (if enabled)</li>
+                            <li><strong>ES Content Management</strong> - Stores rule metadata and status</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Track Correlation Search Changes</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Detect enabled/disabled correlation searches</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit action=edit* savedsearch_name=*
+    (disabled=0 OR disabled=1)
+| eval change_type=case(
+    disabled=1, "DISABLED",
+    disabled=0, "ENABLED",
+    true(), "MODIFIED")
+| table _time, user, savedsearch_name, change_type, host
+| sort -_time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Captures when correlation searches are toggled on or off.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">All saved search modifications</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail action=edit*
+    (info=savedsearch OR info=correlationsearches)
+| rex field=_raw "name=(?<search_name>[^,\\]]+)"
+| table _time, user, action, search_name, host, info
+| sort -_time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Broader view of all saved search edits including correlation searches.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Track ES Content Management Changes</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">ES-specific rule modifications</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail
+    (action="*ES*" OR object="*correlationsearches*" OR object="*governance*")
+| table _time, user, action, object, operation, status
+| sort -_time</code></pre>
+                        </div>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">REST API changes to ES configs</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail
+    uri_path IN ("*/saved/searches/*", "*/alerts/correlationsearches/*", "*/configs/conf-correlationsearches/*")
+| eval endpoint=mvindex(split(uri_path, "/"), -1)
+| stats count, latest(_time) as last_change, values(action) as actions by user, endpoint
+| sort -last_change</code></pre>
+                        </div>
+                        <p class="guide-explanation">Tracks REST API calls that modify ES configurations.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Track Adaptive Response Changes</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail
+    (action="*adaptive*" OR object="*modalert*" OR uri_path="*alert_actions*")
+| table _time, user, action, object, uri_path
+| sort -_time</code></pre>
+                        </div>
+                        <p class="guide-explanation">Monitors changes to adaptive response actions (notable creation, risk scoring, etc.).</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Build an ES Audit Dashboard</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Summary of changes by user (last 7 days)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail earliest=-7d
+    (info=savedsearch OR object="*correlationsearch*")
+| stats count as total_changes,
+    dc(savedsearch_name) as unique_searches_modified,
+    values(action) as action_types
+    by user
+| sort -total_changes</code></pre>
+                        </div>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Timeline of rule state changes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail action=edit*
+    (disabled=0 OR disabled=1)
+| timechart span=1d count by user</code></pre>
+                        </div>
+                        <p class="guide-explanation">Visualize who is making changes over time - useful for spotting unusual activity.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Alert on Critical Changes</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Alert when high-priority rules are disabled</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail action=edit* disabled=1
+| lookup correlationsearch_lookup search_name as savedsearch_name OUTPUT severity
+| where severity IN ("critical", "high")
+| table _time, user, savedsearch_name, severity, host</code></pre>
+                        </div>
+                        <p class="guide-explanation">Create an alert from this search to notify when critical detection rules go offline.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Detect bulk rule changes</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail action=edit* earliest=-1h
+| stats dc(savedsearch_name) as rules_changed by user
+| where rules_changed > 5
+| table user, rules_changed</code></pre>
+                        </div>
+                        <p class="guide-explanation">Alert when someone modifies many rules at once - could indicate unauthorized changes or mistakes.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Key Audit Fields Reference</div>
+                    <div class="guide-detail-section">
+                        <table class="guide-comparison-table">
+                            <tr><th>Field</th><th>Description</th></tr>
+                            <tr><td><code>user</code></td><td>Who made the change</td></tr>
+                            <tr><td><code>action</code></td><td>Type of action (edit, delete, create)</td></tr>
+                            <tr><td><code>savedsearch_name</code></td><td>Name of the modified search</td></tr>
+                            <tr><td><code>disabled</code></td><td>1=disabled, 0=enabled</td></tr>
+                            <tr><td><code>object</code></td><td>Configuration object type</td></tr>
+                            <tr><td><code>uri_path</code></td><td>REST endpoint called</td></tr>
+                            <tr><td><code>operation</code></td><td>Specific operation performed</td></tr>
+                            <tr><td><code>info</code></td><td>Additional context about the change</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Enable Enhanced Auditing</div>
+                    <div class="guide-detail-section">
+                        <p>For deeper visibility, enable configuration tracking in <code>audit.conf</code>:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>[eventSigningKeys]
+auditTrailSigningKey = &lt;your-key&gt;
+
+[auditTrail]
+enableAuditTrailStoreSearch = true</code></pre>
+                        </div>
+                        <p class="guide-explanation">Consult Splunk docs for your version - audit capabilities vary.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Create a "Detection Coverage" dashboard that shows all correlation searches, their current state (enabled/disabled), last modification date, and who modified them. This gives leadership visibility into detection posture and change history at a glance.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-self-auditing-framework',
+            title: 'Building an ES Self-Auditing Framework',
+            description: 'Comprehensive approach to monitoring your ES environment health and governance.',
+            keywords: 'self audit framework governance health monitoring compliance soc maturity',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Self-Auditing Mindset</div>
+                    <div class="guide-detail-section">
+                        <p>ES is a complex system with many moving parts. A self-auditing framework answers three questions:</p>
+                        <ul>
+                            <li><strong>Is ES working?</strong> - Are searches running, data flowing, alerts firing?</li>
+                            <li><strong>Is ES being used correctly?</strong> - Are analysts triaging notables, following process?</li>
+                            <li><strong>Is ES being managed properly?</strong> - Are changes controlled, documented, appropriate?</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Pillar 1: Operational Health</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Correlation search execution status</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_internal sourcetype=scheduler savedsearch_name="*" app="*ES*" OR app="SA-*"
+| stats count, avg(run_time) as avg_runtime,
+    sum(eval(if(status="success",1,0))) as successes,
+    sum(eval(if(status!="success",1,0))) as failures
+    by savedsearch_name
+| eval health=round((successes/(successes+failures))*100,1)."%"
+| sort -failures</code></pre>
+                        </div>
+                        <p class="guide-explanation">Identify correlation searches that are failing or running slowly.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Data model acceleration lag</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| rest /services/admin/summarization by_tstats=t splunk_server=local
+| eval lag_minutes=round((now()-tstats_latest_time)/60,0)
+| table title, tstats_latest_time, lag_minutes, complete
+| where lag_minutes > 15
+| sort -lag_minutes</code></pre>
+                        </div>
+                        <p class="guide-explanation">Data model acceleration lag means tstats queries return stale results.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Pillar 2: Analyst Activity</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Notable event handling metrics</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable earliest=-7d
+| stats count as total,
+    sum(eval(if(status_group="closed",1,0))) as closed,
+    sum(eval(if(status_group="new",1,0))) as untouched,
+    avg(eval(if(status_group="closed", _time-orig_time, null()))) as avg_resolution_time
+| eval close_rate=round((closed/total)*100,1)."%"
+| eval avg_resolution_hours=round(avg_resolution_time/3600,1)</code></pre>
+                        </div>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Activity by analyst</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable earliest=-7d status_group!="new"
+| stats dc(event_id) as notables_worked,
+    dc(rule_name) as unique_rules,
+    latest(_time) as last_activity
+    by owner
+| sort -notables_worked</code></pre>
+                        </div>
+                        <p class="guide-explanation">Track analyst workload distribution and identify bottlenecks.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Notables aging without action</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable status_group="new" owner="unassigned"
+| eval age_hours=round((now()-_time)/3600,1)
+| where age_hours > 24
+| stats count by rule_name, urgency
+| sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find notables sitting untouched - indicates capacity issues or ignored alert types.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Pillar 3: Configuration Governance</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Current rule inventory</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| rest /services/saved/searches splunk_server=local
+| search action.correlationsearch.enabled=1 OR is_scheduled=1
+| eval status=if(disabled=0,"enabled","disabled")
+| stats count by status, eai:acl.app
+| sort -count</code></pre>
+                        </div>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Rules without recent results</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| rest /services/saved/searches splunk_server=local
+| search action.correlationsearch.enabled=1 disabled=0
+| join type=left title
+    [search index=notable earliest=-30d | stats count, latest(_time) as last_fired by search_name | rename search_name as title]
+| where isnull(count) OR count=0
+| table title, eai:acl.app, cron_schedule</code></pre>
+                        </div>
+                        <p class="guide-explanation">Enabled rules that haven't fired in 30 days - may indicate broken logic or missing data.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Recent configuration changes (summary)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=_audit sourcetype=audittrail earliest=-7d
+    (info=savedsearch OR object="*correlationsearch*")
+    action IN ("edit", "delete", "create")
+| stats count by user, action
+| sort -count</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Pillar 4: Detection Coverage</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">MITRE ATT&CK coverage (if tagged)</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| rest /services/saved/searches splunk_server=local
+| search action.correlationsearch.enabled=1 disabled=0
+| rex field=action.correlationsearch.annotations max_match=0 "mitre_attack\":\"(?<technique>[^\"]+)"
+| mvexpand technique
+| stats dc(title) as rules_count by technique
+| sort -rules_count</code></pre>
+                        </div>
+                        <p class="guide-explanation">If your rules are MITRE-tagged, see which techniques have coverage.</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Coverage by security domain</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| rest /services/saved/searches splunk_server=local
+| search action.correlationsearch.enabled=1 disabled=0
+| stats count by action.correlationsearch.security_domain
+| rename action.correlationsearch.security_domain as domain</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Building Your Audit Dashboard</div>
+                    <div class="guide-detail-section">
+                        <p>Combine these searches into a single dashboard with panels for:</p>
+                        <ul>
+                            <li><strong>Health Score</strong> - % of correlation searches running successfully</li>
+                            <li><strong>Data Freshness</strong> - Data model acceleration status</li>
+                            <li><strong>Queue Status</strong> - Open notables by age and urgency</li>
+                            <li><strong>Analyst Metrics</strong> - Workload and close rates</li>
+                            <li><strong>Change Log</strong> - Recent configuration modifications</li>
+                            <li><strong>Coverage Gaps</strong> - Disabled rules, silent rules, missing domains</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Schedule a weekly "ES Health Review" using this dashboard. Make it part of your SOC rhythm. Catch problems (broken searches, ignored alerts, unauthorized changes) before they become incidents.</p>
+                </div>
+            `
         }
     ]
 };

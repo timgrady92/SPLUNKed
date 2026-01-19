@@ -1177,6 +1177,10 @@ kbd {
 .icon-filter-btn[data-filter="basics"] .filter-icon { background: rgba(156, 163, 175, 0.15); }
 .icon-filter-btn[data-filter="basics"].active { background: rgba(156, 163, 175, 0.15); border-color: #9ca3af; }
 
+.icon-filter-btn[data-filter="es"] { color: var(--splunk-orange); }
+.icon-filter-btn[data-filter="es"] .filter-icon { background: rgba(229, 117, 38, 0.15); }
+.icon-filter-btn[data-filter="es"].active { background: rgba(229, 117, 38, 0.15); border-color: var(--splunk-orange); }
+
 /* Filter section label */
 .filter-section {
     display: flex;
@@ -1612,6 +1616,19 @@ kbd {
 
 .guide-detail-label.warning {
     color: var(--splunk-amber);
+}
+
+.conversion-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin: var(--space-sm) 0 var(--space-xs) 0;
+}
+
+.conversion-label:first-of-type {
+    margin-top: 0;
 }
 
 .guide-detail-section ul {
@@ -5458,6 +5475,12 @@ kbd {
     background: rgba(var(--splunk-pink-rgb), 0.2);
     color: var(--splunk-pink);
     border: 1px solid rgba(var(--splunk-pink-rgb), 0.3);
+}
+
+.level-badge.es {
+    background: rgba(79, 70, 229, 0.2);
+    color: #818cf8;
+    border: 1px solid rgba(79, 70, 229, 0.3);
 }
 
 .level-description {

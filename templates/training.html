@@ -23,6 +23,7 @@
             {{ category_tab('intermediate', 'Intermediate') }}
             {{ category_tab('advanced', 'Advanced') }}
             {{ category_tab('expert', 'Expert') }}
+            {{ category_tab('enterpriseSecurity', 'Enterprise Security') }}
         </div>
     </div>
 
@@ -79,6 +80,10 @@
                     <span class="filter-icon">○</span>
                     <span>Basics</span>
                 </button>
+                <button class="icon-filter-btn" data-filter="es">
+                    <span class="filter-icon">◈</span>
+                    <span>Enterprise Security</span>
+                </button>
             </div>
         </div>
     </div>
@@ -130,6 +135,16 @@
             <p class="level-description">Performance optimization, complex correlations, and custom commands. Master-level techniques.</p>
         </div>
         <div class="training-grid" id="expertGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="enterpriseSecurityPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-level-info">
+            <span class="level-badge es">Enterprise Security</span>
+            <p class="level-description">Transitioning from standard Splunk to ES. Learn data models, notable events, risk-based alerting, and ES-specific workflows.</p>
+        </div>
+        <div class="training-grid" id="enterpriseSecurityGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
