@@ -21,6 +21,7 @@
             {{ category_tab('commands', 'Commands', active=true) }}
             {{ category_tab('functions', 'Functions') }}
             {{ category_tab('reference', 'Reference') }}
+            {{ category_tab('enterpriseSecurity', 'Enterprise Security') }}
             {{ category_tab('antipatterns', 'Pitfalls') }}
         </div>
     </div>
@@ -120,6 +121,50 @@
             </button>
         </div>
         <div class="glossary-grid" id="referenceGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="enterpriseSecurityPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="enterpriseSecurityInfo"></div>
+        <div class="icon-filter" id="enterpriseSecurityFilter">
+            <button class="icon-filter-btn active" data-filter="all">
+                <span>All</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="rba">
+                <span class="filter-icon">⚡</span>
+                <span>RBA</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="notable">
+                <span class="filter-icon">🔔</span>
+                <span>Notables</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="assetIdentity">
+                <span class="filter-icon">👤</span>
+                <span>Assets/Identity</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="threatIntel">
+                <span class="filter-icon">🎯</span>
+                <span>Threat Intel</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="datamodels">
+                <span class="filter-icon">◈</span>
+                <span>Data Models</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="investigation">
+                <span class="filter-icon">🔍</span>
+                <span>Investigation</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="correlation">
+                <span class="filter-icon">🔗</span>
+                <span>Correlation</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="macros">
+                <span class="filter-icon">⚙</span>
+                <span>Macros</span>
+            </button>
+        </div>
+        <div class="glossary-grid" id="enterpriseSecurityGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>

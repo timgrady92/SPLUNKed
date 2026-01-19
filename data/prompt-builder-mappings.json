@@ -64,6 +64,58 @@
                 "network"
             ],
             "description": "Web proxy logs for URL filtering and web traffic analysis"
+        },
+        {
+            "id": "ds_006",
+            "type": "dataSource",
+            "name": "ES Notable Events",
+            "friendlyName": "NOTABLE EVENTS",
+            "spl": "index=notable",
+            "tags": [
+                "enterprise-security",
+                "notable",
+                "alerts"
+            ],
+            "description": "ES correlation search results and security alerts"
+        },
+        {
+            "id": "ds_007",
+            "type": "dataSource",
+            "name": "ES Risk Events",
+            "friendlyName": "RISK EVENTS",
+            "spl": "index=risk",
+            "tags": [
+                "enterprise-security",
+                "risk",
+                "rba"
+            ],
+            "description": "Risk-Based Alerting events from ES correlation searches"
+        },
+        {
+            "id": "ds_008",
+            "type": "dataSource",
+            "name": "Authentication (Data Model)",
+            "friendlyName": "AUTH DATA MODEL",
+            "spl": "| tstats count from datamodel=Authentication",
+            "tags": [
+                "enterprise-security",
+                "data-model",
+                "authentication"
+            ],
+            "description": "ES Authentication data model for fast aggregate queries"
+        },
+        {
+            "id": "ds_009",
+            "type": "dataSource",
+            "name": "Network Traffic (Data Model)",
+            "friendlyName": "NETWORK DATA MODEL",
+            "spl": "| tstats count from datamodel=Network_Traffic",
+            "tags": [
+                "enterprise-security",
+                "data-model",
+                "network"
+            ],
+            "description": "ES Network Traffic data model for accelerated searches"
         }
     ],
     "fieldValues": [
@@ -144,6 +196,97 @@
                 "malware"
             ],
             "description": "Commonly used ports by malware and C2 frameworks"
+        },
+        {
+            "id": "fv_007",
+            "type": "fieldValue",
+            "name": "Critical/High Urgency (ES)",
+            "friendlyName": "HIGH URGENCY",
+            "spl": "urgency IN (\"critical\", \"high\")",
+            "tags": [
+                "enterprise-security",
+                "notable",
+                "urgency"
+            ],
+            "description": "ES notable events with critical or high urgency"
+        },
+        {
+            "id": "fv_008",
+            "type": "fieldValue",
+            "name": "Open Status (ES)",
+            "friendlyName": "OPEN STATUS",
+            "spl": "status_group=open",
+            "tags": [
+                "enterprise-security",
+                "notable",
+                "status"
+            ],
+            "description": "ES notable events that are new or in progress"
+        },
+        {
+            "id": "fv_009",
+            "type": "fieldValue",
+            "name": "High Risk Score (ES)",
+            "friendlyName": "HIGH RISK",
+            "spl": "risk_score>=50",
+            "tags": [
+                "enterprise-security",
+                "risk",
+                "rba"
+            ],
+            "description": "Risk events with score 50 or higher"
+        },
+        {
+            "id": "fv_010",
+            "type": "fieldValue",
+            "name": "User Risk Object (ES)",
+            "friendlyName": "USER RISK",
+            "spl": "risk_object_type=user",
+            "tags": [
+                "enterprise-security",
+                "risk",
+                "rba"
+            ],
+            "description": "Risk events attributed to user entities"
+        },
+        {
+            "id": "fv_011",
+            "type": "fieldValue",
+            "name": "System Risk Object (ES)",
+            "friendlyName": "SYSTEM RISK",
+            "spl": "risk_object_type=system",
+            "tags": [
+                "enterprise-security",
+                "risk",
+                "rba"
+            ],
+            "description": "Risk events attributed to system/host entities"
+        },
+        {
+            "id": "fv_012",
+            "type": "fieldValue",
+            "name": "Privileged Users (ES Identity)",
+            "friendlyName": "PRIVILEGED USERS",
+            "spl": "| lookup identity_lookup_expanded identity as user OUTPUT category | search category=\"privileged\"",
+            "tags": [
+                "enterprise-security",
+                "identity",
+                "privileged"
+            ],
+            "description": "Filter to privileged users via ES Identity lookup"
+        },
+        {
+            "id": "fv_013",
+            "type": "fieldValue",
+            "name": "Critical Assets (ES Asset)",
+            "friendlyName": "CRITICAL ASSETS",
+            "spl": "| lookup asset_lookup_by_str ip as dest OUTPUT priority | search priority=\"critical\"",
+            "tags": [
+                "enterprise-security",
+                "asset",
+                "critical"
+            ],
+            "description": "Filter to critical assets via ES Asset lookup"
         }
     ],
     "patterns": [
@@ -249,6 +392,84 @@
                 "malware"
             ],
             "description": "HTTP downloads of potentially malicious file types"
+        },
+        {
+            "id": "pf_009",
+            "type": "pattern",
+            "name": "Risk Summary by Entity (ES)",
+            "friendlyName": "RISK SUMMARY",
+            "spl": "| stats sum(risk_score) as total_risk, dc(source) as unique_rules, values(source) as detections by risk_object",
+            "tags": [
+                "enterprise-security",
+                "risk",
+                "rba"
+            ],
+            "description": "Aggregate risk score and contributing rules by entity"
+        },
+        {
+            "id": "pf_010",
+            "type": "pattern",
+            "name": "Notable by Rule (ES)",
+            "friendlyName": "NOTABLES BY RULE",
+            "spl": "| stats count by rule_name, urgency | sort -count",
+            "tags": [
+                "enterprise-security",
+                "notable",
+                "metrics"
+            ],
+            "description": "Count notable events by correlation rule and urgency"
+        },
+        {
+            "id": "pf_011",
+            "type": "pattern",
+            "name": "Asset Enrichment (ES)",
+            "friendlyName": "ASSET ENRICH",
+            "spl": "| lookup asset_lookup_by_str ip as dest OUTPUT dns, owner, priority, category, bunit",
+            "tags": [
+                "enterprise-security",
+                "asset",
+                "enrichment"
+            ],
+            "description": "Enrich events with asset context from ES lookup"
+        },
+        {
+            "id": "pf_012",
+            "type": "pattern",
+            "name": "Identity Enrichment (ES)",
+            "friendlyName": "IDENTITY ENRICH",
+            "spl": "| lookup identity_lookup_expanded identity as user OUTPUT first, last, email, bunit, category, managedBy",
+            "tags": [
+                "enterprise-security",
+                "identity",
+                "enrichment"
+            ],
+            "description": "Enrich events with identity context from ES lookup"
+        },
+        {
+            "id": "pf_013",
+            "type": "pattern",
+            "name": "Threat Intel Match (ES)",
+            "friendlyName": "THREAT INTEL",
+            "spl": "| lookup ip_intel ip as dest_ip OUTPUTNEW threat_key, description | where isnotnull(threat_key)",
+            "tags": [
+                "enterprise-security",
+                "threat-intel",
+                "ioc"
+            ],
+            "description": "Find events matching IP threat intelligence"
+        },
+        {
+            "id": "pf_014",
+            "type": "pattern",
+            "name": "Auth Failures (Data Model)",
+            "friendlyName": "AUTH FAILURES DM",
+            "spl": "where Authentication.action=failure by Authentication.user, Authentication.src",
+            "tags": [
+                "enterprise-security",
+                "data-model",
+                "authentication"
+            ],
+            "description": "Authentication failures via ES data model (use with tstats)"
         }
     ],
     "outputShapes": [
@@ -357,6 +578,45 @@
                 "simple"
             ],
             "description": "Simple total count of matching events"
+        },
+        {
+            "id": "os_009",
+            "type": "outputShape",
+            "name": "Risk by Entity (ES)",
+            "friendlyName": "RISK BY ENTITY",
+            "spl": "| stats sum(risk_score) as total_risk by risk_object | sort -total_risk | head 20",
+            "tags": [
+                "enterprise-security",
+                "risk",
+                "ranking"
+            ],
+            "description": "Top 20 entities by accumulated risk score"
+        },
+        {
+            "id": "os_010",
+            "type": "outputShape",
+            "name": "Notable Status Summary (ES)",
+            "friendlyName": "NOTABLE STATUS",
+            "spl": "| stats count by status_group, urgency | sort urgency",
+            "tags": [
+                "enterprise-security",
+                "notable",
+                "metrics"
+            ],
+            "description": "Notable events by status and urgency"
+        },
+        {
+            "id": "os_011",
+            "type": "outputShape",
+            "name": "Risk Timeline (ES)",
+            "friendlyName": "RISK TIMELINE",
+            "spl": "| timechart span=1h sum(risk_score) by risk_object limit=10",
+            "tags": [
+                "enterprise-security",
+                "risk",
+                "timeline"
+            ],
+            "description": "Hourly risk accumulation for top 10 entities"
         }
     ],
     "timeRangePresets": [

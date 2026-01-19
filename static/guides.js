@@ -3756,6 +3756,618 @@ const GUIDES_DATA = {
                 </div>
             `
         }
+    ],
+
+    enterpriseSecurity: [
+        {
+            id: 'es-investigate-notable',
+            title: 'How to investigate a notable event',
+            description: 'Step-by-step workflow for triaging and investigating ES notable events.',
+            keywords: 'notable event investigate triage incident review ES enterprise security alert',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You have a notable event in Incident Review that needs investigation. You want to determine if it's a true positive (real threat), false positive (benign), or needs escalation.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 1: Understand the Alert</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable event_id="YOUR_EVENT_ID" | table _time, rule_name, rule_description, urgency, src, dest, user, drilldown_search</code></pre>
+                        </div>
+                        <p class="guide-explanation">Start by reading the rule description and understanding what triggered the alert. The drilldown_search field contains SPL to find the original events.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 2: Add Business Context</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>\`notable\` | search event_id="YOUR_EVENT_ID"
+| \`get_asset(dest)\`
+| \`get_identity4events(user)\`
+| table dest, dest_priority, dest_owner, dest_category, user, user_category, user_bunit</code></pre>
+                        </div>
+                        <p class="guide-explanation">Enrich with asset and identity data. Is this a critical server? A privileged user? An executive? Context determines urgency.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 3: Check for Related Activity</div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Related notables for same entities</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable (user="jsmith" OR src="192.168.1.100" OR dest="server01")
+| stats count, earliest(_time) as first, latest(_time) as last by rule_name
+| sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Are there other alerts involving the same user/host? Multiple different detections = higher confidence.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 4: Review Risk Profile</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=risk (risk_object="jsmith" OR risk_object="192.168.1.100")
+| stats sum(risk_score) as total_risk, dc(source) as unique_rules, values(source) as detections
+| table total_risk, unique_rules, detections</code></pre>
+                        </div>
+                        <p class="guide-explanation">Check accumulated risk. High risk from multiple rules indicates sustained suspicious activity.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 5: Drill Down to Raw Events</div>
+                    <div class="guide-detail-section">
+                        <p>Use the <code>drilldown_search</code> field from the notable, or build your own query to the source data:</p>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=wineventlog user="jsmith" earliest=-24h
+| table _time, EventCode, ComputerName, src_ip, action</code></pre>
+                        </div>
+                        <p class="guide-explanation">Look at the actual events that triggered the detection. Verify the behavior is what the alert claims.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Step 6: Document and Disposition</div>
+                    <div class="guide-detail-section">
+                        <p>Based on your investigation:</p>
+                        <ul>
+                            <li><strong>True Positive</strong> - Escalate to incident, assign owner, begin response</li>
+                            <li><strong>Benign True Positive</strong> - Real activity but expected (e.g., admin doing their job). Document and close</li>
+                            <li><strong>False Positive</strong> - Detection is wrong. Close with notes, consider tuning the rule</li>
+                        </ul>
+                        <p>Always add comments documenting what you found and why you made your decision.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Create saved searches for your common investigation pivots. "Investigate User" and "Investigate Host" searches with tokens make triage much faster.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-analyze-risk',
+            title: 'How to analyze a high-risk user or host',
+            description: 'Investigate why an entity has elevated risk and what contributed to it.',
+            keywords: 'risk RBA risk-based alerting risk_score investigate user host entity',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>An entity (user or host) has high risk in ES. You need to understand what events contributed to the risk and determine if it represents a real threat.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Find the Risk Summary</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=risk risk_object="jsmith"
+| stats sum(risk_score) as total_risk,
+        dc(source) as unique_detections,
+        values(source) as detection_types,
+        earliest(_time) as first_seen,
+        latest(_time) as last_seen</code></pre>
+                        </div>
+                        <p class="guide-explanation">Get a high-level summary: total risk, how many different rules fired, and the time window.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Break Down by Contributing Rule</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=risk risk_object="jsmith"
+| stats count, sum(risk_score) as risk_contributed by source
+| sort -risk_contributed
+| head 10</code></pre>
+                        </div>
+                        <p class="guide-explanation">See which detection rules contributed the most risk. This tells you what type of suspicious behavior was detected.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">View Risk Timeline</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=risk risk_object="jsmith"
+| timechart span=1h sum(risk_score) by source limit=5</code></pre>
+                        </div>
+                        <p class="guide-explanation">When did risk accumulate? Look for spikes that indicate active attacks or a single risky session.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Read Individual Risk Events</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=risk risk_object="jsmith"
+| sort -_time
+| table _time, source, risk_score, risk_message, threat_object
+| head 20</code></pre>
+                        </div>
+                        <p class="guide-explanation">The risk_message field often explains what specifically triggered the detection. threat_object may contain IOCs.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Cross-Reference with Identity</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| inputlookup identity_lookup_expanded
+| search identity="jsmith"
+| table identity, first, last, email, bunit, category, managedBy, priority, watchlist</code></pre>
+                        </div>
+                        <p class="guide-explanation">Who is this user? Are they privileged? Executive? On a watchlist? This context helps interpret the risk.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Interpreting Risk Patterns</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><strong>Many low-risk events</strong> - Could be noisy detection rules; review for tuning</li>
+                            <li><strong>Few high-risk events</strong> - Investigate urgently; high-confidence detections</li>
+                            <li><strong>Multiple unrelated rules</strong> - Higher confidence; independent indicators of compromise</li>
+                            <li><strong>Single rule firing repeatedly</strong> - Could be ongoing attack or noisy rule</li>
+                            <li><strong>Risk spike then quiet</strong> - Investigate the spike window closely</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>If a user has high risk from many brute-force attempts, check if they actually got compromised: look for successful logins after the failures, especially from new locations.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-query-notable',
+            title: 'How to query and filter notable events',
+            description: 'Find and filter notable events for reporting, metrics, and investigation.',
+            keywords: 'notable query filter search metrics reporting SOC status urgency',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You need to query notable events for reporting, metrics, or bulk investigation. This guide shows common patterns for working with the notable index.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Basic Notable Query</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable earliest=-24h
+| stats count by rule_name, urgency
+| sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Count notables by rule and urgency in the last 24 hours. Good for understanding alert volume.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Filter by Status</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable status_group=open
+| stats count by rule_name, owner
+| sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">status_group simplifies filtering: "new", "open" (includes in progress), "pending", "closed".</p>
+                    </div>
+                    <div class="guide-detail-section">
+                        <div class="guide-detail-label">Filter by specific status</div>
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable status="new" | stats count
+index=notable status="in progress" | stats count
+index=notable status="pending" | stats count
+index=notable status="resolved" OR status="closed" | stats count</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Filter by Urgency</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable urgency IN ("critical", "high") status_group=open
+| table _time, rule_name, urgency, src, dest, user, owner</code></pre>
+                        </div>
+                        <p class="guide-explanation">Focus on high and critical urgency notables that haven't been closed yet.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Filter by Security Domain</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable security_domain=endpoint
+| stats count by rule_name | sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">security_domain values: access, endpoint, network, threat, identity, audit. Useful for domain-specific reporting.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Analyst Workload Report</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable earliest=-7d
+| stats count as total,
+        count(eval(status_group="closed")) as closed,
+        count(eval(status_group="open")) as open
+    by owner
+| eval close_rate=round(closed/total*100,1)."%"
+| sort -total</code></pre>
+                        </div>
+                        <p class="guide-explanation">See how many notables each analyst handled and their close rate.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Notable Trend Over Time</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=notable earliest=-30d
+| bucket _time span=1d
+| stats count by _time, urgency
+| xyseries _time urgency count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Daily notable volume by urgency. Great for spotting trends or impact of new detections.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Use the \`notable\` macro instead of index=notable when you need field normalization and ES enrichment: <code>\`notable\` | search status=new</code></p>
+                </div>
+            `
+        },
+        {
+            id: 'es-asset-identity-enrich',
+            title: 'How to enrich events with asset and identity data',
+            description: 'Add business context to your searches using ES Asset and Identity lookups.',
+            keywords: 'asset identity lookup enrich context business priority owner category',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to add context to raw events - who is this user, what is this system, how critical is it, who owns it. ES Asset and Identity lookups provide this enrichment.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Enrich with Asset Data</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall action=blocked
+| lookup asset_lookup_by_str ip as dest_ip
+    OUTPUT dns as dest_hostname, owner as dest_owner, priority as dest_priority, category as dest_category
+| where dest_priority="critical"
+| table _time, src_ip, dest_ip, dest_hostname, dest_owner, dest_priority</code></pre>
+                        </div>
+                        <p class="guide-explanation">Add asset details to firewall events, then filter to critical assets. Now you know what was targeted.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Enrich with Identity Data</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=auth action=failure
+| lookup identity_lookup_expanded identity as user
+    OUTPUT first, last, bunit, category as user_category, managedBy
+| where user_category="privileged"
+| table _time, user, first, last, bunit, managedBy, src_ip</code></pre>
+                        </div>
+                        <p class="guide-explanation">Add identity details to auth failures, filter to privileged users. Failed logins by admins need faster investigation.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using ES Macros (Recommended)</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>\`notable\`
+| \`get_asset(dest)\`
+| \`get_identity4events(user)\`
+| table rule_name, dest, dest_priority, dest_owner, user, user_category, user_bunit</code></pre>
+                        </div>
+                        <p class="guide-explanation">ES macros handle edge cases and are maintained by Splunk. Use them when possible.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Enrich Both Source and Destination</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall
+| lookup asset_lookup_by_str ip as src_ip OUTPUTNEW dns as src_name, priority as src_priority
+| lookup asset_lookup_by_str ip as dest_ip OUTPUTNEW dns as dest_name, priority as dest_priority
+| search src_priority="critical" OR dest_priority="critical"
+| table _time, src_ip, src_name, src_priority, dest_ip, dest_name, dest_priority</code></pre>
+                        </div>
+                        <p class="guide-explanation">OUTPUTNEW prevents overwriting if fields exist. Chain lookups for full context.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">View Available Asset/Identity Data</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| inputlookup asset_lookup_by_str | head 10
+| inputlookup identity_lookup_expanded | head 10</code></pre>
+                        </div>
+                        <p class="guide-explanation">Explore what fields are available in your asset and identity data.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Key Asset Fields</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><code>ip</code> - IP address</li>
+                            <li><code>dns</code> - Hostname</li>
+                            <li><code>owner</code> - Responsible person/team</li>
+                            <li><code>priority</code> - critical, high, medium, low</li>
+                            <li><code>category</code> - server, workstation, network, etc.</li>
+                            <li><code>bunit</code> - Business unit</li>
+                            <li><code>pci_domain</code> - Compliance scope</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Key Identity Fields</div>
+                    <div class="guide-detail-section">
+                        <ul>
+                            <li><code>identity</code> - Username (may have aliases)</li>
+                            <li><code>first</code>, <code>last</code> - Full name</li>
+                            <li><code>email</code> - Email address</li>
+                            <li><code>managedBy</code> - Manager's identity</li>
+                            <li><code>bunit</code> - Business unit/department</li>
+                            <li><code>category</code> - normal, privileged, executive, service</li>
+                            <li><code>watchlist</code> - Enhanced monitoring flag</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-callout warning">
+                    <div class="guide-callout-title">Important</div>
+                    <p>Asset and identity data is only as good as your data sources. If lookups return null, the asset/identity isn't in the system. Treat unknown assets as potentially suspicious.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-threat-intel-match',
+            title: 'How to find threat intelligence matches',
+            description: 'Query for events matching known malicious indicators (IOCs).',
+            keywords: 'threat intelligence IOC indicator IP domain hash match correlation',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You want to find events where your network touched known malicious IPs, domains, or file hashes from threat intelligence feeds.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Check for IP Matches</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=firewall
+| lookup ip_intel ip as dest_ip OUTPUTNEW threat_key, description, threat_collection
+| where isnotnull(threat_key)
+| stats count by dest_ip, description, threat_collection
+| sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find firewall connections to IPs in threat intel. threat_collection tells you which feed matched.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Check for Domain Matches</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=proxy
+| eval domain=lower(url_domain)
+| lookup domain_intel domain OUTPUTNEW threat_key, description
+| where isnotnull(threat_key)
+| table _time, src_ip, url, domain, description</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find proxy connections to malicious domains. Lowercase the domain first for consistent matching.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Check for File Hash Matches</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>index=endpoint file_hash=*
+| lookup file_intel file_hash OUTPUTNEW threat_key, description
+| where isnotnull(threat_key)
+| table _time, host, file_name, file_hash, description</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find endpoint events with known malicious file hashes.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Browse Threat Intel Feeds</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| inputlookup ip_intel | stats count by threat_collection | sort -count
+| inputlookup domain_intel | stats dc(domain) as domains by threat_collection
+| inputlookup file_intel | stats dc(file_hash) as hashes by threat_collection</code></pre>
+                        </div>
+                        <p class="guide-explanation">See what feeds you have and how much coverage each provides.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Search for a Specific IOC</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| inputlookup ip_intel | search ip="185.220.101.*"
+| inputlookup domain_intel | search domain="*malicious.com"
+| inputlookup file_intel | search file_hash="a1b2c3d4..."</code></pre>
+                        </div>
+                        <p class="guide-explanation">Check if a specific indicator is in your threat intel.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using the Threat Activity Data Model</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Threat_Activity
+    by Threat_Activity.threat_match_field, Threat_Activity.threat_collection
+| sort -count</code></pre>
+                        </div>
+                        <p class="guide-explanation">ES automatically populates the Threat_Activity data model with matches. tstats is faster for aggregate queries.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>Threat intel matches should generate risk events or notables automatically via correlation searches. If you're finding matches manually that weren't alerted, check your threat intel correlation search configuration.</p>
+                </div>
+            `
+        },
+        {
+            id: 'es-tstats-datamodels',
+            title: 'How to use tstats with ES data models',
+            description: 'Write fast aggregate queries using ES accelerated data models.',
+            keywords: 'tstats data model accelerated fast search authentication network endpoint',
+            body: `
+                <div class="guide-group">
+                    <div class="guide-group-header">The Goal</div>
+                    <div class="guide-detail-section">
+                        <p>You need to search large volumes of data quickly. ES data models pre-normalize and accelerate data, making aggregate searches orders of magnitude faster.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Basic tstats Syntax</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Authentication
+    where Authentication.action=failure
+    by Authentication.user</code></pre>
+                        </div>
+                        <p class="guide-explanation">Count failed authentications by user. Notice: field names use DataModel.field_name format.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Authentication Data Model</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Authentication
+    where Authentication.action=failure
+    by Authentication.user, Authentication.src
+| where count > 10</code></pre>
+                        </div>
+                        <p class="guide-explanation">Find users with more than 10 failed logins, grouped by source. Good for brute force detection.</p>
+                        <div class="guide-detail-label">Key Authentication fields:</div>
+                        <ul>
+                            <li><code>action</code> - success, failure</li>
+                            <li><code>user</code> - Username</li>
+                            <li><code>src</code> - Source address</li>
+                            <li><code>dest</code> - Destination system</li>
+                            <li><code>app</code> - Application</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Network Traffic Data Model</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats sum(All_Traffic.bytes) as total_bytes from datamodel=Network_Traffic
+    by All_Traffic.src_ip, All_Traffic.dest_ip
+| sort -total_bytes
+| head 20</code></pre>
+                        </div>
+                        <p class="guide-explanation">Top talkers by bytes transferred. Much faster than querying raw firewall logs.</p>
+                        <div class="guide-detail-label">Key Network_Traffic fields:</div>
+                        <ul>
+                            <li><code>src_ip</code>, <code>dest_ip</code> - IP addresses</li>
+                            <li><code>src_port</code>, <code>dest_port</code> - Ports</li>
+                            <li><code>bytes</code>, <code>bytes_in</code>, <code>bytes_out</code></li>
+                            <li><code>action</code> - allowed, blocked</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Endpoint (Processes) Data Model</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats count from datamodel=Endpoint.Processes
+    by Processes.process_name, Processes.user
+| sort -count
+| head 20</code></pre>
+                        </div>
+                        <p class="guide-explanation">Most common processes by user. Useful for baseline and anomaly detection.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">Using tstats with timechart</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats prestats=true count from datamodel=Authentication
+    by _time, Authentication.action span=1h
+| timechart span=1h count by Authentication.action</code></pre>
+                        </div>
+                        <p class="guide-explanation">prestats=true is required before timechart or chart commands.</p>
+                    </div>
+                </div>
+
+                <div class="guide-group">
+                    <div class="guide-group-header">summariesonly Option</div>
+                    <div class="guide-detail-section">
+                        <div class="spl-block">
+                            <pre class="spl-code"><code>| tstats summariesonly=true count from datamodel=Authentication by Authentication.user</code></pre>
+                        </div>
+                        <p class="guide-explanation"><code>summariesonly=true</code> = faster, only accelerated data (may miss recent events). <code>summariesonly=false</code> (default) = complete but slower.</p>
+                    </div>
+                </div>
+
+                <div class="guide-callout tip">
+                    <div class="guide-callout-title">Pro Tip</div>
+                    <p>When building ES dashboards, always use tstats against data models for aggregate panels. Save raw index searches for drilldowns and detailed investigation.</p>
+                </div>
+            `
+        }
     ]
 };
 

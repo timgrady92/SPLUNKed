@@ -485,6 +485,12 @@ function highlightSPL(code, options = {}) {
         '<span class="spl-operator">=</span>'
     );
 
+    // Highlight Splunk macros (backtick-wrapped like `notable` or `get_asset(dest)`)
+    highlighted = highlighted.replace(
+        /`([^`]+)`/g,
+        '<span class="spl-macro">`$1`</span>'
+    );
+
     // Format pipes onto new lines with indentation
     if (formatPipelines) {
         // Replace pipe with styled pipe + line break structure

@@ -43,6 +43,10 @@ const CATEGORY_INFO = {
     antipatterns: {
         title: 'Common Mistakes',
         description: 'Common mistakes that cause slow searches, memory issues, or incorrect results at scale.'
+    },
+    enterpriseSecurity: {
+        title: 'Enterprise Security',
+        description: 'Splunk Enterprise Security (ES) specific features: Risk-Based Alerting, Notable Events, Asset/Identity Framework, and Threat Intelligence.'
     }
 };
 
@@ -78,6 +82,7 @@ const TAB_CATEGORY_MAP = {
     commands: ['commands'],
     functions: ['functions', 'statsFunctions'],
     reference: ['fields', 'concepts', 'cim', 'extractions', 'macros', 'engineering'],
+    enterpriseSecurity: ['enterpriseSecurity'],
     antipatterns: ['antipatterns']
 };
 
@@ -91,6 +96,7 @@ const TAB_INFO = {
         title: 'Reference',
         description: 'Fields, concepts, CIM data models, extraction techniques, macros, and Splunk engineering fundamentals.'
     },
+    enterpriseSecurity: CATEGORY_INFO.enterpriseSecurity,
     antipatterns: CATEGORY_INFO.antipatterns
 };
 
@@ -109,7 +115,8 @@ const SUBCATEGORY_LABELS = {
     concepts: 'Concept',
     extractions: 'Extraction',
     macros: 'Macro/Lookup',
-    engineering: 'Engineering'
+    engineering: 'Engineering',
+    enterpriseSecurity: 'Enterprise Security'
 };
 
 // ============================================
@@ -7166,6 +7173,741 @@ const GLOSSARY_DATA = {
             ],
             relatedCommands: ['Splunk Architecture', 'indexes.conf']
         }
+    ],
+
+    enterpriseSecurity: [
+        // ============================================
+        // Risk-Based Alerting (RBA)
+        // ============================================
+        {
+            id: 'es_rba_overview',
+            name: 'Risk-Based Alerting (RBA)',
+            category: 'enterpriseSecurity',
+            subcategory: 'rba',
+            difficulty: 'intermediate',
+            takeaway: 'Aggregate risk scores to prioritize threats instead of alert fatigue',
+            what: 'Risk-Based Alerting shifts from individual alerts to accumulated risk scores per entity (user, host). Instead of alerting on every suspicious event, ES tracks risk contributions and alerts when an entity\'s total risk exceeds a threshold.',
+            why: 'Traditional alerting causes alert fatigue - too many individual alerts to investigate. RBA reduces noise by focusing on entities with multiple risk indicators, surfacing truly suspicious activity.',
+            keyPoint: 'Think of RBA as a "credit score for bad behavior" - individual events contribute risk points, and you investigate when the score gets too high.',
+            examples: [
+                { spl: 'index=risk | stats sum(risk_score) as total_risk by risk_object | where total_risk > 100 | sort -total_risk', explanation: 'Find high-risk entities' },
+                { spl: 'index=risk risk_object_type=user | stats sum(risk_score) as total, values(source) as detections by risk_object | sort -total', explanation: 'User risk with contributing detections' },
+                { spl: '| tstats sum(All_Risk.calculated_risk_score) as risk from datamodel=Risk by All_Risk.risk_object | sort -risk', explanation: 'Risk via accelerated data model' }
+            ],
+            gotchas: [
+                'risk_object is the entity being attributed risk (user, host, IP)',
+                'risk_object_type identifies the entity type for correlation',
+                'Risk scores reset on a rolling window (typically 24h-7d)',
+                'Tune risk scores in correlation searches to balance signal vs noise'
+            ],
+            relatedCommands: ['index=risk', 'risk_object', 'risk_score']
+        },
+        {
+            id: 'es_risk_index',
+            name: 'Risk Index (index=risk)',
+            category: 'enterpriseSecurity',
+            subcategory: 'rba',
+            difficulty: 'intermediate',
+            takeaway: 'Where all risk events are stored',
+            what: 'The risk index stores every risk attribution event from correlation searches. Each event represents a single risk contribution to an entity, including the source rule, score, and context.',
+            why: 'Query the risk index directly to investigate what contributed to an entity\'s risk, build custom risk dashboards, or tune detection logic.',
+            examples: [
+                { spl: 'index=risk risk_object="jsmith" | table _time, source, risk_score, risk_message', explanation: 'All risk events for user jsmith' },
+                { spl: 'index=risk | stats sum(risk_score) as total, dc(source) as unique_rules by risk_object, risk_object_type | sort -total', explanation: 'Risk summary by entity' },
+                { spl: 'index=risk | timechart span=1h sum(risk_score) by risk_object limit=10', explanation: 'Risk over time for top entities' },
+                { spl: 'index=risk source="*Brute Force*" | stats count, sum(risk_score) by risk_object', explanation: 'Find entities hit by brute force detections' }
+            ],
+            gotchas: [
+                'source field contains the correlation search name that generated the risk',
+                'risk_message provides human-readable context',
+                'threat_object contains the IOC or threat indicator if applicable',
+                'Use risk_object_type to filter to specific entity types (user, system, etc.)'
+            ],
+            relatedFields: ['risk_object', 'risk_object_type', 'risk_score', 'risk_message', 'source', 'threat_object']
+        },
+        {
+            id: 'es_risk_score',
+            name: 'risk_score Field',
+            category: 'enterpriseSecurity',
+            subcategory: 'rba',
+            difficulty: 'beginner',
+            takeaway: 'Numeric value representing threat severity',
+            what: 'The risk_score field contains a numeric value (typically 1-100) assigned by a correlation search to indicate how suspicious or severe an event is.',
+            why: 'Risk scores enable prioritization. A failed login might score 5, while credential dumping scores 80. Total risk per entity determines investigation priority.',
+            examples: [
+                { spl: 'index=risk | stats avg(risk_score) as avg_score, max(risk_score) as max_score by source | sort -avg_score', explanation: 'Average risk by detection rule' },
+                { spl: 'index=risk risk_score>=50 | stats count by risk_object, source', explanation: 'High-risk events (50+) by entity and rule' },
+                { spl: '| from datamodel:Risk | where calculated_risk_score > 75', explanation: 'Very high risk events from data model' }
+            ],
+            gotchas: [
+                'calculated_risk_score in data model may differ from raw risk_score',
+                'Score values are configurable per correlation search',
+                'Typical ranges: Low (1-20), Medium (21-50), High (51-80), Critical (81-100)',
+                'Scores can be modified by risk modifiers based on asset criticality'
+            ],
+            relatedFields: ['calculated_risk_score', 'risk_modifier', 'risk_object']
+        },
+        {
+            id: 'es_risk_object',
+            name: 'risk_object / risk_object_type',
+            category: 'enterpriseSecurity',
+            subcategory: 'rba',
+            difficulty: 'beginner',
+            takeaway: 'The entity receiving risk attribution',
+            what: 'risk_object contains the entity (username, hostname, IP) being attributed risk. risk_object_type identifies what kind of entity it is (user, system, other).',
+            why: 'Risk aggregates per entity. Knowing the risk_object lets you investigate a specific user or host, while risk_object_type enables filtering to user-based vs host-based threats.',
+            examples: [
+                { spl: 'index=risk risk_object_type=user | stats sum(risk_score) as total by risk_object | sort -total | head 20', explanation: 'Top 20 riskiest users' },
+                { spl: 'index=risk risk_object_type=system | stats sum(risk_score) as total, values(source) as detections by risk_object', explanation: 'Risky systems with detection types' },
+                { spl: 'index=risk risk_object="192.168.1.100" OR risk_object="workstation01" | table _time, source, risk_score', explanation: 'Risk timeline for specific entity' }
+            ],
+            gotchas: [
+                'risk_object_type values: user, system, other (configurable)',
+                'Same entity may appear with different names (DOMAIN\\user vs user@domain)',
+                'Use Asset/Identity framework to normalize entity names',
+                'Multiple risk_objects can be in one event (user AND system)'
+            ],
+            relatedFields: ['risk_score', 'risk_message', 'orig_risk_object']
+        },
+        {
+            id: 'es_risk_drilldown',
+            name: 'Risk Investigation Patterns',
+            category: 'enterpriseSecurity',
+            subcategory: 'rba',
+            difficulty: 'intermediate',
+            takeaway: 'SPL patterns for investigating high-risk entities',
+            what: 'Common search patterns for drilling down into why an entity has elevated risk, what events contributed, and what the timeline looks like.',
+            why: 'When an entity exceeds risk threshold, you need to quickly understand what happened. These patterns accelerate investigation.',
+            examples: [
+                { spl: 'index=risk risk_object="$entity$" | stats count, sum(risk_score) as total by source | sort -total', explanation: 'What rules contributed to this entity\'s risk?' },
+                { spl: 'index=risk risk_object="$entity$" | timechart span=1h sum(risk_score)', explanation: 'When did risk accumulate?' },
+                { spl: 'index=risk risk_object="$entity$" | stats earliest(_time) as first_seen, latest(_time) as last_seen, sum(risk_score) as total by source | sort -total', explanation: 'Detection timeline per rule' },
+                { spl: 'index=risk risk_object="$entity$" | table _time, source, risk_score, risk_message | sort -_time', explanation: 'Chronological risk event log' }
+            ],
+            gotchas: [
+                'Replace $entity$ with the actual user/host you\'re investigating',
+                'Look for clusters of risk events - may indicate active attack',
+                'Check if multiple unrelated rules fired - higher confidence threat',
+                'Use orig_event_id to pivot to original raw events'
+            ]
+        },
+        {
+            id: 'es_risk_modifiers',
+            name: 'Risk Modifiers',
+            category: 'enterpriseSecurity',
+            subcategory: 'rba',
+            difficulty: 'advanced',
+            takeaway: 'Adjust risk scores based on asset/identity context',
+            what: 'Risk modifiers automatically adjust risk scores based on the priority of the asset or identity involved. A critical server or privileged user receives amplified risk scores.',
+            why: 'Not all entities are equal. A brute force attack against an admin account is more serious than against a regular user. Risk modifiers provide this context automatically.',
+            keyPoint: 'Risk modifiers multiply base scores: critical asset (4x), high (3x), medium (2x), low (1x). Check your ES configuration for exact values.',
+            examples: [
+                { spl: 'index=risk | eval effective_risk=risk_score*risk_modifier | stats sum(effective_risk) by risk_object', explanation: 'Calculate effective risk with modifiers' },
+                { spl: '| inputlookup asset_lookup_by_str | stats count by priority', explanation: 'Review asset priority distribution' },
+                { spl: 'index=risk risk_modifier>1 | stats count by risk_object, risk_modifier | sort -risk_modifier', explanation: 'Entities receiving amplified risk' }
+            ],
+            gotchas: [
+                'risk_modifier comes from asset/identity priority field',
+                'Default modifiers: critical=4, high=3, medium=2, low=1, unknown=1',
+                'Modifiers are configurable in ES settings',
+                'calculated_risk_score = risk_score × risk_modifier'
+            ],
+            relatedFields: ['risk_modifier', 'calculated_risk_score', 'priority']
+        },
+        // ============================================
+        // Notable Events
+        // ============================================
+        {
+            id: 'es_notable_overview',
+            name: 'Notable Events',
+            category: 'enterpriseSecurity',
+            subcategory: 'notable',
+            difficulty: 'intermediate',
+            takeaway: 'Security alerts that require analyst investigation',
+            what: 'Notable events are high-fidelity alerts generated by ES correlation searches. They represent potential security incidents that require human review and are tracked through a workflow (New → In Progress → Resolved).',
+            why: 'Not every log event needs investigation, but notable events do. They\'re the output of your detection logic and feed the Incident Review dashboard for SOC workflow.',
+            keyPoint: 'Notable events = actionable alerts. Risk events = contributing indicators. Both work together in modern ES.',
+            examples: [
+                { spl: 'index=notable | stats count by rule_name, urgency | sort -count', explanation: 'Notable volume by rule and urgency' },
+                { spl: 'index=notable status=new urgency=critical | table _time, rule_name, src, dest, user', explanation: 'New critical notables' },
+                { spl: 'index=notable | timechart span=1d count by rule_name limit=10', explanation: 'Notable trend by rule over time' },
+                { spl: '`notable` | search status=new | stats count by security_domain', explanation: 'New notables by security domain using ES macro' }
+            ],
+            gotchas: [
+                'Use the `notable` macro for proper field normalization',
+                'Notable events have a lifecycle: new → in progress → pending → resolved/closed',
+                'owner field tracks analyst assignment',
+                'urgency field (informational, low, medium, high, critical) determines priority'
+            ],
+            relatedFields: ['rule_name', 'urgency', 'status', 'owner', 'security_domain']
+        },
+        {
+            id: 'es_notable_index',
+            name: 'Notable Index (index=notable)',
+            category: 'enterpriseSecurity',
+            subcategory: 'notable',
+            difficulty: 'beginner',
+            takeaway: 'Where all security alerts are stored',
+            what: 'The notable index stores all notable events created by correlation searches. Each event includes the alert details, urgency, status, and fields from the triggering events.',
+            why: 'Query notable directly to build custom alert dashboards, measure detection coverage, track analyst workload, and investigate security incidents.',
+            examples: [
+                { spl: 'index=notable | stats count by rule_name | sort -count', explanation: 'Most frequent notable types' },
+                { spl: 'index=notable earliest=-24h | stats dc(src) as unique_sources, dc(dest) as unique_targets by rule_name', explanation: 'Alert scope analysis' },
+                { spl: 'index=notable status=closed | stats avg(time_to_close) as avg_ttc by rule_name', explanation: 'Average time to close by rule (requires calculated field)' },
+                { spl: 'index=notable owner=* status!=closed | stats count by owner | sort -count', explanation: 'Open notables by analyst' }
+            ],
+            gotchas: [
+                'Notable events are created by correlation searches with "Notable" adaptive response action',
+                'status_group field simplifies filtering: new, open, pending, closed',
+                'event_id links to the original triggering events',
+                'Custom fields from correlation search are preserved in the notable'
+            ],
+            relatedFields: ['rule_name', 'rule_title', 'urgency', 'status', 'owner', 'security_domain', 'event_id']
+        },
+        {
+            id: 'es_notable_fields',
+            name: 'Notable Event Key Fields',
+            category: 'enterpriseSecurity',
+            subcategory: 'notable',
+            difficulty: 'beginner',
+            takeaway: 'Essential fields in every notable event',
+            what: 'Notable events contain standard fields for workflow management (status, owner, urgency) plus context from the triggering correlation search (rule_name, src, dest, user, etc.).',
+            why: 'Understanding notable fields enables effective querying, dashboard building, and workflow automation.',
+            examples: [
+                { spl: 'index=notable | table _time, rule_name, urgency, status, owner, src, dest, user', explanation: 'Core notable fields' },
+                { spl: 'index=notable urgency IN ("critical", "high") status_group=open | stats count by rule_name, owner', explanation: 'High-urgency open notables' },
+                { spl: 'index=notable | stats earliest(_time) as created, latest(status_end_time) as resolved by rule_id | eval mttr=resolved-created', explanation: 'Calculate MTTR' }
+            ],
+            keyFields: [
+                { field: 'rule_name', description: 'Name of the correlation search that created this notable' },
+                { field: 'urgency', description: 'Priority level: informational, low, medium, high, critical' },
+                { field: 'status', description: 'Workflow state: new, in progress, pending, resolved, closed' },
+                { field: 'owner', description: 'Analyst assigned to investigate' },
+                { field: 'security_domain', description: 'Category: access, endpoint, network, threat, identity, audit' },
+                { field: 'src / dest / user', description: 'Key entities from triggering events' },
+                { field: 'drilldown_search', description: 'SPL to find original raw events' }
+            ],
+            gotchas: [
+                'status_group simplifies queries: "open" includes new and in progress',
+                'orig_time may differ from _time if notable was created asynchronously',
+                'drilldown_search helps pivot to raw events for investigation'
+            ]
+        },
+        {
+            id: 'es_notable_workflow',
+            name: 'Notable Workflow Queries',
+            category: 'enterpriseSecurity',
+            subcategory: 'notable',
+            difficulty: 'intermediate',
+            takeaway: 'SPL for managing and measuring SOC workflow',
+            what: 'Queries to track notable event status, measure analyst performance, identify backlog, and monitor detection effectiveness.',
+            why: 'SOC managers need visibility into alert volume, response times, and analyst workload. These patterns power operational dashboards.',
+            examples: [
+                { spl: 'index=notable | stats count as total, count(eval(status_group="open")) as open, count(eval(status_group="closed")) as closed by rule_name', explanation: 'Notable status breakdown by rule' },
+                { spl: 'index=notable status_group=open | stats count by owner | sort -count', explanation: 'Open notable backlog by analyst' },
+                { spl: 'index=notable status=closed | eval ttc=status_end_time-orig_time | stats avg(ttc) as avg_seconds by urgency | eval avg_hours=round(avg_seconds/3600,1)', explanation: 'Average time-to-close by urgency' },
+                { spl: 'index=notable | bucket _time span=1d | stats count by _time, status_group | xyseries _time status_group count', explanation: 'Daily notable volume by status' }
+            ],
+            gotchas: [
+                'status_end_time updates when status changes - track workflow timing',
+                'Unassigned notables (owner=unassigned) indicate process gaps',
+                'High "pending" count may indicate waiting on external teams',
+                'Compare new vs closed rates to identify growing backlog'
+            ]
+        },
+        // ============================================
+        // Asset and Identity Framework
+        // ============================================
+        {
+            id: 'es_asset_overview',
+            name: 'Asset & Identity Framework',
+            category: 'enterpriseSecurity',
+            subcategory: 'assetIdentity',
+            difficulty: 'intermediate',
+            takeaway: 'Enrich events with business context about users and systems',
+            what: 'The Asset & Identity Framework maintains lookup tables of known users (identities) and systems (assets) with metadata like department, business unit, criticality, and owner. ES automatically enriches events with this context.',
+            why: 'A login from "jsmith" means little. A login from "John Smith, Domain Admin, Finance Department" on a "Critical - PCI Server" tells a story. Asset/Identity context enables prioritization.',
+            keyPoint: 'Events without context are just noise. Asset/Identity framework transforms raw logs into business-relevant security information.',
+            examples: [
+                { spl: '| inputlookup asset_lookup_by_str | stats count by bunit, category, priority', explanation: 'Asset inventory summary' },
+                { spl: '| inputlookup identity_lookup_expanded | search category="privileged" | table identity, email, managedBy, category', explanation: 'Privileged user list' },
+                { spl: 'index=notable | lookup asset_lookup_by_str ip as dest OUTPUT priority, category, owner | where priority="critical"', explanation: 'Notable events on critical assets' },
+                { spl: 'index=auth | lookup identity_lookup_expanded identity as user OUTPUT bunit, category | stats count by bunit, category', explanation: 'Auth events enriched with user business unit' }
+            ],
+            gotchas: [
+                'Asset data sources: AD, CMDB, vulnerability scanners, cloud APIs',
+                'Identity data sources: AD, HR systems, IAM platforms',
+                'Regular updates are critical - stale data = wrong enrichment',
+                'priority field enables risk modifiers (critical asset = higher risk)'
+            ],
+            relatedCommands: ['inputlookup', 'lookup', 'outputlookup']
+        },
+        {
+            id: 'es_asset_lookup',
+            name: 'Asset Lookups',
+            category: 'enterpriseSecurity',
+            subcategory: 'assetIdentity',
+            difficulty: 'intermediate',
+            takeaway: 'Enrich events with system/device context',
+            what: 'ES provides asset lookups that map IP addresses, hostnames, and MAC addresses to asset metadata like owner, business unit, location, priority, and category.',
+            why: 'Know what systems are involved in an alert. "External connection to 10.1.2.3" becomes "External connection to PROD-DB-01 (Critical, Finance, PCI-DSS scope)".',
+            examples: [
+                { spl: '| inputlookup asset_lookup_by_str | head 10', explanation: 'View asset lookup contents' },
+                { spl: 'index=firewall action=blocked | lookup asset_lookup_by_str ip as src_ip OUTPUT dns, owner, priority | where priority="critical"', explanation: 'Blocked connections from critical assets' },
+                { spl: '| inputlookup asset_lookup_by_cidr | where cidrmatch(ip, "10.1.0.0/16")', explanation: 'Assets in a subnet via CIDR lookup' },
+                { spl: 'index=vuln | lookup asset_lookup_by_str ip as dest OUTPUT category, bunit | stats count by category, bunit', explanation: 'Vulnerability counts by asset category and business unit' }
+            ],
+            keyFields: [
+                { field: 'ip', description: 'IP address (primary key for asset_lookup_by_str)' },
+                { field: 'dns', description: 'Hostname/FQDN' },
+                { field: 'owner', description: 'Responsible person or team' },
+                { field: 'priority', description: 'Criticality: critical, high, medium, low, unknown' },
+                { field: 'category', description: 'Type: server, workstation, network, database, etc.' },
+                { field: 'bunit', description: 'Business unit' },
+                { field: 'pci_domain', description: 'PCI compliance scope (true/false or zone)' }
+            ],
+            gotchas: [
+                'asset_lookup_by_str for exact IP/hostname match',
+                'asset_lookup_by_cidr for subnet-based matching',
+                'Keep assets updated via scripted inputs from CMDB/AD',
+                'Unknown assets (no match) should trigger asset discovery process'
+            ]
+        },
+        {
+            id: 'es_identity_lookup',
+            name: 'Identity Lookups',
+            category: 'enterpriseSecurity',
+            subcategory: 'assetIdentity',
+            difficulty: 'intermediate',
+            takeaway: 'Enrich events with user context',
+            what: 'ES identity lookups map usernames, email addresses, and other identifiers to user metadata like full name, department, manager, and privilege category.',
+            why: 'Transform "user=jsmith" into actionable context: "John Smith, VP Finance, reports to CFO, Domain Admin privileges, high-risk travel last week".',
+            examples: [
+                { spl: '| inputlookup identity_lookup_expanded | head 10', explanation: 'View identity lookup contents' },
+                { spl: 'index=auth action=failure | lookup identity_lookup_expanded identity as user OUTPUT email, managedBy, category | where category="privileged"', explanation: 'Failed logins by privileged users' },
+                { spl: '| inputlookup identity_lookup_expanded | search category="executive" | table identity, first, last, email, managedBy', explanation: 'List executive users' },
+                { spl: 'index=notable | lookup identity_lookup_expanded identity as user OUTPUT bunit, category, priority | stats count by bunit, category', explanation: 'Notables by user business unit and category' }
+            ],
+            keyFields: [
+                { field: 'identity', description: 'Username (primary key, may be multivalued for aliases)' },
+                { field: 'first / last', description: 'First and last name' },
+                { field: 'email', description: 'Email address' },
+                { field: 'managedBy', description: 'Manager\'s identity' },
+                { field: 'bunit', description: 'Business unit / department' },
+                { field: 'category', description: 'User type: normal, privileged, executive, service, etc.' },
+                { field: 'priority', description: 'User criticality for risk scoring' },
+                { field: 'watchlist', description: 'Boolean for users under enhanced monitoring' }
+            ],
+            gotchas: [
+                'identity field may contain multiple values (username, email, UPN)',
+                'category="privileged" identifies admin accounts',
+                'watchlist field enables enhanced monitoring without separate logic',
+                'Sync from AD/HR regularly to catch new users and terminations'
+            ]
+        },
+        {
+            id: 'es_asset_identity_enrichment',
+            name: 'Enrichment Patterns',
+            category: 'enterpriseSecurity',
+            subcategory: 'assetIdentity',
+            difficulty: 'intermediate',
+            takeaway: 'SPL patterns for adding asset/identity context to events',
+            what: 'Common lookup patterns to enrich raw events and notables with business context from the Asset & Identity framework.',
+            why: 'Every SOC search benefits from enrichment. Know who and what is involved, not just IPs and usernames.',
+            examples: [
+                { spl: 'index=auth | lookup identity_lookup_expanded identity as user OUTPUT first, last, bunit, category | where category="privileged"', explanation: 'Enrich auth events with user details' },
+                { spl: 'index=firewall | lookup asset_lookup_by_str ip as src_ip OUTPUTNEW src_owner, src_priority, src_category | lookup asset_lookup_by_str ip as dest_ip OUTPUTNEW dest_owner, dest_priority, dest_category', explanation: 'Enrich source and destination' },
+                { spl: 'index=notable | lookup identity_lookup_expanded identity as user OUTPUTNEW user_category, user_bunit | lookup asset_lookup_by_str ip as dest OUTPUTNEW dest_priority, dest_owner', explanation: 'Fully enrich notables' },
+                { spl: '`notable` | `get_asset(dest)` | `get_identity4events(user)`', explanation: 'Use ES macros for standard enrichment' }
+            ],
+            gotchas: [
+                'OUTPUTNEW prevents overwriting existing fields',
+                'Multiple lookups can chain (user + src + dest enrichment)',
+                'ES macros like `get_asset()` and `get_identity4events()` handle edge cases',
+                'Missing enrichment (null) indicates unknown asset/identity - valuable signal itself'
+            ],
+            relatedCommands: ['lookup', 'inputlookup']
+        },
+        // ============================================
+        // Threat Intelligence
+        // ============================================
+        {
+            id: 'es_threat_intel',
+            name: 'Threat Intelligence Framework',
+            category: 'enterpriseSecurity',
+            subcategory: 'threatIntel',
+            difficulty: 'advanced',
+            takeaway: 'Match events against known bad indicators (IOCs)',
+            what: 'ES Threat Intelligence Framework ingests IOCs (IPs, domains, hashes, URLs) from feeds and automatically correlates them with your events via lookup-based matching.',
+            why: 'Know when your network touches known malicious infrastructure. Threat intel transforms raw events into threat detections.',
+            examples: [
+                { spl: '| inputlookup ip_intel | stats count by threat_collection', explanation: 'View IP threat intel by source feed' },
+                { spl: 'index=firewall | lookup ip_intel ip as dest_ip OUTPUTNEW threat_key, threat_collection | where isnotnull(threat_key)', explanation: 'Find firewall connections to known bad IPs' },
+                { spl: '| inputlookup domain_intel | search threat_collection="*abuse*" | table domain, description, threat_collection', explanation: 'Browse domain intel from abuse feeds' },
+                { spl: 'index=proxy | lookup domain_intel domain as url_domain OUTPUT threat_key | where isnotnull(threat_key) | stats count by url_domain, threat_key', explanation: 'Proxy hits on threat domains' }
+            ],
+            gotchas: [
+                'Intel types: ip_intel, domain_intel, file_intel, http_intel, email_intel, etc.',
+                'threat_key links to the original intel entry for context',
+                'threat_collection identifies the feed source',
+                'Threat intel requires regular updates - stale intel misses new threats'
+            ],
+            relatedLookups: ['ip_intel', 'domain_intel', 'file_intel', 'http_intel', 'email_intel', 'certificate_intel']
+        },
+        {
+            id: 'es_threat_lookups',
+            name: 'Threat Intel Lookups',
+            category: 'enterpriseSecurity',
+            subcategory: 'threatIntel',
+            difficulty: 'intermediate',
+            takeaway: 'Lookup tables containing IOCs by type',
+            what: 'ES stores threat intel in type-specific lookups: ip_intel for IPs, domain_intel for domains, file_intel for hashes, etc. Each lookup contains the IOC, description, and source feed.',
+            why: 'Query threat intel lookups directly to investigate IOCs, check coverage, or build custom threat matching logic.',
+            examples: [
+                { spl: '| inputlookup ip_intel | search ip="192.168.*" | table ip, description, threat_collection', explanation: 'Search for specific IP in threat intel' },
+                { spl: '| inputlookup file_intel | stats count by threat_collection', explanation: 'File hash intel by feed' },
+                { spl: '| inputlookup domain_intel | where match(domain, ".*\\.ru$") | table domain, description', explanation: 'Russian domains in threat intel' },
+                { spl: '| inputlookup ip_intel | stats dc(ip) as unique_ips by threat_collection | sort -unique_ips', explanation: 'Intel coverage by feed' }
+            ],
+            keyFields: [
+                { field: 'ip / domain / file_hash', description: 'The IOC value (varies by lookup type)' },
+                { field: 'description', description: 'Context about the threat' },
+                { field: 'threat_collection', description: 'Source feed name' },
+                { field: 'threat_key', description: 'Unique identifier for this IOC entry' },
+                { field: 'weight', description: 'Confidence/severity score' }
+            ],
+            gotchas: [
+                'Use threat_collection to understand feed sources',
+                'weight field indicates confidence - higher is more reliable',
+                'time_added/time_updated help identify stale intel',
+                'Threat intel audit: | inputlookup ip_intel | stats min(time_added), max(time_updated), count by threat_collection'
+            ]
+        },
+        {
+            id: 'es_threat_match',
+            name: 'Threat Matching Patterns',
+            category: 'enterpriseSecurity',
+            subcategory: 'threatIntel',
+            difficulty: 'intermediate',
+            takeaway: 'SPL patterns to correlate events with threat intel',
+            what: 'Search patterns to find events matching threat intel IOCs, using lookups or the Threat Activity data model.',
+            why: 'Proactively hunt for threat intel matches beyond automated correlation searches.',
+            examples: [
+                { spl: 'index=firewall | lookup ip_intel ip as dest_ip OUTPUTNEW threat_key, description | where isnotnull(threat_key) | stats count by dest_ip, description', explanation: 'Firewall hits on threat IPs' },
+                { spl: 'index=proxy | eval domain=lower(url_domain) | lookup domain_intel domain OUTPUTNEW threat_key | search threat_key=* | table _time, src_ip, url, threat_key', explanation: 'Proxy connections to threat domains' },
+                { spl: 'index=endpoint | lookup file_intel file_hash as sha256 OUTPUTNEW threat_key, description | where isnotnull(threat_key)', explanation: 'Endpoint file hash matches' },
+                { spl: '| tstats count from datamodel=Threat_Activity by Threat_Activity.threat_match_field, Threat_Activity.threat_collection', explanation: 'Threat matches via data model' }
+            ],
+            gotchas: [
+                'Normalize fields before lookup (lowercase domains, consistent IP format)',
+                'OUTPUTNEW prevents overwriting if field exists',
+                'isnotnull(threat_key) confirms match',
+                'Combine with asset/identity enrichment for full context'
+            ]
+        },
+        // ============================================
+        // ES Data Models
+        // ============================================
+        {
+            id: 'es_datamodels',
+            name: 'ES Data Models Overview',
+            category: 'enterpriseSecurity',
+            subcategory: 'datamodels',
+            difficulty: 'intermediate',
+            takeaway: 'Accelerated, normalized data for fast ES searches',
+            what: 'ES ships with data models that normalize events into standard schemas and accelerate them for fast searching. These power ES dashboards, correlation searches, and the tstats command.',
+            why: 'Data models enable fast, vendor-agnostic searches. Query "Authentication failures" without knowing if it\'s Windows EventCode 4625, Linux auth.log, or cloud provider logs.',
+            keyPoint: 'Use tstats with ES data models for fastest queries. Full event searches (index=) for detailed investigation.',
+            examples: [
+                { spl: '| tstats count from datamodel=Authentication where Authentication.action=failure by Authentication.user', explanation: 'Failed logins via data model (fast)' },
+                { spl: '| datamodel Network_Traffic All_Traffic search | head 100', explanation: 'Sample network traffic data model events' },
+                { spl: '| tstats summariesonly=true count from datamodel=Endpoint.Processes by Processes.process_name | sort -count', explanation: 'Process execution counts (accelerated only)' },
+                { spl: '| tstats count from datamodel=Risk.All_Risk by All_Risk.risk_object | sort -count', explanation: 'Risk events by entity' }
+            ],
+            dataModels: [
+                { name: 'Authentication', description: 'Logins, logoffs, authentication failures' },
+                { name: 'Network_Traffic', description: 'Firewall, netflow, connection data' },
+                { name: 'Endpoint', description: 'Processes, services, filesystem, registry' },
+                { name: 'Web', description: 'Proxy, web server access logs' },
+                { name: 'Email', description: 'Email gateway, mail server logs' },
+                { name: 'Risk', description: 'Risk events from RBA' },
+                { name: 'Threat_Activity', description: 'Threat intel matches' }
+            ],
+            gotchas: [
+                'summariesonly=true uses only accelerated data (faster, may miss recent events)',
+                'summariesonly=false includes non-accelerated events (complete, slower)',
+                'Check acceleration status in Settings > Data Models, or via REST: | rest /servicesNS/-/-/admin/datamodel-acceleration',
+                'Data model field names use hierarchy: Authentication.user, not just user'
+            ],
+            relatedCommands: ['tstats', 'datamodel', 'from']
+        },
+        {
+            id: 'es_tstats_patterns',
+            name: 'tstats Patterns for ES',
+            category: 'enterpriseSecurity',
+            subcategory: 'datamodels',
+            difficulty: 'intermediate',
+            takeaway: 'Fast aggregate queries against ES data models',
+            what: 'tstats queries accelerated data models without scanning raw events. Essential for ES dashboards and correlation searches that need to process large volumes quickly.',
+            why: 'A stats query over 30 days of auth logs might take 10 minutes. The same tstats query against the Authentication data model takes seconds.',
+            examples: [
+                { spl: '| tstats count from datamodel=Authentication where Authentication.action=failure by Authentication.user, Authentication.src | where count>10', explanation: 'Users with 10+ failures by source' },
+                { spl: '| tstats sum(All_Traffic.bytes) as bytes from datamodel=Network_Traffic by All_Traffic.src_ip, All_Traffic.dest_ip | sort -bytes', explanation: 'Top talkers by bytes' },
+                { spl: '| tstats prestats=true count from datamodel=Authentication by _time, Authentication.action span=1h | timechart span=1h count by Authentication.action', explanation: 'Auth success/failure over time' },
+                { spl: '| tstats dc(Authentication.src) as unique_sources from datamodel=Authentication where Authentication.action=failure by Authentication.user | where unique_sources>5', explanation: 'Users failing from many sources (credential stuffing)' }
+            ],
+            gotchas: [
+                'Always specify from datamodel=ModelName and full field paths',
+                'prestats=true required before timechart/chart',
+                'where clause filters accelerated data efficiently',
+                'dc() for distinct count, sum(), count(), avg(), min(), max() all work'
+            ],
+            relatedCommands: ['tstats', 'datamodel', 'timechart']
+        },
+        // ============================================
+        // ES Macros
+        // ============================================
+        {
+            id: 'es_macros',
+            name: 'Common ES Macros',
+            category: 'enterpriseSecurity',
+            subcategory: 'macros',
+            difficulty: 'intermediate',
+            takeaway: 'Pre-built search snippets for ES workflows',
+            what: 'ES includes many macros that encapsulate common search patterns, enrichment, and formatting. Using macros ensures consistency and benefits from ES updates.',
+            why: 'Instead of writing complex enrichment logic, use ES macros. They handle edge cases and stay updated with ES versions.',
+            examples: [
+                { spl: '`notable` | search status=new', explanation: 'Query notables with proper normalization' },
+                { spl: '`notable` | `get_asset(dest)` | `get_identity4events(user)`', explanation: 'Notable with asset/identity enrichment' },
+                { spl: '| from datamodel:Risk | `get_risk_severity(risk_score)`', explanation: 'Add severity label to risk scores' },
+                { spl: '| rest /servicesNS/-/-/admin/macros | search title="notable" | table title, definition', explanation: 'View macro definition via REST' }
+            ],
+            commonMacros: [
+                { macro: '`notable`', description: 'Search notable index with field normalization' },
+                { macro: '`get_asset(field)`', description: 'Enrich field with asset lookup data' },
+                { macro: '`get_identity4events(field)`', description: 'Enrich field with identity lookup data' },
+                { macro: '`get_risk_severity(score)`', description: 'Convert risk score to severity label' },
+                { macro: '`risk_index`', description: 'Returns configured risk index name' },
+                { macro: '`cim_normalize_*`', description: 'Various CIM field normalization macros' }
+            ],
+            gotchas: [
+                'View macro definition via REST: | rest /servicesNS/-/-/admin/macros | search title="macro_name"',
+                'Or check via Splunk Web: Settings > Advanced Search > Search Macros',
+                'Macros can have arguments: `macro(arg1, arg2)`',
+                'Custom macros should not conflict with ES macro names'
+            ]
+        },
+        // ============================================
+        // Correlation Searches
+        // ============================================
+        {
+            id: 'es_correlation',
+            name: 'Correlation Searches',
+            category: 'enterpriseSecurity',
+            subcategory: 'correlation',
+            difficulty: 'advanced',
+            takeaway: 'Scheduled searches that detect threats and create alerts',
+            what: 'Correlation searches are scheduled SPL queries that detect suspicious patterns and trigger adaptive response actions (create notable, attribute risk, send email, etc.).',
+            why: 'Correlation searches are your detection logic. They define what ES considers a security threat and what actions to take.',
+            keyPoint: 'Modern ES: Most correlations should create risk events. Only high-fidelity detections should create notables directly.',
+            examples: [
+                { spl: '| tstats count from datamodel=Authentication where Authentication.action=failure by Authentication.user | where count>10', explanation: 'Simple brute force detection (add adaptive response in ES UI)' },
+                { spl: '| tstats summariesonly=true count from datamodel=Authentication where Authentication.action=failure by Authentication.user, Authentication.src | where count>5', explanation: 'Brute force pattern for RBA (configure risk action in ES)' },
+                { spl: 'index=firewall | lookup ip_intel ip as dest_ip OUTPUT threat_key | where isnotnull(threat_key) | table _time, src_ip, dest_ip, threat_key', explanation: 'Threat intel match detection base search' }
+            ],
+            gotchas: [
+                'Correlation searches run on schedule (not real-time) - tune frequency',
+                'Use throttling to prevent duplicate notables for ongoing attacks',
+                'Test searches manually before enabling as correlations',
+                'RBA approach: attribute risk in correlation, create notables from risk aggregation'
+            ],
+            relatedCommands: ['tstats', '`create_notable`', '`risk_score`']
+        },
+        {
+            id: 'es_adaptive_response',
+            name: 'Adaptive Response Actions',
+            category: 'enterpriseSecurity',
+            subcategory: 'correlation',
+            difficulty: 'advanced',
+            takeaway: 'Automated actions triggered by correlation searches',
+            what: 'Adaptive Response Actions are automated responses triggered by correlation searches: create notable, submit to risk index, send email, run script, quarantine host, etc.',
+            why: 'Automate response to detected threats. From simple alerting to active containment, adaptive responses extend detection into action.',
+            examples: [
+                { spl: '... | sendalert notable param.rule_title="Suspicious Activity" param.urgency="high"', explanation: 'Create notable via adaptive response' },
+                { spl: '... | sendalert risk param.risk_score="50" param.risk_object_field="user" param.risk_object_type="user"', explanation: 'Attribute risk via adaptive response' },
+                { spl: '... | sendalert email param.to="soc@company.com" param.subject="Critical Alert"', explanation: 'Send email alert' }
+            ],
+            actionTypes: [
+                { action: 'notable', description: 'Create notable event for analyst investigation' },
+                { action: 'risk', description: 'Attribute risk to entities (RBA)' },
+                { action: 'email', description: 'Send email notification' },
+                { action: 'script', description: 'Run custom script for remediation' },
+                { action: 'webhook', description: 'Call external API (SOAR, ticketing)' }
+            ],
+            gotchas: [
+                'Notable and risk are the most common actions',
+                'External actions (script, webhook) require configuration in ES',
+                'Actions run sequentially - complex actions add latency',
+                'Test adaptive responses in dev before production deployment'
+            ]
+        },
+        {
+            id: 'es_suppression_throttling',
+            name: 'Suppression & Throttling',
+            category: 'enterpriseSecurity',
+            subcategory: 'correlation',
+            difficulty: 'intermediate',
+            takeaway: 'Prevent duplicate alerts for ongoing activity',
+            what: 'Suppression prevents creating duplicate notables for the same condition within a time window. Throttling limits how often a correlation search can fire alerts.',
+            why: 'Without suppression, a 10-minute brute force attack creates hundreds of notables. With proper suppression, you get one alert that can be updated as the attack continues.',
+            keyPoint: 'Suppress by key fields (user, src, dest) + time window. One notable per unique combination per window.',
+            examples: [
+                { spl: 'index=notable | stats count by rule_name | where count>100 | sort -count', explanation: 'Find rules generating excessive notables (need suppression)' },
+                { spl: 'index=notable rule_name="Brute Force" | stats count by user, src | where count>5', explanation: 'Check if suppression is working - should be 1 per user/src' },
+                { spl: 'index=notable | timechart span=1h count by rule_name limit=10', explanation: 'Visualize notable frequency - spikes indicate suppression issues' }
+            ],
+            suppressionFields: [
+                { scenario: 'Brute force', fields: 'user, src', window: '1 hour' },
+                { scenario: 'Malware detected', fields: 'dest, file_hash', window: '24 hours' },
+                { scenario: 'Lateral movement', fields: 'src, dest', window: '1 hour' },
+                { scenario: 'Data exfiltration', fields: 'src, dest_ip', window: '4 hours' }
+            ],
+            gotchas: [
+                'Configure suppression in correlation search settings, not in SPL',
+                'Suppression fields should match the key entities in your detection',
+                'Too short window = duplicate alerts; too long = missed new attacks',
+                'Use aggregation (stats count) in the search itself to reduce result volume'
+            ]
+        },
+        // ============================================
+        // ES Investigation Patterns
+        // ============================================
+        {
+            id: 'es_investigation_user',
+            name: 'User Investigation Queries',
+            category: 'enterpriseSecurity',
+            subcategory: 'investigation',
+            difficulty: 'intermediate',
+            takeaway: 'SPL patterns for investigating a suspicious user',
+            what: 'Common queries to investigate a user: authentication activity, risk history, notable involvement, and endpoint actions.',
+            why: 'When a user trips alerts or has high risk, these queries help you quickly understand their activity and determine if it\'s malicious.',
+            examples: [
+                { spl: '| tstats count from datamodel=Authentication where Authentication.user="$user$" by Authentication.action, Authentication.src, Authentication.dest | sort -count', explanation: 'User auth summary across all sources' },
+                { spl: 'index=risk risk_object="$user$" | stats sum(risk_score) as total, values(source) as detections by risk_object | sort -total', explanation: 'User risk with contributing rules' },
+                { spl: 'index=notable user="$user$" OR src_user="$user$" | table _time, rule_name, urgency, status | sort -_time', explanation: 'Notables involving this user' },
+                { spl: '| tstats count from datamodel=Endpoint.Processes where Processes.user="$user$" by Processes.process_name, Processes.dest | sort -count', explanation: 'Processes run by this user' },
+                { spl: '| inputlookup identity_lookup_expanded | search identity="$user$" | table identity, first, last, email, bunit, category, managedBy, priority', explanation: 'User identity details' }
+            ],
+            gotchas: [
+                'Replace $user$ with actual username',
+                'User formats may vary: jsmith, DOMAIN\\jsmith, jsmith@company.com',
+                'Use identity lookup to find all aliases for a user',
+                'Correlate across data models for complete picture'
+            ]
+        },
+        {
+            id: 'es_investigation_host',
+            name: 'Host Investigation Queries',
+            category: 'enterpriseSecurity',
+            subcategory: 'investigation',
+            difficulty: 'intermediate',
+            takeaway: 'SPL patterns for investigating a suspicious host',
+            what: 'Common queries to investigate a host: network traffic, endpoint activity, risk history, and threat intel matches.',
+            why: 'When a system is compromised or suspected, these queries reveal its activity profile and help scope the incident.',
+            examples: [
+                { spl: '| tstats count from datamodel=Network_Traffic where All_Traffic.src_ip="$ip$" OR All_Traffic.dest_ip="$ip$" by All_Traffic.src_ip, All_Traffic.dest_ip, All_Traffic.dest_port | sort -count', explanation: 'Network connections to/from host' },
+                { spl: 'index=risk risk_object="$host$" OR risk_object="$ip$" | timechart span=1h sum(risk_score)', explanation: 'Risk over time for this host' },
+                { spl: '| tstats count from datamodel=Endpoint.Processes where Processes.dest="$host$" by Processes.process_name, Processes.user | sort -count', explanation: 'Processes running on host' },
+                { spl: 'index=firewall (src_ip="$ip$" OR dest_ip="$ip$") | lookup ip_intel ip as dest_ip OUTPUTNEW threat_key | where isnotnull(threat_key) | table _time, src_ip, dest_ip, dest_port, threat_key', explanation: 'Threat intel matches for host traffic' },
+                { spl: '| inputlookup asset_lookup_by_str | search ip="$ip$" | table ip, dns, owner, priority, category, bunit, pci_domain', explanation: 'Asset details for this host' }
+            ],
+            gotchas: [
+                'Replace $host$ and $ip$ with actual values',
+                'Host may have multiple IPs, IP may have multiple hostnames',
+                'Use asset lookup to find all identifiers for a system',
+                'Check both src and dest - compromised hosts often beacon out'
+            ]
+        },
+        {
+            id: 'es_investigation_notable',
+            name: 'Notable Investigation Workflow',
+            category: 'enterpriseSecurity',
+            subcategory: 'investigation',
+            difficulty: 'intermediate',
+            takeaway: 'Step-by-step notable event investigation',
+            what: 'A systematic approach to investigating notable events: understand the alert, gather context, check history, and determine disposition.',
+            why: 'Consistent investigation methodology ensures thorough analysis and proper documentation.',
+            examples: [
+                { spl: 'index=notable event_id="$event_id$" | table _time, rule_name, rule_description, urgency, src, dest, user, drilldown_search', explanation: 'Step 1: Understand the alert' },
+                { spl: 'index=notable event_id="$event_id$" | `get_asset(dest)` | `get_identity4events(user)` | table dest_priority, dest_owner, user_category, user_bunit', explanation: 'Step 2: Get asset/identity context' },
+                { spl: 'index=notable rule_name="$rule_name$" (user="$user$" OR src="$src$" OR dest="$dest$") | stats count, earliest(_time) as first_seen, latest(_time) as last_seen', explanation: 'Step 3: Check for related notables' },
+                { spl: 'index=risk (risk_object="$user$" OR risk_object="$dest$") | stats sum(risk_score) as total, values(source) as detections', explanation: 'Step 4: Check risk profile' }
+            ],
+            workflow: [
+                { step: '1', description: 'Read alert details and understand what triggered it' },
+                { step: '2', description: 'Enrich with asset/identity context - who and what is involved?' },
+                { step: '3', description: 'Check for related alerts - is this part of a pattern?' },
+                { step: '4', description: 'Review risk profile - what other suspicious activity?' },
+                { step: '5', description: 'Drill down to raw events using drilldown_search' },
+                { step: '6', description: 'Document findings and set disposition' }
+            ],
+            gotchas: [
+                'drilldown_search field contains SPL to find original events',
+                'Document investigation steps in notable comments',
+                'Escalate to incident if confirmed malicious',
+                'Close as false positive with justification for tuning'
+            ]
+        },
+        // ============================================
+        // MITRE ATT&CK
+        // ============================================
+        {
+            id: 'es_mitre_attack',
+            name: 'MITRE ATT&CK in ES',
+            category: 'enterpriseSecurity',
+            subcategory: 'mitre',
+            difficulty: 'intermediate',
+            takeaway: 'Map detections to adversary techniques',
+            what: 'ES can map correlation searches to MITRE ATT&CK tactics and techniques, enabling coverage analysis and threat-informed detection.',
+            why: 'MITRE ATT&CK provides a common language for threats. Mapping detections helps identify gaps and prioritize development.',
+            examples: [
+                { spl: 'index=notable | stats count by mitre_attack_tactic, mitre_attack_technique | sort -count', explanation: 'Notable distribution by MITRE technique' },
+                { spl: '| rest /servicesNS/-/-/saved/searches | search action.correlationsearch.annotations.mitre_attack=* | table title, action.correlationsearch.annotations.mitre_attack', explanation: 'Correlation searches with MITRE mappings' },
+                { spl: 'index=notable mitre_attack_technique="T1059*" | stats count by rule_name, mitre_attack_technique', explanation: 'Notables for Command and Scripting Interpreter (T1059)' },
+                { spl: 'index=risk | stats sum(risk_score) as risk, dc(source) as detections by mitre_attack_tactic | sort -risk', explanation: 'Risk by MITRE tactic' }
+            ],
+            gotchas: [
+                'mitre_attack_tactic: High-level category (Initial Access, Execution, etc.)',
+                'mitre_attack_technique: Specific technique (T1059, T1078, etc.)',
+                'MITRE annotations are set in correlation search configuration',
+                'Use ESCU (Splunk ES Content Updates) for pre-mapped detections'
+            ],
+            relatedFields: ['mitre_attack_tactic', 'mitre_attack_technique', 'mitre_attack_id']
+        },
+        // ============================================
+        // ES Content Updates (ESCU)
+        // ============================================
+        {
+            id: 'es_escu',
+            name: 'ES Content Updates (ESCU)',
+            category: 'enterpriseSecurity',
+            subcategory: 'content',
+            difficulty: 'intermediate',
+            takeaway: 'Pre-built detection content from Splunk Threat Research',
+            what: 'ESCU (Enterprise Security Content Updates) is a regularly updated package of correlation searches, investigation dashboards, and response playbooks from Splunk\'s Threat Research team.',
+            why: 'Don\'t build every detection from scratch. ESCU provides hundreds of tested detections mapped to MITRE ATT&CK and updated for emerging threats.',
+            examples: [
+                { spl: '| rest /servicesNS/-/-/saved/searches | search eai:appName="*ES Content*" | stats count by eai:appName', explanation: 'Count ESCU content' },
+                { spl: '| rest /servicesNS/-/-/saved/searches | search action.correlationsearch=1 | stats count by action.correlationsearch.annotations.mitre_attack', explanation: 'ESCU detections by MITRE technique' },
+                { spl: 'index=notable rule_name="*ESCU*" OR rule_name="*Splunk*" | stats count by rule_name | sort -count', explanation: 'Notables from ESCU detections' }
+            ],
+            gotchas: [
+                'ESCU requires separate installation and updates',
+                'Review detections before enabling - some may be noisy in your environment',
+                'Customize thresholds and filters for your data',
+                'ESCU includes analytic stories grouping related detections'
+            ]
+        }
     ]
 };
 
@@ -7185,6 +7927,7 @@ let currentView = 'categorized';
 let commandFilters = new Set();
 let functionFilters = new Set();
 let referenceFilters = new Set();
+let enterpriseSecurityFilters = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
     initGlossary();
@@ -7245,6 +7988,7 @@ function initGlossary() {
     initIconFilter('commandsFilter', commandFilters);
     initIconFilter('functionsFilter', functionFilters);
     initIconFilter('referenceFilter', referenceFilters);
+    initIconFilter('enterpriseSecurityFilter', enterpriseSecurityFilters);
 
     // Initialize modal
     SPLUNKed.initModal('glossaryModal');
@@ -7412,6 +8156,13 @@ function filterEntries(entries) {
             }
         }
 
+        // Enterprise Security tab: filter by subcategory
+        if (currentCategory === 'enterpriseSecurity' && enterpriseSecurityFilters.size > 0) {
+            if (!entry.subcategory || !enterpriseSecurityFilters.has(entry.subcategory)) {
+                return false;
+            }
+        }
+
         // Filter by search
         if (currentSearch) {
             const purposeLabel = entry.purpose
@@ -7453,7 +8204,18 @@ const CARD_ICONS = {
     macros: { icon: '{ }', label: 'Macro' },
     engineering: { icon: '⚙', label: 'Engineering' },
     // Antipatterns
-    antipatterns: { icon: '⚠', label: 'Pitfall' }
+    antipatterns: { icon: '⚠', label: 'Pitfall' },
+    // Enterprise Security subcategories
+    rba: { icon: '⚡', label: 'Risk-Based Alerting' },
+    notable: { icon: '🔔', label: 'Notable Events' },
+    assetIdentity: { icon: '👤', label: 'Asset/Identity' },
+    threatIntel: { icon: '🎯', label: 'Threat Intel' },
+    datamodels: { icon: '◈', label: 'Data Models' },
+    correlation: { icon: '🔗', label: 'Correlation' },
+    investigation: { icon: '🔍', label: 'Investigation' },
+    mitre: { icon: '⬡', label: 'MITRE ATT&CK' },
+    content: { icon: '📦', label: 'Content' },
+    enterpriseSecurity: { icon: '🛡', label: 'Enterprise Security' }
 };
 
 function createCardHTML(entry, showSubcategory = false) {
@@ -7744,6 +8506,123 @@ function createConceptHTML(entry) {
                     <ul class="warning-list">
                         ${entry.gotchas.map(g => `<li><span class="warning-icon">!</span> ${escapeHtml(g)}</li>`).join('')}
                     </ul>
+                </div>
+            </div>
+        `;
+    }
+
+    // KEY FIELDS section (ES-specific)
+    if (entry.keyFields && entry.keyFields.length > 0) {
+        html += `
+            <div class="tabbed-section section-fields">
+                <div class="tabbed-section-header">KEY FIELDS</div>
+                <div class="tabbed-section-content">
+                    <table class="field-table">
+                        ${entry.keyFields.map(f => `
+                            <tr>
+                                <td><code>${escapeHtml(f.field)}</code></td>
+                                <td>${escapeHtml(f.description)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // COMMON MACROS section (ES-specific)
+    if (entry.commonMacros && entry.commonMacros.length > 0) {
+        html += `
+            <div class="tabbed-section section-macros">
+                <div class="tabbed-section-header">COMMON MACROS</div>
+                <div class="tabbed-section-content">
+                    <table class="field-table">
+                        ${entry.commonMacros.map(m => `
+                            <tr>
+                                <td><code>${escapeHtml(m.macro)}</code></td>
+                                <td>${escapeHtml(m.description)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // DATA MODELS section (ES-specific)
+    if (entry.dataModels && entry.dataModels.length > 0) {
+        html += `
+            <div class="tabbed-section section-datamodels">
+                <div class="tabbed-section-header">ES DATA MODELS</div>
+                <div class="tabbed-section-content">
+                    <table class="field-table">
+                        ${entry.dataModels.map(dm => `
+                            <tr>
+                                <td><code>${escapeHtml(dm.name)}</code></td>
+                                <td>${escapeHtml(dm.description)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // ACTION TYPES section (ES-specific)
+    if (entry.actionTypes && entry.actionTypes.length > 0) {
+        html += `
+            <div class="tabbed-section section-actions">
+                <div class="tabbed-section-header">ACTION TYPES</div>
+                <div class="tabbed-section-content">
+                    <table class="field-table">
+                        ${entry.actionTypes.map(a => `
+                            <tr>
+                                <td><code>${escapeHtml(a.action)}</code></td>
+                                <td>${escapeHtml(a.description)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // SUPPRESSION FIELDS section (ES-specific)
+    if (entry.suppressionFields && entry.suppressionFields.length > 0) {
+        html += `
+            <div class="tabbed-section section-suppression">
+                <div class="tabbed-section-header">COMMON SUPPRESSION PATTERNS</div>
+                <div class="tabbed-section-content">
+                    <table class="field-table">
+                        <tr style="font-weight: 600; border-bottom: 1px solid var(--border-subtle);">
+                            <td>Scenario</td>
+                            <td>Suppress By</td>
+                            <td>Window</td>
+                        </tr>
+                        ${entry.suppressionFields.map(s => `
+                            <tr>
+                                <td>${escapeHtml(s.scenario)}</td>
+                                <td><code>${escapeHtml(s.fields)}</code></td>
+                                <td>${escapeHtml(s.window)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // WORKFLOW section (ES-specific - for investigation)
+    if (entry.workflow && entry.workflow.length > 0) {
+        html += `
+            <div class="tabbed-section section-workflow">
+                <div class="tabbed-section-header">INVESTIGATION WORKFLOW</div>
+                <div class="tabbed-section-content">
+                    <ol class="workflow-list">
+                        ${entry.workflow.map(w => `
+                            <li><strong>Step ${escapeHtml(w.step)}:</strong> ${escapeHtml(w.description)}</li>
+                        `).join('')}
+                    </ol>
                 </div>
             </div>
         `;

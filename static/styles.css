@@ -1763,6 +1763,11 @@ kbd {
     color: #94a3b8;
 }
 
+.spl-macro {
+    color: #c084fc;
+    font-style: italic;
+}
+
 .spl-link {
     color: var(--splunk-teal);
     cursor: pointer;
@@ -2841,6 +2846,56 @@ kbd {
     left: 0;
     color: var(--splunk-amber);
     font-weight: 700;
+}
+
+/* Field tables for ES content */
+.field-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.field-table td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.field-table td:first-child {
+    width: 35%;
+    white-space: nowrap;
+}
+
+.field-table td:first-child code {
+    background: var(--surface-raised);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+}
+
+.field-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Workflow list for investigation steps */
+.workflow-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: workflow-counter;
+}
+
+.workflow-list li {
+    padding: 0.5rem 0;
+    padding-left: 0;
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.workflow-list li:last-child {
+    border-bottom: none;
 }
 
 /* Uses list for common uses */
