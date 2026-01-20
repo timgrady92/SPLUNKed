@@ -22,14 +22,6 @@
                class="nav-link {{ 'active' if current_endpoint == 'references' else '' }}">
                 Knowledge
             </a>
-            <a href="{{ url_for('enterprise_security') }}"
-               class="nav-link {{ 'active' if current_endpoint == 'enterprise_security' else '' }}">
-                ES
-            </a>
-            <a href="{{ url_for('guides') }}"
-               class="nav-link {{ 'active' if current_endpoint == 'guides' else '' }}">
-                Guides
-            </a>
             <a href="{{ url_for('training') }}"
                class="nav-link {{ 'active' if current_endpoint == 'training' else '' }}">
                 Training
@@ -108,24 +100,6 @@
                     </svg>
                 </span>
                 <span class="nav-text">Splunk Knowledge</span>
-            </a>
-            <a href="{{ url_for('enterprise_security') }}" class="sidebar-nav-link">
-                <span class="nav-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
-                </span>
-                <span class="nav-text">Enterprise Security</span>
-            </a>
-            <a href="{{ url_for('guides') }}" class="sidebar-nav-link">
-                <span class="nav-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
-                        <line x1="12" y1="17" x2="12.01" y2="17"/>
-                    </svg>
-                </span>
-                <span class="nav-text">Guides</span>
             </a>
             <a href="{{ url_for('training') }}" class="sidebar-nav-link">
                 <span class="nav-icon">
@@ -431,4 +405,52 @@
         {{ caller() }}
     </div>
 </div>
+{% endmacro %}
+
+{# SPL Reference Sidebar - Global quick-access to SPL commands #}
+{% macro spl_reference_sidebar() %}
+<!-- SPL Reference Trigger Button -->
+<button class="spl-sidebar-trigger" id="splSidebarTrigger" aria-label="Open SPL Reference" title="SPL Reference (S)">
+    <span class="spl-trigger-icon">&lt;/&gt;</span>
+    <span class="spl-trigger-label">SPL</span>
+</button>
+
+<!-- SPL Reference Sidebar Overlay -->
+<div class="spl-sidebar-overlay" id="splSidebarOverlay"></div>
+
+<!-- SPL Reference Sidebar Panel -->
+<aside class="spl-sidebar" id="splSidebar" role="complementary" aria-label="SPL Reference">
+    <div class="spl-sidebar-header">
+        <div class="spl-sidebar-header-row">
+            <button class="spl-sidebar-back hidden" id="splSidebarBack" aria-label="Back to list">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+            <h2 class="spl-sidebar-title">SPL Reference</h2>
+            <button class="spl-sidebar-close" id="splSidebarClose" aria-label="Close sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="spl-sidebar-search-container">
+            <input type="text"
+                   class="spl-sidebar-search"
+                   id="splSidebarSearch"
+                   placeholder="Search commands & functions..."
+                   autocomplete="off">
+            <kbd class="spl-sidebar-search-hint">S</kbd>
+        </div>
+    </div>
+    <div class="spl-sidebar-body">
+        <div class="spl-sidebar-list" id="splSidebarList">
+            <!-- Populated by JavaScript -->
+        </div>
+        <div class="spl-sidebar-detail hidden" id="splSidebarDetail">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</aside>
 {% endmacro %}

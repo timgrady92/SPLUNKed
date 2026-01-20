@@ -62,7 +62,7 @@ function initTabs(containerSelector, options = {}) {
     const container = document.querySelector(containerSelector);
     if (!container) return;
 
-    const tabs = container.querySelectorAll('.category-tab');
+    const tabs = container.querySelectorAll('.category-tab, .training-tab');
     // Panels are siblings of the container, not children, so search in document
     const panels = document.querySelectorAll('.tab-panel');
     const storageKey = options.storageKey || null;
@@ -170,14 +170,6 @@ function initSearch(inputId, options = {}) {
             }
         });
     }
-
-    // Focus on / key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === '/' && !e.target.matches('input, textarea')) {
-            e.preventDefault();
-            input.focus();
-        }
-    });
 
     return {
         getValue: () => input.value.toLowerCase().trim(),
@@ -581,6 +573,16 @@ const storage = {
 };
 
 /**
+ * Basic HTML escaping
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Debounce utility
  */
 function debounce(fn, wait) {
@@ -809,8 +811,8 @@ function initGlobalSearch() {
             const url = `/glossary?tab=${tab}&open=${entry.id}`;
             html += `
                 <a href="${url}" class="search-result-item" data-url="${url}">
-                    <code class="result-name">${escapeSearchHtml(entry.name)}</code>
-                    <span class="result-desc">${escapeSearchHtml(entry.takeaway || '')}</span>
+                    <code class="result-name">${escapeHtml(entry.name)}</code>
+                    <span class="result-desc">${escapeHtml(entry.takeaway || '')}</span>
                 </a>`;
         });
 
@@ -826,8 +828,8 @@ function initGlobalSearch() {
             const url = `/guides?tab=${guide._category}&open=${guide.id}`;
             html += `
                 <a href="${url}" class="search-result-item" data-url="${url}">
-                    <code class="result-name">${escapeSearchHtml(guide.title)}</code>
-                    <span class="result-desc">${escapeSearchHtml(guide.description || '')}</span>
+                    <code class="result-name">${escapeHtml(guide.title)}</code>
+                    <span class="result-desc">${escapeHtml(guide.description || '')}</span>
                 </a>`;
         });
 
@@ -842,12 +844,6 @@ function initGlobalSearch() {
         }
     }
 
-    function escapeSearchHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 }
 
 /**
@@ -864,6 +860,7 @@ window.SPLUNKed = {
     closeModal,
     highlightSPL,
     applySPLHighlighting,
+    escapeHtml,
     storage,
     debounce
 };

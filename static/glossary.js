@@ -5761,6 +5761,9 @@ Object.keys(GLOSSARY_DATA).forEach((category) => {
     GLOSSARY_DATA[category].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 });
 
+// Export GLOSSARY_DATA immediately for use by SPL sidebar and other components
+window.GLOSSARY_DATA = GLOSSARY_DATA;
+
 // ============================================
 // Glossary Logic
 // ============================================
@@ -5774,7 +5777,10 @@ let commandFilters = new Set();
 let functionFilters = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
-    initGlossary();
+    // Only initialize glossary UI if we're on the glossary page
+    if (document.getElementById('glossaryTabs')) {
+        initGlossary();
+    }
 });
 
 function initGlossary() {
@@ -5851,12 +5857,10 @@ function initGlossary() {
     }
 }
 
-// Unified icon filter initialization - supports multi-select toggle with "All" option
+// Unified icon filter initialization - single-select (one category at a time)
 function initIconFilter(containerId, filterSet) {
     const filterContainer = document.getElementById(containerId);
     if (!filterContainer) return;
-
-    const allBtn = filterContainer.querySelector('[data-filter="all"]');
 
     filterContainer.addEventListener('click', (e) => {
         const btn = e.target.closest('.icon-filter-btn');
@@ -5864,32 +5868,18 @@ function initIconFilter(containerId, filterSet) {
 
         const filterValue = btn.dataset.filter;
 
-        if (filterValue === 'all') {
-            // "All" clicked - clear all filters and activate only "All"
-            filterSet.clear();
-            filterContainer.querySelectorAll('.icon-filter-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.filter === 'all');
-            });
-        } else {
-            // Specific filter clicked - toggle it
-            if (filterSet.has(filterValue)) {
-                filterSet.delete(filterValue);
-                btn.classList.remove('active');
-            } else {
-                filterSet.add(filterValue);
-                btn.classList.add('active');
-            }
+        // Clear all active states
+        filterContainer.querySelectorAll('.icon-filter-btn').forEach(b => {
+            b.classList.remove('active');
+        });
 
-            // Update "All" button state
-            if (allBtn) {
-                if (filterSet.size === 0) {
-                    // No filters selected - activate "All"
-                    allBtn.classList.add('active');
-                } else {
-                    // Some filters selected - deactivate "All"
-                    allBtn.classList.remove('active');
-                }
-            }
+        // Activate clicked button
+        btn.classList.add('active');
+
+        // Update filter set
+        filterSet.clear();
+        if (filterValue !== 'all') {
+            filterSet.add(filterValue);
         }
 
         renderGlossary();
@@ -5961,7 +5951,7 @@ function createCategoryInfoHTML(tab) {
 
     return `
         <div class="category-info-content">
-            <p class="category-description">${escapeHtml(info.description)}</p>
+            <p class="category-description">${SPLUNKed.escapeHtml(info.description)}</p>
         </div>
     `;
 }
@@ -6034,15 +6024,15 @@ const CARD_ICONS = {
     antipatterns: { icon: '⚠', label: 'Pitfall' },
     // Enterprise Security subcategories
     rba: { icon: '⚡', label: 'Risk-Based Alerting' },
-    notable: { icon: '🔔', label: 'Notable Events' },
-    assetIdentity: { icon: '👤', label: 'Asset/Identity' },
-    threatIntel: { icon: '🎯', label: 'Threat Intel' },
+    notable: { icon: '◉', label: 'Notable Events' },
+    assetIdentity: { icon: '◎', label: 'Asset/Identity' },
+    threatIntel: { icon: '⊛', label: 'Threat Intel' },
     datamodels: { icon: '◈', label: 'Data Models' },
-    correlation: { icon: '🔗', label: 'Correlation' },
-    investigation: { icon: '🔍', label: 'Investigation' },
+    correlation: { icon: '⬔', label: 'Correlation' },
+    investigation: { icon: '◇', label: 'Investigation' },
     mitre: { icon: '⬡', label: 'MITRE ATT&CK' },
-    content: { icon: '📦', label: 'Content' },
-    enterpriseSecurity: { icon: '🛡', label: 'Enterprise Security' }
+    content: { icon: '▧', label: 'Content' },
+    enterpriseSecurity: { icon: '⛨', label: 'Enterprise Security' }
 };
 
 function createCardHTML(entry, showSubcategory = false) {
@@ -6077,10 +6067,10 @@ function createCardHTML(entry, showSubcategory = false) {
         <div class="glossary-card" data-id="${entry.id}" data-category="${entry.category}">
             ${cardIcon}
             <div class="glossary-card-header">
-                <code class="glossary-name">${escapeHtml(entry.name)}</code>
+                <code class="glossary-name">${SPLUNKed.escapeHtml(entry.name)}</code>
                 ${experimentalBadge}
             </div>
-            <p class="glossary-takeaway">${escapeHtml(entry.takeaway)}</p>
+            <p class="glossary-takeaway">${SPLUNKed.escapeHtml(entry.takeaway)}</p>
         </div>
     `;
 }
@@ -6247,7 +6237,7 @@ function createTabbedHTML(entry) {
                 <div class="detail-section">
                     <div class="detail-label">Related</div>
                     <div class="detail-content">
-                        ${entry.relatedCommands.map(c => `<code class="command-link" data-command="${escapeHtml(c)}">${escapeHtml(c)}</code>`).join(', ')}
+                        ${entry.relatedCommands.map(c => `<code class="command-link" data-command="${SPLUNKed.escapeHtml(c)}">${SPLUNKed.escapeHtml(c)}</code>`).join(', ')}
                     </div>
                 </div>
             </div>
@@ -6268,7 +6258,7 @@ function createConceptHTML(entry) {
         html += `
             <div class="tabbed-section section-what">
                 <div class="tabbed-section-header">WHAT</div>
-                <div class="tabbed-section-content">${escapeHtml(entry.what)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(entry.what)}</div>
             </div>
         `;
     }
@@ -6278,7 +6268,7 @@ function createConceptHTML(entry) {
         html += `
             <div class="tabbed-section section-why">
                 <div class="tabbed-section-header">WHY IT MATTERS</div>
-                <div class="tabbed-section-content">${escapeHtml(entry.why)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(entry.why)}</div>
             </div>
         `;
     }
@@ -6288,7 +6278,7 @@ function createConceptHTML(entry) {
         html += `
             <div class="tabbed-section section-key">
                 <div class="tabbed-section-header">KEY POINT</div>
-                <div class="tabbed-section-content" style="font-weight: 500; color: var(--splunk-teal);">${escapeHtml(entry.keyPoint)}</div>
+                <div class="tabbed-section-content" style="font-weight: 500; color: var(--splunk-teal);">${SPLUNKed.escapeHtml(entry.keyPoint)}</div>
             </div>
         `;
     }
@@ -6299,7 +6289,7 @@ function createConceptHTML(entry) {
             <div class="tabbed-section section-syntax">
                 <div class="tabbed-section-header">SYNTAX</div>
                 <div class="tabbed-section-content">
-                    <pre class="spl-example">${escapeHtml(entry.syntax)}</pre>
+                    <pre class="spl-example">${SPLUNKed.escapeHtml(entry.syntax)}</pre>
                 </div>
             </div>
         `;
@@ -6314,9 +6304,9 @@ function createConceptHTML(entry) {
                     ${entry.examples.map(ex => `
                         <div class="example-pair">
                             <div class="spl-block">
-                                <pre class="spl-code"><code>${escapeHtml(ex.spl)}</code></pre>
+                                <pre class="spl-code"><code>${SPLUNKed.escapeHtml(ex.spl)}</code></pre>
                             </div>
-                            <p class="example-explanation">${escapeHtml(ex.explanation)}</p>
+                            <p class="example-explanation">${SPLUNKed.escapeHtml(ex.explanation)}</p>
                         </div>
                     `).join('')}
                 </div>
@@ -6331,7 +6321,7 @@ function createConceptHTML(entry) {
                 <div class="tabbed-section-header">WATCH OUT</div>
                 <div class="tabbed-section-content">
                     <ul class="warning-list">
-                        ${entry.gotchas.map(g => `<li><span class="warning-icon">!</span> ${escapeHtml(g)}</li>`).join('')}
+                        ${entry.gotchas.map(g => `<li><span class="warning-icon">!</span> ${SPLUNKed.escapeHtml(g)}</li>`).join('')}
                     </ul>
                 </div>
             </div>
@@ -6347,8 +6337,8 @@ function createConceptHTML(entry) {
                     <table class="field-table">
                         ${entry.keyFields.map(f => `
                             <tr>
-                                <td><code>${escapeHtml(f.field)}</code></td>
-                                <td>${escapeHtml(f.description)}</td>
+                                <td><code>${SPLUNKed.escapeHtml(f.field)}</code></td>
+                                <td>${SPLUNKed.escapeHtml(f.description)}</td>
                             </tr>
                         `).join('')}
                     </table>
@@ -6366,8 +6356,8 @@ function createConceptHTML(entry) {
                     <table class="field-table">
                         ${entry.commonMacros.map(m => `
                             <tr>
-                                <td><code>${escapeHtml(m.macro)}</code></td>
-                                <td>${escapeHtml(m.description)}</td>
+                                <td><code>${SPLUNKed.escapeHtml(m.macro)}</code></td>
+                                <td>${SPLUNKed.escapeHtml(m.description)}</td>
                             </tr>
                         `).join('')}
                     </table>
@@ -6385,8 +6375,8 @@ function createConceptHTML(entry) {
                     <table class="field-table">
                         ${entry.dataModels.map(dm => `
                             <tr>
-                                <td><code>${escapeHtml(dm.name)}</code></td>
-                                <td>${escapeHtml(dm.description)}</td>
+                                <td><code>${SPLUNKed.escapeHtml(dm.name)}</code></td>
+                                <td>${SPLUNKed.escapeHtml(dm.description)}</td>
                             </tr>
                         `).join('')}
                     </table>
@@ -6404,8 +6394,8 @@ function createConceptHTML(entry) {
                     <table class="field-table">
                         ${entry.actionTypes.map(a => `
                             <tr>
-                                <td><code>${escapeHtml(a.action)}</code></td>
-                                <td>${escapeHtml(a.description)}</td>
+                                <td><code>${SPLUNKed.escapeHtml(a.action)}</code></td>
+                                <td>${SPLUNKed.escapeHtml(a.description)}</td>
                             </tr>
                         `).join('')}
                     </table>
@@ -6428,9 +6418,9 @@ function createConceptHTML(entry) {
                         </tr>
                         ${entry.suppressionFields.map(s => `
                             <tr>
-                                <td>${escapeHtml(s.scenario)}</td>
-                                <td><code>${escapeHtml(s.fields)}</code></td>
-                                <td>${escapeHtml(s.window)}</td>
+                                <td>${SPLUNKed.escapeHtml(s.scenario)}</td>
+                                <td><code>${SPLUNKed.escapeHtml(s.fields)}</code></td>
+                                <td>${SPLUNKed.escapeHtml(s.window)}</td>
                             </tr>
                         `).join('')}
                     </table>
@@ -6447,7 +6437,7 @@ function createConceptHTML(entry) {
                 <div class="tabbed-section-content">
                     <ol class="workflow-list">
                         ${entry.workflow.map(w => `
-                            <li><strong>Step ${escapeHtml(w.step)}:</strong> ${escapeHtml(w.description)}</li>
+                            <li><strong>Step ${SPLUNKed.escapeHtml(w.step)}:</strong> ${SPLUNKed.escapeHtml(w.description)}</li>
                         `).join('')}
                     </ol>
                 </div>
@@ -6460,7 +6450,7 @@ function createConceptHTML(entry) {
         html += `
             <div class="tabbed-section section-perf">
                 <div class="tabbed-section-header">PERFORMANCE</div>
-                <div class="tabbed-section-content">${escapeHtml(entry.performance)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(entry.performance)}</div>
             </div>
         `;
     }
@@ -6474,7 +6464,7 @@ function createConceptHTML(entry) {
                 <div class="detail-section">
                     <div class="detail-label">Related</div>
                     <div class="detail-content">
-                        ${entry.relatedCommands.map(cmd => `<code>${escapeHtml(cmd)}</code>`).join(', ')}
+                        ${entry.relatedCommands.map(cmd => `<code>${SPLUNKed.escapeHtml(cmd)}</code>`).join(', ')}
                     </div>
                 </div>
             </div>
@@ -6492,7 +6482,7 @@ function createConceptHTML(entry) {
                 <div class="detail-section">
                     <div class="detail-label">Related Concepts</div>
                     <div class="detail-content">
-                        ${entry.relatedConcepts.map((id, i) => `<code class="concept-link" data-concept="${escapeHtml(id)}">${escapeHtml(relatedNames[i])}</code>`).join(', ')}
+                        ${entry.relatedConcepts.map((id, i) => `<code class="concept-link" data-concept="${SPLUNKed.escapeHtml(id)}">${SPLUNKed.escapeHtml(relatedNames[i])}</code>`).join(', ')}
                     </div>
                 </div>
             </div>
@@ -6531,7 +6521,7 @@ function renderEssentialZone(zone) {
         html += `
             <div class="tabbed-section section-what">
                 <div class="tabbed-section-header">WHAT</div>
-                <div class="tabbed-section-content">${escapeHtml(zone.what)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(zone.what)}</div>
             </div>
         `;
     }
@@ -6540,7 +6530,7 @@ function renderEssentialZone(zone) {
         html += `
             <div class="tabbed-section section-why">
                 <div class="tabbed-section-header">WHY</div>
-                <div class="tabbed-section-content">${escapeHtml(zone.why)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(zone.why)}</div>
             </div>
         `;
     }
@@ -6550,7 +6540,7 @@ function renderEssentialZone(zone) {
             <div class="tabbed-section section-syntax">
                 <div class="tabbed-section-header">SYNTAX</div>
                 <div class="tabbed-section-content">
-                    <pre class="spl-example">${escapeHtml(zone.syntax)}</pre>
+                    <pre class="spl-example">${SPLUNKed.escapeHtml(zone.syntax)}</pre>
                 </div>
             </div>
         `;
@@ -6560,9 +6550,9 @@ function renderEssentialZone(zone) {
         html += `
             <div class="example-pair">
                 <div class="spl-block">
-                    <pre class="spl-code"><code>${escapeHtml(zone.example.spl)}</code></pre>
+                    <pre class="spl-code"><code>${SPLUNKed.escapeHtml(zone.example.spl)}</code></pre>
                 </div>
-                <p class="example-explanation">${escapeHtml(zone.example.explanation)}</p>
+                <p class="example-explanation">${SPLUNKed.escapeHtml(zone.example.explanation)}</p>
             </div>
         `;
     }
@@ -6582,9 +6572,9 @@ function renderPracticalZone(zone) {
                     ${zone.examples.map(ex => `
                         <div class="example-pair">
                             <div class="spl-block">
-                                <pre class="spl-code"><code>${escapeHtml(ex.spl)}</code></pre>
+                                <pre class="spl-code"><code>${SPLUNKed.escapeHtml(ex.spl)}</code></pre>
                             </div>
-                            <p class="example-explanation">${escapeHtml(ex.explanation)}</p>
+                            <p class="example-explanation">${SPLUNKed.escapeHtml(ex.explanation)}</p>
                         </div>
                     `).join('')}
                 </div>
@@ -6600,13 +6590,13 @@ function renderPracticalZone(zone) {
                     <div class="join-types-grid">
                         ${zone.joinTypes.map(jt => `
                             <div class="join-type-card join-type-${jt.type}">
-                                <div class="join-type-header">${escapeHtml(jt.title)}</div>
-                                <div class="join-type-desc">${escapeHtml(jt.description)}</div>
+                                <div class="join-type-header">${SPLUNKed.escapeHtml(jt.title)}</div>
+                                <div class="join-type-desc">${SPLUNKed.escapeHtml(jt.description)}</div>
                                 <div class="join-type-scenario">
-                                    <strong>Scenario:</strong> ${escapeHtml(jt.scenario)}
+                                    <strong>Scenario:</strong> ${SPLUNKed.escapeHtml(jt.scenario)}
                                 </div>
                                 <div class="join-type-result">
-                                    <strong>Result:</strong> ${escapeHtml(jt.result)}
+                                    <strong>Result:</strong> ${SPLUNKed.escapeHtml(jt.result)}
                                 </div>
                             </div>
                         `).join('')}
@@ -6622,7 +6612,7 @@ function renderPracticalZone(zone) {
                 <div class="tabbed-section-header">WATCH OUT</div>
                 <div class="tabbed-section-content">
                     <ul class="warning-list">
-                        ${zone.gotchas.map(g => `<li><span class="warning-icon">!</span> ${escapeHtml(g)}</li>`).join('')}
+                        ${zone.gotchas.map(g => `<li><span class="warning-icon">!</span> ${SPLUNKed.escapeHtml(g)}</li>`).join('')}
                     </ul>
                 </div>
             </div>
@@ -6635,7 +6625,7 @@ function renderPracticalZone(zone) {
                 <div class="tabbed-section-header">COMMON USES</div>
                 <div class="tabbed-section-content">
                     <ul class="uses-list">
-                        ${zone.commonUses.map(u => `<li><span class="use-arrow">→</span> ${escapeHtml(u)}</li>`).join('')}
+                        ${zone.commonUses.map(u => `<li><span class="use-arrow">→</span> ${SPLUNKed.escapeHtml(u)}</li>`).join('')}
                     </ul>
                 </div>
             </div>
@@ -6656,11 +6646,11 @@ function renderDeepZone(zone) {
                 <div class="tabbed-section-content">
                     ${zone.advancedPatterns.map(ap => `
                         <div class="advanced-pattern">
-                            <div class="pattern-name">${escapeHtml(ap.name)}</div>
+                            <div class="pattern-name">${SPLUNKed.escapeHtml(ap.name)}</div>
                             <div class="spl-block">
-                                <pre class="spl-code"><code>${escapeHtml(ap.spl)}</code></pre>
+                                <pre class="spl-code"><code>${SPLUNKed.escapeHtml(ap.spl)}</code></pre>
                             </div>
-                            <p class="example-explanation">${escapeHtml(ap.explanation)}</p>
+                            <p class="example-explanation">${SPLUNKed.escapeHtml(ap.explanation)}</p>
                         </div>
                     `).join('')}
                 </div>
@@ -6672,7 +6662,7 @@ function renderDeepZone(zone) {
         html += `
             <div class="tabbed-section section-performance">
                 <div class="tabbed-section-header">PERFORMANCE</div>
-                <div class="tabbed-section-content">${escapeHtml(zone.performance)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(zone.performance)}</div>
             </div>
         `;
     }
@@ -6681,7 +6671,7 @@ function renderDeepZone(zone) {
         html += `
             <div class="tabbed-section section-internals">
                 <div class="tabbed-section-header">INTERNALS</div>
-                <div class="tabbed-section-content">${escapeHtml(zone.internals)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(zone.internals)}</div>
             </div>
         `;
     }
@@ -6696,9 +6686,9 @@ function renderDeepZone(zone) {
                             // Only make it a link if the entry exists in the glossary
                             const hasEntry = findCommandData(cmd) !== null;
                             if (hasEntry) {
-                                return `<li><code class="command-link" data-command="${escapeHtml(cmd)}">${escapeHtml(cmd)}</code> — ${escapeHtml(desc)}</li>`;
+                                return `<li><code class="command-link" data-command="${SPLUNKed.escapeHtml(cmd)}">${SPLUNKed.escapeHtml(cmd)}</code> — ${SPLUNKed.escapeHtml(desc)}</li>`;
                             } else {
-                                return `<li><code class="alt-code">${escapeHtml(cmd)}</code> — ${escapeHtml(desc)}</li>`;
+                                return `<li><code class="alt-code">${SPLUNKed.escapeHtml(cmd)}</code> — ${SPLUNKed.escapeHtml(desc)}</li>`;
                             }
                         }).join('')}
                     </ul>
@@ -6793,10 +6783,10 @@ function showCommandTooltip(element, commandName) {
     const tooltipContent = tooltip.querySelector('.command-tooltip-content');
 
     if (!data) {
-        tooltipContent.innerHTML = `<h4>${escapeHtml(commandName)}</h4><p>No description available</p>`;
+        tooltipContent.innerHTML = `<h4>${SPLUNKed.escapeHtml(commandName)}</h4><p>No description available</p>`;
     } else {
         const description = data.takeaway || data.what || 'No description available';
-        tooltipContent.innerHTML = `<h4>${escapeHtml(data.name)}</h4><p>${escapeHtml(description)}</p>`;
+        tooltipContent.innerHTML = `<h4>${SPLUNKed.escapeHtml(data.name)}</h4><p>${SPLUNKed.escapeHtml(description)}</p>`;
     }
 
     // Position tooltip
@@ -6879,7 +6869,7 @@ function createProgressiveHTML(entry) {
             <div class="progressive-stage ${stageClass}" data-stage="${index}">
                 <div class="progressive-stage-header">
                     <span class="progressive-stage-number">${index + 1}</span>
-                    <span class="progressive-stage-title">${escapeHtml(stage.title)}</span>
+                    <span class="progressive-stage-title">${SPLUNKed.escapeHtml(stage.title)}</span>
                     ${isFirst
                         ? '<span class="progressive-complete-indicator">✓</span>'
                         : '<button class="progressive-unlock-btn">Unlock</button>'
@@ -6900,7 +6890,7 @@ function createProgressiveHTML(entry) {
             <div class="detail-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
                 <div class="detail-label">Related</div>
                 <div class="detail-content">
-                    ${entry.relatedCommands.map(c => `<code>${escapeHtml(c)}</code>`).join(', ')}
+                    ${entry.relatedCommands.map(c => `<code>${SPLUNKed.escapeHtml(c)}</code>`).join(', ')}
                 </div>
             </div>
         `;
@@ -6916,7 +6906,7 @@ function renderStageContent(content) {
         html += `
             <div class="detail-section">
                 <div class="detail-label">What</div>
-                <div class="detail-content">${escapeHtml(content.what)}</div>
+                <div class="detail-content">${SPLUNKed.escapeHtml(content.what)}</div>
             </div>
         `;
     }
@@ -6925,7 +6915,7 @@ function renderStageContent(content) {
         html += `
             <div class="detail-section">
                 <div class="detail-label">Why</div>
-                <div class="detail-content">${escapeHtml(content.why)}</div>
+                <div class="detail-content">${SPLUNKed.escapeHtml(content.why)}</div>
             </div>
         `;
     }
@@ -6934,7 +6924,7 @@ function renderStageContent(content) {
         html += `
             <div class="detail-section">
                 <div class="detail-label">Syntax</div>
-                <pre class="spl-example">${escapeHtml(content.syntax)}</pre>
+                <pre class="spl-example">${SPLUNKed.escapeHtml(content.syntax)}</pre>
             </div>
         `;
     }
@@ -6943,7 +6933,7 @@ function renderStageContent(content) {
         html += `
             <div class="detail-section">
                 <div class="detail-label">Full Syntax</div>
-                <pre class="spl-example">${escapeHtml(content.advancedSyntax)}</pre>
+                <pre class="spl-example">${SPLUNKed.escapeHtml(content.advancedSyntax)}</pre>
             </div>
         `;
     }
@@ -6954,9 +6944,9 @@ function renderStageContent(content) {
                 <div class="detail-label">Examples</div>
                 ${content.examples.map(ex => `
                     <div class="spl-block">
-                        <pre class="spl-code"><code>${escapeHtml(ex.spl)}</code></pre>
+                        <pre class="spl-code"><code>${SPLUNKed.escapeHtml(ex.spl)}</code></pre>
                     </div>
-                    <p class="detail-content" style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem;">${escapeHtml(ex.explanation)}</p>
+                    <p class="detail-content" style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem;">${SPLUNKed.escapeHtml(ex.explanation)}</p>
                 `).join('')}
             </div>
         `;
@@ -6967,11 +6957,11 @@ function renderStageContent(content) {
             <div class="detail-section">
                 <div class="detail-label">Common Patterns</div>
                 ${content.patterns.map(p => `
-                    <p style="font-weight: 600; margin-bottom: 0.25rem; font-size: 0.875rem;">${escapeHtml(p.name)}</p>
+                    <p style="font-weight: 600; margin-bottom: 0.25rem; font-size: 0.875rem;">${SPLUNKed.escapeHtml(p.name)}</p>
                     <div class="spl-block">
-                        <pre class="spl-code"><code>${escapeHtml(p.spl)}</code></pre>
+                        <pre class="spl-code"><code>${SPLUNKed.escapeHtml(p.spl)}</code></pre>
                     </div>
-                    <p class="detail-content" style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.8rem;">${escapeHtml(p.explanation)}</p>
+                    <p class="detail-content" style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.8rem;">${SPLUNKed.escapeHtml(p.explanation)}</p>
                 `).join('')}
             </div>
         `;
@@ -6982,7 +6972,7 @@ function renderStageContent(content) {
             <div class="detail-section">
                 <div class="detail-label" style="color: var(--splunk-amber);">Watch Out</div>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    ${content.gotchas.map(g => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative; font-size: 0.875rem;"><span style="position: absolute; left: 0; color: var(--splunk-amber);">!</span>${escapeHtml(g)}</li>`).join('')}
+                    ${content.gotchas.map(g => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative; font-size: 0.875rem;"><span style="position: absolute; left: 0; color: var(--splunk-amber);">!</span>${SPLUNKed.escapeHtml(g)}</li>`).join('')}
                 </ul>
             </div>
         `;
@@ -6992,7 +6982,7 @@ function renderStageContent(content) {
         html += `
             <div class="detail-section">
                 <div class="detail-content" style="color: var(--splunk-teal); font-size: 0.875rem;">
-                    💡 ${escapeHtml(content.relatedTip)}
+                    💡 ${SPLUNKed.escapeHtml(content.relatedTip)}
                 </div>
             </div>
         `;
@@ -7002,7 +6992,7 @@ function renderStageContent(content) {
         html += `
             <div class="detail-section">
                 <div class="detail-label">Performance</div>
-                <div class="detail-content">${escapeHtml(content.performance)}</div>
+                <div class="detail-content">${SPLUNKed.escapeHtml(content.performance)}</div>
             </div>
         `;
     }
@@ -7011,7 +7001,7 @@ function renderStageContent(content) {
         html += `
             <div class="detail-section">
                 <div class="detail-label">Under the Hood</div>
-                <div class="detail-content" style="font-size: 0.8rem; color: var(--text-dim);">${escapeHtml(content.internals)}</div>
+                <div class="detail-content" style="font-size: 0.8rem; color: var(--text-dim);">${SPLUNKed.escapeHtml(content.internals)}</div>
             </div>
         `;
     }
@@ -7020,11 +7010,11 @@ function renderStageContent(content) {
         const sp = content.securityPattern;
         html += `
             <div class="detail-section">
-                <div class="detail-label" style="color: var(--splunk-pink);">Security Pattern: ${escapeHtml(sp.name)}</div>
+                <div class="detail-label" style="color: var(--splunk-pink);">Security Pattern: ${SPLUNKed.escapeHtml(sp.name)}</div>
                 <div class="spl-block">
-                    <pre class="spl-code"><code>${escapeHtml(sp.spl)}</code></pre>
+                    <pre class="spl-code"><code>${SPLUNKed.escapeHtml(sp.spl)}</code></pre>
                 </div>
-                <p class="detail-content" style="margin-top: 0.5rem; font-size: 0.8rem;">${escapeHtml(sp.explanation)}</p>
+                <p class="detail-content" style="margin-top: 0.5rem; font-size: 0.8rem;">${SPLUNKed.escapeHtml(sp.explanation)}</p>
             </div>
         `;
     }
@@ -7067,25 +7057,25 @@ function createLayeredHTML(entry) {
 
     // Core zone (most prominent)
     html += `
-        <div class="layer-zone core" data-layer-label="${escapeHtml(zones.core.label)}">
+        <div class="layer-zone core" data-layer-label="${SPLUNKed.escapeHtml(zones.core.label)}">
             <div class="layer-section">
                 <div class="detail-label">What</div>
-                <div class="detail-content">${escapeHtml(zones.core.what)}</div>
+                <div class="detail-content">${SPLUNKed.escapeHtml(zones.core.what)}</div>
             </div>
             <div class="layer-section">
                 <div class="detail-label">Why</div>
-                <div class="detail-content">${escapeHtml(zones.core.why)}</div>
+                <div class="detail-content">${SPLUNKed.escapeHtml(zones.core.why)}</div>
             </div>
             <div class="layer-section">
                 <div class="detail-label">Syntax</div>
-                <pre class="spl-example">${escapeHtml(zones.core.syntax)}</pre>
+                <pre class="spl-example">${SPLUNKed.escapeHtml(zones.core.syntax)}</pre>
             </div>
             ${zones.core.example ? `
                 <div class="layer-section">
                     <div class="spl-block">
-                        <pre class="spl-code"><code>${escapeHtml(zones.core.example.spl)}</code></pre>
+                        <pre class="spl-code"><code>${SPLUNKed.escapeHtml(zones.core.example.spl)}</code></pre>
                     </div>
-                    <p class="detail-content" style="margin-top: 0.5rem; font-size: 0.875rem;">${escapeHtml(zones.core.example.explanation)}</p>
+                    <p class="detail-content" style="margin-top: 0.5rem; font-size: 0.875rem;">${SPLUNKed.escapeHtml(zones.core.example.explanation)}</p>
                 </div>
             ` : ''}
         </div>
@@ -7093,7 +7083,7 @@ function createLayeredHTML(entry) {
 
     // Practical zone (moderate prominence)
     html += `
-        <div class="layer-zone practical" data-layer-label="${escapeHtml(zones.practical.label)}">
+        <div class="layer-zone practical" data-layer-label="${SPLUNKed.escapeHtml(zones.practical.label)}">
     `;
 
     if (zones.practical.examples && zones.practical.examples.length > 0) {
@@ -7102,9 +7092,9 @@ function createLayeredHTML(entry) {
                 <div class="detail-label">More Examples</div>
                 ${zones.practical.examples.map(ex => `
                     <div class="spl-block" style="margin-bottom: 0.5rem;">
-                        <pre class="spl-code"><code>${escapeHtml(ex.spl)}</code></pre>
+                        <pre class="spl-code"><code>${SPLUNKed.escapeHtml(ex.spl)}</code></pre>
                     </div>
-                    <p class="detail-content" style="margin-top: 0.25rem; margin-bottom: 0.75rem;">${escapeHtml(ex.explanation)}</p>
+                    <p class="detail-content" style="margin-top: 0.25rem; margin-bottom: 0.75rem;">${SPLUNKed.escapeHtml(ex.explanation)}</p>
                 `).join('')}
             </div>
         `;
@@ -7115,7 +7105,7 @@ function createLayeredHTML(entry) {
             <div class="layer-section">
                 <div class="detail-label">Watch Out</div>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    ${zones.practical.gotchas.map(g => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative;"><span style="position: absolute; left: 0; color: var(--splunk-amber);">!</span>${escapeHtml(g)}</li>`).join('')}
+                    ${zones.practical.gotchas.map(g => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative;"><span style="position: absolute; left: 0; color: var(--splunk-amber);">!</span>${SPLUNKed.escapeHtml(g)}</li>`).join('')}
                 </ul>
             </div>
         `;
@@ -7126,7 +7116,7 @@ function createLayeredHTML(entry) {
             <div class="layer-section">
                 <div class="detail-label">Common Uses</div>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    ${zones.practical.commonUses.map(u => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative;"><span style="position: absolute; left: 0; color: var(--splunk-teal);">→</span>${escapeHtml(u)}</li>`).join('')}
+                    ${zones.practical.commonUses.map(u => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative;"><span style="position: absolute; left: 0; color: var(--splunk-teal);">→</span>${SPLUNKed.escapeHtml(u)}</li>`).join('')}
                 </ul>
             </div>
         `;
@@ -7136,7 +7126,7 @@ function createLayeredHTML(entry) {
 
     // Deep zone (subtle)
     html += `
-        <div class="layer-zone deep" data-layer-label="${escapeHtml(zones.deep.label)}">
+        <div class="layer-zone deep" data-layer-label="${SPLUNKed.escapeHtml(zones.deep.label)}">
     `;
 
     if (zones.deep.advancedPatterns && zones.deep.advancedPatterns.length > 0) {
@@ -7144,11 +7134,11 @@ function createLayeredHTML(entry) {
             <div class="layer-section">
                 <div class="detail-label">Advanced Patterns</div>
                 ${zones.deep.advancedPatterns.map(p => `
-                    <p style="font-weight: 500; margin-bottom: 0.25rem;">${escapeHtml(p.name)}</p>
+                    <p style="font-weight: 500; margin-bottom: 0.25rem;">${SPLUNKed.escapeHtml(p.name)}</p>
                     <div class="spl-block" style="margin-bottom: 0.25rem;">
-                        <pre class="spl-code"><code>${escapeHtml(p.spl)}</code></pre>
+                        <pre class="spl-code"><code>${SPLUNKed.escapeHtml(p.spl)}</code></pre>
                     </div>
-                    <p class="detail-content" style="margin-top: 0.25rem; margin-bottom: 0.75rem;">${escapeHtml(p.explanation)}</p>
+                    <p class="detail-content" style="margin-top: 0.25rem; margin-bottom: 0.75rem;">${SPLUNKed.escapeHtml(p.explanation)}</p>
                 `).join('')}
             </div>
         `;
@@ -7158,7 +7148,7 @@ function createLayeredHTML(entry) {
         html += `
             <div class="layer-section">
                 <div class="detail-label">Performance</div>
-                <div class="detail-content">${escapeHtml(zones.deep.performance)}</div>
+                <div class="detail-content">${SPLUNKed.escapeHtml(zones.deep.performance)}</div>
             </div>
         `;
     }
@@ -7167,7 +7157,7 @@ function createLayeredHTML(entry) {
         html += `
             <div class="layer-section">
                 <div class="detail-label">Internals</div>
-                <div class="detail-content">${escapeHtml(zones.deep.internals)}</div>
+                <div class="detail-content">${SPLUNKed.escapeHtml(zones.deep.internals)}</div>
             </div>
         `;
     }
@@ -7178,8 +7168,8 @@ function createLayeredHTML(entry) {
                 <div class="detail-label">vs. Alternatives</div>
                 ${Object.entries(zones.deep.vsAlternatives).map(([cmd, desc]) => `
                     <div style="margin-bottom: 0.5rem;">
-                        <code>${escapeHtml(cmd)}</code>
-                        <span class="detail-content"> — ${escapeHtml(desc)}</span>
+                        <code>${SPLUNKed.escapeHtml(cmd)}</code>
+                        <span class="detail-content"> — ${SPLUNKed.escapeHtml(desc)}</span>
                     </div>
                 `).join('')}
             </div>
@@ -7196,7 +7186,7 @@ function createLayeredHTML(entry) {
             <div class="detail-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
                 <div class="detail-label">Related</div>
                 <div class="detail-content">
-                    ${entry.relatedCommands.map(c => `<code>${escapeHtml(c)}</code>`).join(', ')}
+                    ${entry.relatedCommands.map(c => `<code>${SPLUNKed.escapeHtml(c)}</code>`).join(', ')}
                 </div>
             </div>
         `;
@@ -7212,11 +7202,11 @@ function createDetailHTML(entry) {
     html += `
         <div class="detail-section">
             <div class="detail-label">What</div>
-            <div class="detail-content">${escapeHtml(entry.what)}</div>
+            <div class="detail-content">${SPLUNKed.escapeHtml(entry.what)}</div>
         </div>
         <div class="detail-section">
             <div class="detail-label">Why</div>
-            <div class="detail-content">${escapeHtml(entry.why)}</div>
+            <div class="detail-content">${SPLUNKed.escapeHtml(entry.why)}</div>
         </div>
     `;
 
@@ -7245,7 +7235,7 @@ function createDetailHTML(entry) {
                             </svg>
                         </button>
                     </div>
-                    <p class="detail-content" style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem;">${escapeHtml(ex.explanation)}</p>
+                    <p class="detail-content" style="margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem;">${SPLUNKed.escapeHtml(ex.explanation)}</p>
                 `).join('')}
             </div>
         `;
@@ -7257,7 +7247,7 @@ function createDetailHTML(entry) {
             <div class="detail-section">
                 <div class="detail-label">Common Functions</div>
                 <div class="detail-content">
-                    ${entry.commonFunctions.map(f => `<code>${escapeHtml(f)}</code>`).join(', ')}
+                    ${entry.commonFunctions.map(f => `<code>${SPLUNKed.escapeHtml(f)}</code>`).join(', ')}
                 </div>
             </div>
         `;
@@ -7269,8 +7259,8 @@ function createDetailHTML(entry) {
             <div class="detail-section">
                 <div class="detail-label">Common Pipeline</div>
                 <div class="detail-content" style="font-size: 0.875rem;">
-                    ${entry.commonPipeline.before ? `<div style="margin-bottom: 0.5rem;"><span style="color: var(--text-dim);">Before:</span> ${entry.commonPipeline.before.map(c => `<code>${escapeHtml(c)}</code>`).join(', ')}</div>` : ''}
-                    ${entry.commonPipeline.after ? `<div><span style="color: var(--text-dim);">After:</span> ${entry.commonPipeline.after.map(c => `<code>${escapeHtml(c)}</code>`).join(', ')}</div>` : ''}
+                    ${entry.commonPipeline.before ? `<div style="margin-bottom: 0.5rem;"><span style="color: var(--text-dim);">Before:</span> ${entry.commonPipeline.before.map(c => `<code>${SPLUNKed.escapeHtml(c)}</code>`).join(', ')}</div>` : ''}
+                    ${entry.commonPipeline.after ? `<div><span style="color: var(--text-dim);">After:</span> ${entry.commonPipeline.after.map(c => `<code>${SPLUNKed.escapeHtml(c)}</code>`).join(', ')}</div>` : ''}
                 </div>
             </div>
         `;
@@ -7282,7 +7272,7 @@ function createDetailHTML(entry) {
             <div class="detail-section">
                 <div class="detail-label" style="color: var(--splunk-green);">When to Use</div>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    ${entry.whenToUse.map(w => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative; font-size: 0.875rem;"><span style="position: absolute; left: 0; color: var(--splunk-green);">✓</span>${escapeHtml(w)}</li>`).join('')}
+                    ${entry.whenToUse.map(w => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative; font-size: 0.875rem;"><span style="position: absolute; left: 0; color: var(--splunk-green);">✓</span>${SPLUNKed.escapeHtml(w)}</li>`).join('')}
                 </ul>
             </div>
         `;
@@ -7294,7 +7284,7 @@ function createDetailHTML(entry) {
             <div class="detail-section">
                 <div class="detail-label" style="color: var(--splunk-pink);">When NOT to Use</div>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    ${entry.whenNotToUse.map(w => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative; font-size: 0.875rem;"><span style="position: absolute; left: 0; color: var(--splunk-pink);">✗</span>${escapeHtml(w)}</li>`).join('')}
+                    ${entry.whenNotToUse.map(w => `<li style="padding-left: 1rem; margin-bottom: 0.25rem; position: relative; font-size: 0.875rem;"><span style="position: absolute; left: 0; color: var(--splunk-pink);">✗</span>${SPLUNKed.escapeHtml(w)}</li>`).join('')}
                 </ul>
             </div>
         `;
@@ -7314,7 +7304,7 @@ function createDetailHTML(entry) {
                     </span>
                 </button>
                 <div class="disclosure-content">
-                    <p>${escapeHtml(entry.performance)}</p>
+                    <p>${SPLUNKed.escapeHtml(entry.performance)}</p>
                 </div>
             </div>
         `;
@@ -7335,7 +7325,7 @@ function createDetailHTML(entry) {
                 </button>
                 <div class="disclosure-content">
                     <ul style="list-style: none; padding: 0;">
-                        ${entry.gotchas.map(g => `<li style="padding-left: 1rem; margin-bottom: 0.5rem; position: relative;"><span style="position: absolute; left: 0; color: var(--splunk-amber);">!</span>${escapeHtml(g)}</li>`).join('')}
+                        ${entry.gotchas.map(g => `<li style="padding-left: 1rem; margin-bottom: 0.5rem; position: relative;"><span style="position: absolute; left: 0; color: var(--splunk-amber);">!</span>${SPLUNKed.escapeHtml(g)}</li>`).join('')}
                     </ul>
                 </div>
             </div>
@@ -7357,7 +7347,7 @@ function createDetailHTML(entry) {
                 </button>
                 <div class="disclosure-content">
                     ${entry.advancedPatterns.map((ap, i) => `
-                        <p style="font-weight: 600; margin-bottom: 0.5rem;">${escapeHtml(ap.pattern)}</p>
+                        <p style="font-weight: 600; margin-bottom: 0.5rem;">${SPLUNKed.escapeHtml(ap.pattern)}</p>
                         <pre class="spl-example" data-pattern-index="${i}"></pre>
                     `).join('')}
                 </div>
@@ -7379,7 +7369,7 @@ function createDetailHTML(entry) {
                     </span>
                 </button>
                 <div class="disclosure-content">
-                    <p>${escapeHtml(entry.internals)}</p>
+                    <p>${SPLUNKed.escapeHtml(entry.internals)}</p>
                 </div>
             </div>
         `;
@@ -7391,7 +7381,7 @@ function createDetailHTML(entry) {
             <div class="detail-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
                 <div class="detail-label">Related</div>
                 <div class="detail-content">
-                    ${entry.relatedCommands.map(c => `<code>${escapeHtml(c)}</code>`).join(', ')}
+                    ${entry.relatedCommands.map(c => `<code>${SPLUNKed.escapeHtml(c)}</code>`).join(', ')}
                 </div>
             </div>
         `;
@@ -7410,12 +7400,6 @@ function updateEmptyState() {
     emptyState.classList.toggle('hidden', hasResults);
 }
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 // Initialize disclosure sections
 document.addEventListener('click', (e) => {

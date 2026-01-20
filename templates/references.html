@@ -16,12 +16,11 @@
     </header>
 
     <!-- Tabs Navigation -->
-    <div class="tabs-container" id="referencesTabs">
-        <div class="tabs-list" role="tablist">
-            {{ category_tab('fundamentals', 'Fundamentals', active=true) }}
-            {{ category_tab('cim', 'CIM') }}
-            {{ category_tab('antipatterns', 'Pitfalls') }}
-        </div>
+    <div class="training-tabs" id="referencesTabs">
+        <button class="training-tab active" data-category="fundamentals">Fundamentals</button>
+        <button class="training-tab" data-category="enterpriseSecurity">Enterprise Security</button>
+        <button class="training-tab" data-category="cim">CIM</button>
+        <button class="training-tab" data-category="antipatterns">Pitfalls</button>
     </div>
 
     <!-- Controls Bar -->
@@ -59,6 +58,42 @@
             </button>
         </div>
         <div class="glossary-grid" id="fundamentalsGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <div id="enterpriseSecurityPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="category-info" id="enterpriseSecurityInfo"></div>
+        <div class="icon-filter" id="enterpriseSecurityFilter">
+            <button class="icon-filter-btn active" data-filter="all">
+                <span>All</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="rba">
+                <span class="filter-icon">⚡</span>
+                <span>RBA</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="notable">
+                <span class="filter-icon">◉</span>
+                <span>Notable</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="assetIdentity">
+                <span class="filter-icon">◎</span>
+                <span>Asset/Identity</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="threatIntel">
+                <span class="filter-icon">⊛</span>
+                <span>Threat Intel</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="detection">
+                <span class="filter-icon">◇</span>
+                <span>Detection</span>
+            </button>
+            <button class="icon-filter-btn" data-filter="operations">
+                <span class="filter-icon">⚙</span>
+                <span>Operations</span>
+            </button>
+        </div>
+        <div class="glossary-grid" id="enterpriseSecurityGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>

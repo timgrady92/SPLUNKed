@@ -127,6 +127,11 @@ const QUERY_CATEGORIES = {
         name: 'Impact',
         icon: '💥',
         description: 'Destruction, wipers, cryptomining, and disruption'
+    },
+    splunkAdmin: {
+        name: 'Splunk Administration',
+        icon: '⚙️',
+        description: 'Splunk platform auditing, configuration changes, and administrative tasks'
     }
 };
 
@@ -2967,6 +2972,302 @@ const QUERY_LIBRARY = [
 | stats count by host, user, Image, CommandLine
 | sort -count`,
         tags: ['impact', 'firmware', 'bios']
+    },
+
+    // ========== JUNIOR ANALYST ESSENTIALS ==========
+    {
+        id: 'basic-001',
+        title: 'Quick IOC Search',
+        description: 'Search for a specific IP address, domain, or hash across all log sources. Replace the placeholder with your IOC.',
+        category: 'incidentResponse',
+        difficulty: 'beginner',
+        dataSource: 'All',
+        useCase: 'Investigation',
+        spl: `index=* ("192.168.1.100" OR "suspicious-domain.com" OR "abc123hash")
+| stats count by index, sourcetype, source
+| sort -count`,
+        tags: ['ioc', 'search', 'investigation', 'beginner']
+    },
+    {
+        id: 'basic-002',
+        title: 'Events Around a Timestamp',
+        description: 'Find all events within 5 minutes of a specific time. Useful when you know something happened at a particular moment.',
+        category: 'incidentResponse',
+        difficulty: 'beginner',
+        dataSource: 'All',
+        useCase: 'Investigation',
+        spl: `index=* earliest="01/15/2024:14:30:00" latest="01/15/2024:14:35:00"
+| stats count by index, sourcetype, host
+| sort -count`,
+        tags: ['timeline', 'investigation', 'beginner']
+    },
+    {
+        id: 'basic-003',
+        title: 'Data Source Inventory',
+        description: 'See what log sources you have available and how much data each contains. Essential for understanding your visibility.',
+        category: 'performance',
+        difficulty: 'beginner',
+        dataSource: 'All',
+        useCase: 'Monitoring',
+        spl: `| tstats count where index=* by index, sourcetype
+| sort -count
+| head 50`,
+        tags: ['inventory', 'data-sources', 'visibility', 'beginner']
+    },
+    {
+        id: 'basic-004',
+        title: 'Firewall Blocked Connections',
+        description: 'View all connections that were blocked by the firewall. Helps identify what threats are being stopped.',
+        category: 'network',
+        difficulty: 'beginner',
+        dataSource: 'Firewall',
+        mitre: 'T1071',
+        useCase: 'Monitoring',
+        spl: `index=firewall action IN (blocked, denied, drop, reject)
+| stats count by src_ip, dest_ip, dest_port, action
+| sort -count
+| head 50`,
+        tags: ['firewall', 'blocked', 'denied', 'beginner']
+    },
+    {
+        id: 'basic-005',
+        title: 'Windows Service Failures',
+        description: 'Find Windows services that failed to start. Can indicate misconfigurations or malware interference.',
+        category: 'endpoint',
+        difficulty: 'beginner',
+        dataSource: 'Windows System',
+        useCase: 'Troubleshooting',
+        spl: `index=windows sourcetype=WinEventLog:System EventCode=7000 OR EventCode=7009 OR EventCode=7011
+| stats count by host, EventCode, Message
+| sort -count`,
+        tags: ['windows', 'services', 'failures', 'beginner']
+    },
+    {
+        id: 'basic-006',
+        title: 'Search for Error Messages',
+        description: 'Find events containing "error", "failed", or "denied". A simple way to hunt for problems.',
+        category: 'performance',
+        difficulty: 'beginner',
+        dataSource: 'All',
+        useCase: 'Troubleshooting',
+        spl: `index=* (error OR failed OR failure OR denied OR "access denied" OR "permission denied")
+| stats count by sourcetype, host
+| sort -count
+| head 30`,
+        tags: ['errors', 'troubleshooting', 'failures', 'beginner']
+    },
+    {
+        id: 'basic-007',
+        title: 'Most Active Endpoints',
+        description: 'Identify which hosts are generating the most log events. Unusual spikes may indicate issues or attacks.',
+        category: 'endpoint',
+        difficulty: 'beginner',
+        dataSource: 'All',
+        useCase: 'Monitoring',
+        spl: `index=* host=*
+| stats count by host
+| sort -count
+| head 20`,
+        tags: ['hosts', 'activity', 'monitoring', 'beginner']
+    },
+    {
+        id: 'basic-008',
+        title: 'Antivirus and EDR Alerts',
+        description: 'View recent security tool alerts from common AV/EDR solutions. Essential daily review for analysts.',
+        category: 'endpoint',
+        difficulty: 'beginner',
+        dataSource: 'Antivirus/EDR',
+        mitre: 'T1059',
+        useCase: 'Threat Detection',
+        spl: `index=* sourcetype IN (symantec*, mcafee*, defender*, crowdstrike*, carbonblack*, sentinelone*)
+| search action IN (blocked, quarantined, detected, alert, suspicious)
+| stats count by host, signature, action, file_path
+| sort -count`,
+        tags: ['antivirus', 'edr', 'alerts', 'malware', 'beginner']
+    },
+    {
+        id: 'basic-009',
+        title: 'Today\'s Login Summary',
+        description: 'Quick overview of all successful logins today. Good for daily review and spotting unusual accounts.',
+        category: 'authentication',
+        difficulty: 'beginner',
+        dataSource: 'Windows Security',
+        mitre: 'T1078',
+        useCase: 'Monitoring',
+        spl: `index=security sourcetype=WinEventLog:Security EventCode=4624 earliest=-24h
+| stats count, dc(dest) as systems_accessed, values(dest) as destinations by user
+| sort -count
+| head 30`,
+        tags: ['logins', 'daily-review', 'authentication', 'beginner']
+    },
+    {
+        id: 'basic-010',
+        title: 'Recent Password Changes',
+        description: 'Monitor password change and reset events. Unexpected changes may indicate compromise.',
+        category: 'authentication',
+        difficulty: 'beginner',
+        dataSource: 'Windows Security',
+        mitre: 'T1098',
+        useCase: 'Monitoring',
+        spl: `index=security sourcetype=WinEventLog:Security (EventCode=4723 OR EventCode=4724)
+| eval action=case(EventCode=4723, "Password Change Attempt", EventCode=4724, "Password Reset by Admin")
+| stats count by user, action, src_user, dest
+| sort -_time`,
+        tags: ['password', 'changes', 'account-management', 'beginner']
+    },
+
+    // ========== SPLUNK ADMINISTRATION ==========
+    {
+        id: 'admin-001',
+        title: 'ES Risk Score Modifications',
+        description: 'Audit who changed risk scores on correlation searches in Enterprise Security. Critical for maintaining RBA integrity.',
+        category: 'splunkAdmin',
+        difficulty: 'intermediate',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_audit sourcetype=audittrail action=edit_savedsearch
+| search info="*risk*" OR savedsearch_name="*Risk*" OR savedsearch_name="*rule*"
+| rex field=info "risk_score[^\\d]*(?<new_risk_score>\\d+)"
+| stats count, latest(_time) as last_modified, values(info) as changes by user, savedsearch_name
+| eval last_modified=strftime(last_modified, "%Y-%m-%d %H:%M:%S")
+| sort -last_modified`,
+        tags: ['splunk', 'enterprise-security', 'risk', 'audit', 'rba']
+    },
+    {
+        id: 'admin-002',
+        title: 'Saved Search and Alert Changes',
+        description: 'Track who created, modified, or deleted saved searches and alerts. Essential for change management.',
+        category: 'splunkAdmin',
+        difficulty: 'beginner',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_audit sourcetype=audittrail action IN (edit_savedsearch, create_savedsearch, delete_savedsearch)
+| eval action_type=case(
+    action="create_savedsearch", "Created",
+    action="edit_savedsearch", "Modified",
+    action="delete_savedsearch", "Deleted")
+| stats count by user, savedsearch_name, action_type, _time
+| sort -_time
+| head 50`,
+        tags: ['splunk', 'alerts', 'saved-searches', 'audit', 'change-management']
+    },
+    {
+        id: 'admin-003',
+        title: 'User Role and Capability Changes',
+        description: 'Monitor changes to user roles and capabilities. Detect unauthorized privilege modifications.',
+        category: 'splunkAdmin',
+        difficulty: 'intermediate',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_audit sourcetype=audittrail (action=edit_user OR action=create_user OR action=edit_roles)
+| stats count, values(info) as changes, latest(_time) as last_change by user, action
+| eval last_change=strftime(last_change, "%Y-%m-%d %H:%M:%S")
+| sort -last_change`,
+        tags: ['splunk', 'users', 'roles', 'permissions', 'audit']
+    },
+    {
+        id: 'admin-004',
+        title: 'Knowledge Object Modifications',
+        description: 'Audit changes to props, transforms, lookups, and other knowledge objects that affect data parsing.',
+        category: 'splunkAdmin',
+        difficulty: 'intermediate',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_audit sourcetype=audittrail action IN (*props*, *transforms*, *lookup*, *field*, *extract*, *eventtypes*, *tags*)
+| stats count, values(action) as actions, latest(_time) as last_change by user, info
+| eval last_change=strftime(last_change, "%Y-%m-%d %H:%M:%S")
+| sort -last_change
+| head 50`,
+        tags: ['splunk', 'knowledge-objects', 'props', 'transforms', 'audit']
+    },
+    {
+        id: 'admin-005',
+        title: 'App Installation and Changes',
+        description: 'Track app installations, updates, and configuration changes across the Splunk environment.',
+        category: 'splunkAdmin',
+        difficulty: 'beginner',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_audit sourcetype=audittrail action IN (install_app, edit_app, *app*)
+| stats count, values(action) as actions, latest(_time) as last_change by user, info
+| eval last_change=strftime(last_change, "%Y-%m-%d %H:%M:%S")
+| sort -last_change`,
+        tags: ['splunk', 'apps', 'installation', 'audit']
+    },
+    {
+        id: 'admin-006',
+        title: 'Splunk User Login Activity',
+        description: 'Review who logged into Splunk, when, and from where. Detect unauthorized access attempts.',
+        category: 'splunkAdmin',
+        difficulty: 'beginner',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_audit sourcetype=audittrail action=login
+| stats count as login_count, earliest(_time) as first_login, latest(_time) as last_login, values(info) as login_info by user
+| eval first_login=strftime(first_login, "%Y-%m-%d %H:%M:%S")
+| eval last_login=strftime(last_login, "%Y-%m-%d %H:%M:%S")
+| sort -last_login`,
+        tags: ['splunk', 'login', 'access', 'audit']
+    },
+    {
+        id: 'admin-007',
+        title: 'Expensive Search Audit',
+        description: 'Identify users running resource-intensive searches that may impact Splunk performance.',
+        category: 'splunkAdmin',
+        difficulty: 'intermediate',
+        dataSource: 'Splunk Audit',
+        useCase: 'Performance',
+        spl: `index=_audit sourcetype=audittrail action=search info=completed
+| eval scan_count=coalesce(scan_count, 0), event_count=coalesce(event_count, 0), run_time=coalesce(total_run_time, 0)
+| where scan_count > 1000000 OR run_time > 300
+| stats count as expensive_searches, sum(scan_count) as total_scanned, avg(run_time) as avg_runtime by user
+| eval avg_runtime=round(avg_runtime, 2)
+| sort -total_scanned`,
+        tags: ['splunk', 'performance', 'searches', 'audit', 'optimization']
+    },
+    {
+        id: 'admin-008',
+        title: 'Dashboard Modifications',
+        description: 'Track who created or modified dashboards. Important for maintaining dashboard integrity.',
+        category: 'splunkAdmin',
+        difficulty: 'beginner',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_audit sourcetype=audittrail action IN (*dashboard*, *view*)
+| stats count, values(action) as actions, latest(_time) as last_change by user, info
+| eval last_change=strftime(last_change, "%Y-%m-%d %H:%M:%S")
+| sort -last_change
+| head 50`,
+        tags: ['splunk', 'dashboards', 'views', 'audit']
+    },
+    {
+        id: 'admin-009',
+        title: 'Data Input Configuration Changes',
+        description: 'Monitor changes to data inputs, forwarder configurations, and ingestion settings.',
+        category: 'splunkAdmin',
+        difficulty: 'intermediate',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_audit sourcetype=audittrail action IN (*input*, *forward*, *receive*, *tcp*, *udp*, *monitor*, *scripted*)
+| stats count, values(action) as actions, latest(_time) as last_change by user, info
+| eval last_change=strftime(last_change, "%Y-%m-%d %H:%M:%S")
+| sort -last_change`,
+        tags: ['splunk', 'inputs', 'forwarders', 'data-collection', 'audit']
+    },
+    {
+        id: 'admin-010',
+        title: 'REST API Usage Audit',
+        description: 'Track REST API calls to Splunk endpoints. Detect automation and potential API abuse.',
+        category: 'splunkAdmin',
+        difficulty: 'advanced',
+        dataSource: 'Splunk Audit',
+        useCase: 'Audit',
+        spl: `index=_internal sourcetype=splunkd_access method IN (POST, PUT, DELETE)
+| rex field=uri_path "/services/(?<endpoint>[^/]+)"
+| stats count, dc(uri_path) as unique_endpoints, values(method) as methods by user, endpoint, clientip
+| where count > 10
+| sort -count`,
+        tags: ['splunk', 'rest-api', 'automation', 'audit', 'security']
     }
 ];
 
@@ -2976,6 +3277,8 @@ const QUERY_LIBRARY = [
 
 let filteredQueries = [...QUERY_LIBRARY];
 let currentRandomQuery = null;
+let randomQueryHistory = [];
+let randomQueryIndex = -1;
 
 // ============================================
 // Initialization
@@ -3054,21 +3357,21 @@ function createQueryCard(query) {
     // Apply syntax highlighting if available
     const highlightedPreview = window.SPLUNKed?.highlightSPL
         ? window.SPLUNKed.highlightSPL(splPreview)
-        : escapeHtml(splPreview);
+        : SPLUNKed.escapeHtml(splPreview);
 
     // Build metadata badges
     const metadataBadges = [];
     if (query.dataSource) {
-        metadataBadges.push(`<span class="query-meta-badge data-source" title="Data Source">${escapeHtml(query.dataSource)}</span>`);
+        metadataBadges.push(`<span class="query-meta-badge data-source" title="Data Source">${SPLUNKed.escapeHtml(query.dataSource)}</span>`);
     }
     if (query.mitre) {
         const mitreArray = Array.isArray(query.mitre) ? query.mitre : [query.mitre];
         mitreArray.forEach(technique => {
-            metadataBadges.push(`<span class="query-meta-badge mitre" title="MITRE ATT&CK">${escapeHtml(technique)}</span>`);
+            metadataBadges.push(`<span class="query-meta-badge mitre" title="MITRE ATT&CK">${SPLUNKed.escapeHtml(technique)}</span>`);
         });
     }
     if (query.useCase) {
-        metadataBadges.push(`<span class="query-meta-badge use-case" title="Use Case">${escapeHtml(query.useCase)}</span>`);
+        metadataBadges.push(`<span class="query-meta-badge use-case" title="Use Case">${SPLUNKed.escapeHtml(query.useCase)}</span>`);
     }
 
     return `
@@ -3116,7 +3419,7 @@ function showQueryModal(query) {
         metadataItems.push(`
             <div class="modal-meta-item">
                 <span class="modal-meta-label">Data Source</span>
-                <span class="modal-meta-value data-source">${escapeHtml(query.dataSource)}</span>
+                <span class="modal-meta-value data-source">${SPLUNKed.escapeHtml(query.dataSource)}</span>
             </div>
         `);
     }
@@ -3125,7 +3428,7 @@ function showQueryModal(query) {
         metadataItems.push(`
             <div class="modal-meta-item">
                 <span class="modal-meta-label">MITRE ATT&CK</span>
-                <span class="modal-meta-value mitre">${mitreArray.map(t => escapeHtml(t)).join(', ')}</span>
+                <span class="modal-meta-value mitre">${mitreArray.map(t => SPLUNKed.escapeHtml(t)).join(', ')}</span>
             </div>
         `);
     }
@@ -3133,7 +3436,7 @@ function showQueryModal(query) {
         metadataItems.push(`
             <div class="modal-meta-item">
                 <span class="modal-meta-label">Use Case</span>
-                <span class="modal-meta-value use-case">${escapeHtml(query.useCase)}</span>
+                <span class="modal-meta-value use-case">${SPLUNKed.escapeHtml(query.useCase)}</span>
             </div>
         `);
     }
@@ -3161,7 +3464,7 @@ function showQueryModal(query) {
         <div class="query-modal-section">
             <h4>SPL Query</h4>
             <div class="spl-block">
-                <pre class="spl-code"><code>${window.SPLUNKed?.highlightSPL ? window.SPLUNKed.highlightSPL(query.spl) : escapeHtml(query.spl)}</code></pre>
+                <pre class="spl-code"><code>${window.SPLUNKed?.highlightSPL ? window.SPLUNKed.highlightSPL(query.spl) : SPLUNKed.escapeHtml(query.spl)}</code></pre>
                 <button class="spl-copy modal-copy-btn" aria-label="Copy to clipboard">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="9" y="9" width="13" height="13" rx="2"/>
@@ -3200,26 +3503,64 @@ function closeModal() {
 
 function showRandomQuery() {
     const randomIndex = Math.floor(Math.random() * QUERY_LIBRARY.length);
-    currentRandomQuery = QUERY_LIBRARY[randomIndex];
-    const category = QUERY_CATEGORIES[currentRandomQuery.category];
+    const query = QUERY_LIBRARY[randomIndex];
 
-    document.getElementById('randomQueryTitle').textContent = currentRandomQuery.title;
-    document.getElementById('randomQueryDescription').textContent = currentRandomQuery.description;
+    // If we're not at the end of history, truncate forward history
+    if (randomQueryIndex < randomQueryHistory.length - 1) {
+        randomQueryHistory = randomQueryHistory.slice(0, randomQueryIndex + 1);
+    }
+
+    // Add to history and move index forward
+    randomQueryHistory.push(query);
+    randomQueryIndex = randomQueryHistory.length - 1;
+
+    displayRandomQuery(query);
+}
+
+function displayRandomQuery(query) {
+    currentRandomQuery = query;
+    const category = QUERY_CATEGORIES[query.category];
+
+    document.getElementById('randomQueryTitle').textContent = query.title;
+    document.getElementById('randomQueryDescription').textContent = query.description;
 
     // Apply SPL syntax highlighting
     const splElement = document.getElementById('randomQuerySPL');
     if (window.SPLUNKed?.highlightSPL) {
-        splElement.innerHTML = window.SPLUNKed.highlightSPL(currentRandomQuery.spl);
+        splElement.innerHTML = window.SPLUNKed.highlightSPL(query.spl);
     } else {
-        splElement.textContent = currentRandomQuery.spl;
+        splElement.textContent = query.spl;
     }
 
     document.getElementById('randomQueryCategory').textContent = `${category.icon} ${category.name}`;
     document.getElementById('randomQueryCategory').className = `query-category-badge`;
-    document.getElementById('randomQueryDifficulty').textContent = currentRandomQuery.difficulty;
-    document.getElementById('randomQueryDifficulty').className = `query-difficulty-badge ${currentRandomQuery.difficulty}`;
+    document.getElementById('randomQueryDifficulty').textContent = query.difficulty;
+    document.getElementById('randomQueryDifficulty').className = `query-difficulty-badge ${query.difficulty}`;
 
     document.getElementById('randomQueryDisplay').classList.remove('hidden');
+    updateRandomNavButtons();
+}
+
+function goBackRandom() {
+    if (randomQueryIndex > 0) {
+        randomQueryIndex--;
+        displayRandomQuery(randomQueryHistory[randomQueryIndex]);
+    }
+}
+
+function goForwardRandom() {
+    if (randomQueryIndex < randomQueryHistory.length - 1) {
+        randomQueryIndex++;
+        displayRandomQuery(randomQueryHistory[randomQueryIndex]);
+    }
+}
+
+function updateRandomNavButtons() {
+    const backBtn = document.getElementById('randomQueryBack');
+    const forwardBtn = document.getElementById('randomQueryForward');
+
+    if (backBtn) backBtn.disabled = randomQueryIndex <= 0;
+    if (forwardBtn) forwardBtn.disabled = randomQueryIndex >= randomQueryHistory.length - 1;
 }
 
 function hideRandomQuery() {
@@ -3264,15 +3605,10 @@ function updateQueryCount() {
 
 function setupEventListeners() {
     // Search
-    const searchInput = document.getElementById('querySearch');
-    searchInput.addEventListener('input', debounce(applyFilters, 300));
-
-    // Clear search
-    const searchClear = document.getElementById('querySearchClear');
-    if (searchClear) {
-        searchClear.addEventListener('click', () => {
-            searchInput.value = '';
-            applyFilters();
+    if (window.SPLUNKed?.initSearch) {
+        SPLUNKed.initSearch('querySearch', {
+            debounce: 300,
+            onSearch: () => applyFilters()
         });
     }
 
@@ -3284,6 +3620,8 @@ function setupEventListeners() {
     document.getElementById('randomQueryBtn').addEventListener('click', showRandomQuery);
     document.getElementById('randomQueryClose').addEventListener('click', hideRandomQuery);
     document.getElementById('randomQueryAnother').addEventListener('click', showRandomQuery);
+    document.getElementById('randomQueryBack').addEventListener('click', goBackRandom);
+    document.getElementById('randomQueryForward').addEventListener('click', goForwardRandom);
     document.getElementById('randomQueryCopy').addEventListener('click', (e) => {
         if (currentRandomQuery) {
             copyToClipboard(currentRandomQuery.spl, e.target.closest('.spl-copy'));
@@ -3311,24 +3649,6 @@ function setupEventListeners() {
 // ============================================
 // Utility Functions
 // ============================================
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 function copyToClipboard(text, button) {
     navigator.clipboard.writeText(text).then(() => {

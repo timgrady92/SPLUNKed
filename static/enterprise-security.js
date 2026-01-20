@@ -2,6 +2,8 @@
  * SPLUNKed - Enterprise Security Data and Logic
  * Splunk ES features: RBA, Notable Events, Asset/Identity, Threat Intel, and more
  */
+(function() {
+'use strict';
 
 // ============================================
 // Category Info
@@ -1836,38 +1838,27 @@ function initIconFilter(containerId, filterSet) {
     const filterContainer = document.getElementById(containerId);
     if (!filterContainer) return;
 
-    const allBtn = filterContainer.querySelector('[data-filter="all"]');
-    const filterBtns = filterContainer.querySelectorAll('[data-filter]:not([data-filter="all"])');
+    filterContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.icon-filter-btn');
+        if (!btn) return;
 
-    function updateAllButton() {
-        if (allBtn) {
-            const allActive = filterSet.size === 0;
-            allBtn.classList.toggle('active', allActive);
+        const filterValue = btn.dataset.filter;
+
+        // Clear all active states
+        filterContainer.querySelectorAll('.icon-filter-btn').forEach(b => {
+            b.classList.remove('active');
+        });
+
+        // Activate clicked button
+        btn.classList.add('active');
+
+        // Update filter set
+        filterSet.clear();
+        if (filterValue !== 'all') {
+            filterSet.add(filterValue);
         }
-    }
 
-    if (allBtn) {
-        allBtn.addEventListener('click', () => {
-            filterSet.clear();
-            filterBtns.forEach(btn => btn.classList.remove('active'));
-            updateAllButton();
-            renderES();
-        });
-    }
-
-    filterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const filter = btn.dataset.filter;
-            if (filterSet.has(filter)) {
-                filterSet.delete(filter);
-                btn.classList.remove('active');
-            } else {
-                filterSet.add(filter);
-                btn.classList.add('active');
-            }
-            updateAllButton();
-            renderES();
-        });
+        renderES();
     });
 }
 
@@ -1909,19 +1900,13 @@ function renderES() {
 
 const CARD_ICONS = {
     rba: { icon: '⚡', label: 'Risk-Based Alerting' },
-    notable: { icon: '🔔', label: 'Notable Events' },
-    assetIdentity: { icon: '👤', label: 'Assets/Identity' },
-    threatIntel: { icon: '🎯', label: 'Threat Intel' },
-    detection: { icon: '🔗', label: 'Detection' },
+    notable: { icon: '◉', label: 'Notable Events' },
+    assetIdentity: { icon: '◎', label: 'Assets/Identity' },
+    threatIntel: { icon: '⊛', label: 'Threat Intel' },
+    detection: { icon: '◇', label: 'Detection' },
     operations: { icon: '⚙', label: 'Operations' }
 };
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 function createCardHTML(entry) {
     let cardIcon = '';
@@ -1934,9 +1919,9 @@ function createCardHTML(entry) {
         <div class="glossary-card" data-id="${entry.id}" data-category="enterpriseSecurity">
             ${cardIcon}
             <div class="glossary-card-header">
-                <code class="glossary-name">${escapeHtml(entry.name)}</code>
+                <code class="glossary-name">${SPLUNKed.escapeHtml(entry.name)}</code>
             </div>
-            <p class="glossary-takeaway">${escapeHtml(entry.takeaway)}</p>
+            <p class="glossary-takeaway">${SPLUNKed.escapeHtml(entry.takeaway)}</p>
         </div>
     `;
 }
@@ -1997,7 +1982,7 @@ function createDetailHTML(entry) {
         html += `
             <div class="tabbed-section section-what">
                 <div class="tabbed-section-header">WHAT</div>
-                <div class="tabbed-section-content">${escapeHtml(entry.what)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(entry.what)}</div>
             </div>
         `;
     }
@@ -2006,7 +1991,7 @@ function createDetailHTML(entry) {
         html += `
             <div class="tabbed-section section-why">
                 <div class="tabbed-section-header">WHY</div>
-                <div class="tabbed-section-content">${escapeHtml(entry.why)}</div>
+                <div class="tabbed-section-content">${SPLUNKed.escapeHtml(entry.why)}</div>
             </div>
         `;
     }
@@ -2015,7 +2000,7 @@ function createDetailHTML(entry) {
         html += `
             <div class="tabbed-section section-key">
                 <div class="tabbed-section-header">KEY POINT</div>
-                <div class="tabbed-section-content"><strong>${escapeHtml(entry.keyPoint)}</strong></div>
+                <div class="tabbed-section-content"><strong>${SPLUNKed.escapeHtml(entry.keyPoint)}</strong></div>
             </div>
         `;
     }
@@ -2028,9 +2013,9 @@ function createDetailHTML(entry) {
                     ${entry.examples.map(ex => `
                         <div class="example-pair">
                             <div class="spl-block">
-                                <pre class="spl-code"><code>${escapeHtml(ex.spl)}</code></pre>
+                                <pre class="spl-code"><code>${SPLUNKed.escapeHtml(ex.spl)}</code></pre>
                             </div>
-                            <p class="example-explanation">${escapeHtml(ex.explanation)}</p>
+                            <p class="example-explanation">${SPLUNKed.escapeHtml(ex.explanation)}</p>
                         </div>
                     `).join('')}
                 </div>
@@ -2046,8 +2031,8 @@ function createDetailHTML(entry) {
                     <table class="field-table">
                         ${entry.keyFields.map(f => `
                             <tr>
-                                <td><code>${escapeHtml(f.field)}</code></td>
-                                <td>${escapeHtml(f.description)}</td>
+                                <td><code>${SPLUNKed.escapeHtml(f.field)}</code></td>
+                                <td>${SPLUNKed.escapeHtml(f.description)}</td>
                             </tr>
                         `).join('')}
                     </table>
@@ -2062,7 +2047,7 @@ function createDetailHTML(entry) {
                 <div class="tabbed-section-header">WATCH OUT</div>
                 <div class="tabbed-section-content">
                     <ul class="warning-list">
-                        ${entry.gotchas.map(g => `<li><span class="warning-icon">!</span> ${escapeHtml(g)}</li>`).join('')}
+                        ${entry.gotchas.map(g => `<li><span class="warning-icon">!</span> ${SPLUNKed.escapeHtml(g)}</li>`).join('')}
                     </ul>
                 </div>
             </div>
@@ -2077,7 +2062,7 @@ function createDetailHTML(entry) {
                 <div class="detail-section">
                     <div class="detail-label">Related</div>
                     <div class="detail-content">
-                        ${entry.relatedCommands.map(cmd => `<code>${escapeHtml(cmd)}</code>`).join(', ')}
+                        ${entry.relatedCommands.map(cmd => `<code>${SPLUNKed.escapeHtml(cmd)}</code>`).join(', ')}
                     </div>
                 </div>
             </div>
@@ -2086,3 +2071,5 @@ function createDetailHTML(entry) {
 
     return html;
 }
+
+})();

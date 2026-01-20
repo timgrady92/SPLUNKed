@@ -10,85 +10,52 @@
     <header class="page-header">
         <h1 class="page-title">Training Center</h1>
         <p class="page-subtitle">
-            Curated learning pipelines with realistic SOC scenarios.
+            Practical guides, tutorials, and realistic SOC scenarios.
             Build your analytical instincts through hands-on practice.
         </p>
     </header>
 
-    <!-- Navigation -->
-    <div class="training-nav" id="trainingNav">
-        <div class="training-nav-groups">
-            <button class="training-nav-group" data-level="all">
-                <span class="nav-group-icon">&#9783;</span>
-                <span class="nav-group-label">View All</span>
-            </button>
-            <button class="training-nav-group active" data-level="gettingStarted">
-                <span class="nav-group-icon">&#9654;</span>
-                <span class="nav-group-label">Getting Started</span>
-            </button>
-            <button class="training-nav-group" data-level="levelingUp">
-                <span class="nav-group-icon">&#8593;</span>
-                <span class="nav-group-label">Leveling Up</span>
-            </button>
-            <button class="training-nav-group" data-level="mastery">
-                <span class="nav-group-icon">&#9733;</span>
-                <span class="nav-group-label">Mastery</span>
-            </button>
-        </div>
-        <div class="training-nav-subs">
-            <div class="training-type-filter" id="typeFilter">
-                <button class="training-type-btn active" data-filter="all">All Types</button>
-                <button class="training-type-btn" data-filter="tutorial">
-                    <span class="type-icon">▷</span> Tutorials
-                </button>
-                <button class="training-type-btn" data-filter="scenario">
-                    <span class="type-icon">◎</span> Scenarios
-                </button>
-                <button class="training-type-btn" data-filter="challenge">
-                    <span class="type-icon">★</span> Challenges
-                </button>
-            </div>
-        </div>
+    <!-- Tab Navigation -->
+    <div class="training-tabs" id="trainingTabs">
+        <button class="training-tab active" data-tab="guides">How-To Guides</button>
+        <button class="training-tab" data-tab="tutorials">Tutorials</button>
+        <button class="training-tab" data-tab="scenarios">Scenarios</button>
+        <button class="training-tab" data-tab="challenges">Challenges</button>
+        <button class="training-tab" data-tab="pipelines">Learning Paths</button>
     </div>
 
     <!-- Controls Bar -->
     <div class="controls-bar">
-        {{ search_input(placeholder='Search training modules...', id='trainingSearch') }}
+        {{ search_input(placeholder='Search training content...', id='trainingSearch') }}
     </div>
 
-    <!-- Level Panels -->
-    <div id="allPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="training-grid" id="allGrid">
+    <!-- Tab Panels -->
+    <div id="guidesPanel" class="tab-panel active" role="tabpanel">
+        <div class="guides-grid" id="guidesGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="gettingStartedPanel" class="tab-panel active" role="tabpanel">
-        <div class="training-level-info">
-            <span class="level-badge gettingStarted">Getting Started</span>
-            <p class="level-description">SPL basics, search anatomy, filtering, aggregating, and field manipulation. Start here if you're new to Splunk.</p>
-        </div>
-        <div class="training-grid" id="gettingStartedGrid">
+    <div id="tutorialsPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-grid" id="tutorialsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="levelingUpPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="training-level-info">
-            <span class="level-badge levelingUp">Leveling Up</span>
-            <p class="level-description">Subsearches, lookups, joins, statistical analysis, and threat hunting patterns. Deepen your investigation skills.</p>
-        </div>
-        <div class="training-grid" id="levelingUpGrid">
+    <div id="scenariosPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-grid" id="scenariosGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
 
-    <div id="masteryPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="training-level-info">
-            <span class="level-badge mastery">Mastery</span>
-            <p class="level-description">Performance optimization, complex correlations, Enterprise Security, and expert-level techniques.</p>
+    <div id="challengesPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="training-grid" id="challengesGrid">
+            <!-- Populated by JavaScript -->
         </div>
-        <div class="training-grid" id="masteryGrid">
+    </div>
+
+    <div id="pipelinesPanel" class="tab-panel" role="tabpanel" hidden>
+        <div class="pipelines-grid" id="pipelinesGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
@@ -101,19 +68,32 @@
                 <path d="M21 21l-4.35-4.35"/>
             </svg>
         </div>
-        <h3 class="empty-title">No training modules found</h3>
-        <p class="empty-message">Try adjusting your search or filter criteria.</p>
+        <h3 class="empty-title">No content found</h3>
+        <p class="empty-message">Try adjusting your search criteria.</p>
     </div>
 </div>
 
-<!-- Training Modal -->
+<!-- Guide Modal (for How-To Guides) -->
+<div class="guide-modal" id="guideModal">
+    <div class="guide-modal-overlay" id="guideModalOverlay"></div>
+    <div class="guide-modal-content">
+        <div class="guide-modal-header">
+            <h2 class="guide-modal-title" id="guideModalTitle"></h2>
+            <button class="guide-modal-close" id="guideModalClose" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="guide-modal-body" id="guideModalBody">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Training Modal (for tutorials, scenarios, challenges) -->
 <div class="training-modal" id="trainingModal">
     <div class="training-modal-overlay" id="trainingModalOverlay"></div>
     <div class="training-modal-content">
         <div class="training-modal-header">
             <div class="training-modal-meta">
                 <span class="training-type-badge" id="modalTypeBadge"></span>
-                <span class="level-badge" id="modalLevelBadge"></span>
                 <span class="training-duration" id="modalDuration"></span>
             </div>
             <button class="training-modal-close" id="trainingModalClose" aria-label="Close modal">&times;</button>
@@ -127,6 +107,25 @@
         </div>
         <div class="training-modal-nav" id="trainingModalNav">
             <!-- Populated by JavaScript for scenarios -->
+        </div>
+    </div>
+</div>
+
+<!-- Pipeline Detail Modal -->
+<div class="pipeline-modal" id="pipelineModal">
+    <div class="pipeline-modal-overlay" id="pipelineModalOverlay"></div>
+    <div class="pipeline-modal-content">
+        <div class="pipeline-modal-header">
+            <div class="pipeline-modal-meta">
+                <span class="pipeline-level-badge" id="pipelineLevelBadge"></span>
+                <span class="pipeline-duration" id="pipelineDuration"></span>
+            </div>
+            <button class="pipeline-modal-close" id="pipelineModalClose" aria-label="Close modal">&times;</button>
+        </div>
+        <h2 class="pipeline-modal-title" id="pipelineModalTitle"></h2>
+        <p class="pipeline-modal-description" id="pipelineModalDescription"></p>
+        <div class="pipeline-steps" id="pipelineSteps">
+            <!-- Populated by JavaScript -->
         </div>
     </div>
 </div>

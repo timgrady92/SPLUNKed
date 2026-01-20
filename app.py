@@ -8,12 +8,40 @@ Mirrors SIFTed's scaffolding for learning philosophy with Splunk-inspired aesthe
 import json
 import os
 import uuid
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 
 app = Flask(__name__)
 
 # Path to the mappings JSON file
 MAPPINGS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'prompt-builder-mappings.json')
+
+DEFAULT_MAPPINGS = {
+    "dataSources": [],
+    "fieldValues": [],
+    "patterns": [],
+    "outputShapes": [],
+    "timeRangePresets": []
+}
+
+TYPE_KEY_MAP = {
+    'dataSource': 'dataSources',
+    'dataSources': 'dataSources',
+    'fieldValue': 'fieldValues',
+    'fieldValues': 'fieldValues',
+    'pattern': 'patterns',
+    'patterns': 'patterns',
+    'outputShape': 'outputShapes',
+    'outputShapes': 'outputShapes',
+    'timeRangePreset': 'timeRangePresets',
+    'timeRangePresets': 'timeRangePresets'
+}
+
+ID_PREFIX_MAP = {
+    'dataSources': 'ds',
+    'fieldValues': 'fv',
+    'patterns': 'pf',
+    'outputShapes': 'os'
+}
 
 
 def load_mappings():
@@ -22,13 +50,7 @@ def load_mappings():
         with open(MAPPINGS_FILE, 'r') as f:
             return json.load(f)
     except FileNotFoundError:
-        return {
-            "dataSources": [],
-            "fieldValues": [],
-            "patterns": [],
-            "outputShapes": [],
-            "timeRangePresets": []
-        }
+        return {key: list(value) for key, value in DEFAULT_MAPPINGS.items()}
 
 
 def save_mappings(data):
@@ -40,17 +62,31 @@ def save_mappings(data):
 
 def get_type_key(type_name):
     """Convert type name to JSON key."""
-    type_map = {
-        'dataSource': 'dataSources',
-        'dataSources': 'dataSources',
-        'fieldValue': 'fieldValues',
-        'fieldValues': 'fieldValues',
-        'pattern': 'patterns',
-        'patterns': 'patterns',
-        'outputShape': 'outputShapes',
-        'outputShapes': 'outputShapes'
-    }
-    return type_map.get(type_name, type_name)
+    return TYPE_KEY_MAP.get(type_name, type_name)
+
+
+def resolve_type_key(mappings, type_name):
+    """Return a validated mappings key or None if unknown."""
+    type_key = get_type_key(type_name)
+    return type_key if type_key in mappings else None
+
+
+def singularize_type_name(type_name):
+    """Convert plural type names to a singular form for object metadata."""
+    return type_name[:-1] if type_name.endswith('s') else type_name
+
+
+def find_mapping_index(items, obj_id):
+    """Find an object's index by id in a list of mapping objects."""
+    for i, obj in enumerate(items):
+        if obj.get("id") == obj_id:
+            return i
+    return None
+
+
+def index_by_id(items):
+    """Build an id->object lookup for fast access."""
+    return {item.get("id"): item for item in items if item.get("id")}
 
 
 # Page Routes
@@ -74,14 +110,14 @@ def references():
 
 @app.route("/enterprise-security")
 def enterprise_security():
-    """Enterprise Security page with RBA, Notable Events, Asset/Identity, and Threat Intel."""
-    return render_template("enterprise-security.html")
+    """Redirect to Knowledge page with Enterprise Security tab."""
+    return redirect(url_for('references') + '?tab=enterpriseSecurity')
 
 
 @app.route("/guides")
 def guides():
-    """Investigation guides page with detection and data source guides."""
-    return render_template("guides.html")
+    """Redirect to training page with guides tab for backwards compatibility."""
+    return redirect(url_for('training') + '?tab=guides')
 
 
 @app.route("/prompt-builder")
@@ -114,8 +150,8 @@ def get_all_mappings():
 def get_mappings_by_type(type_name):
     """Get search objects by type."""
     mappings = load_mappings()
-    type_key = get_type_key(type_name)
-    if type_key in mappings:
+    type_key = resolve_type_key(mappings, type_name)
+    if type_key:
         return jsonify(mappings[type_key])
     return jsonify({"error": f"Unknown type: {type_name}"}), 404
 
@@ -124,9 +160,8 @@ def get_mappings_by_type(type_name):
 def create_mapping(type_name):
     """Create a new search object."""
     mappings = load_mappings()
-    type_key = get_type_key(type_name)
-
-    if type_key not in mappings:
+    type_key = resolve_type_key(mappings, type_name)
+    if not type_key:
         return jsonify({"error": f"Unknown type: {type_name}"}), 404
 
     data = request.get_json()
@@ -134,18 +169,12 @@ def create_mapping(type_name):
         return jsonify({"error": "No data provided"}), 400
 
     # Generate ID and set type
-    prefix_map = {
-        'dataSources': 'ds',
-        'fieldValues': 'fv',
-        'patterns': 'pf',
-        'outputShapes': 'os'
-    }
-    prefix = prefix_map.get(type_key, 'obj')
+    prefix = ID_PREFIX_MAP.get(type_key, 'obj')
     new_id = f"{prefix}_{uuid.uuid4().hex[:8]}"
 
     new_object = {
         "id": new_id,
-        "type": type_name.rstrip('s') if type_name.endswith('s') else type_name,
+        "type": singularize_type_name(type_name),
         "name": data.get("name", ""),
         "friendlyName": data.get("friendlyName", data.get("name", "").upper()),
         "spl": data.get("spl", ""),
@@ -169,54 +198,51 @@ def create_mapping(type_name):
 def update_mapping(type_name, obj_id):
     """Update an existing search object."""
     mappings = load_mappings()
-    type_key = get_type_key(type_name)
-
-    if type_key not in mappings:
+    type_key = resolve_type_key(mappings, type_name)
+    if not type_key:
         return jsonify({"error": f"Unknown type: {type_name}"}), 404
 
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
-    # Find and update the object
-    for i, obj in enumerate(mappings[type_key]):
-        if obj.get("id") == obj_id:
-            # Update fields
-            mappings[type_key][i]["name"] = data.get("name", obj.get("name"))
-            mappings[type_key][i]["friendlyName"] = data.get("friendlyName", data.get("name", obj.get("name")).upper())
-            mappings[type_key][i]["spl"] = data.get("spl", obj.get("spl"))
-            mappings[type_key][i]["tags"] = data.get("tags", obj.get("tags", []))
-            mappings[type_key][i]["description"] = data.get("description", obj.get("description"))
+    index = find_mapping_index(mappings[type_key], obj_id)
+    if index is None:
+        return jsonify({"error": f"Object not found: {obj_id}"}), 404
 
-            # Handle optional fields for output shapes
-            if type_key == 'outputShapes':
-                mappings[type_key][i]["requiresField"] = data.get("requiresField", obj.get("requiresField", False))
-                if mappings[type_key][i]["requiresField"]:
-                    mappings[type_key][i]["fieldPlaceholder"] = data.get("fieldPlaceholder", obj.get("fieldPlaceholder", "{field}"))
+    obj = mappings[type_key][index]
+    # Update fields
+    obj["name"] = data.get("name", obj.get("name"))
+    obj["friendlyName"] = data.get("friendlyName", data.get("name", obj.get("name")).upper())
+    obj["spl"] = data.get("spl", obj.get("spl"))
+    obj["tags"] = data.get("tags", obj.get("tags", []))
+    obj["description"] = data.get("description", obj.get("description"))
 
-            save_mappings(mappings)
-            return jsonify(mappings[type_key][i])
+    # Handle optional fields for output shapes
+    if type_key == 'outputShapes':
+        obj["requiresField"] = data.get("requiresField", obj.get("requiresField", False))
+        if obj["requiresField"]:
+            obj["fieldPlaceholder"] = data.get("fieldPlaceholder", obj.get("fieldPlaceholder", "{field}"))
 
-    return jsonify({"error": f"Object not found: {obj_id}"}), 404
+    save_mappings(mappings)
+    return jsonify(obj)
 
 
 @app.route("/api/mappings/<type_name>/<obj_id>", methods=['DELETE'])
 def delete_mapping(type_name, obj_id):
     """Delete a search object."""
     mappings = load_mappings()
-    type_key = get_type_key(type_name)
-
-    if type_key not in mappings:
+    type_key = resolve_type_key(mappings, type_name)
+    if not type_key:
         return jsonify({"error": f"Unknown type: {type_name}"}), 404
 
-    # Find and remove the object
-    for i, obj in enumerate(mappings[type_key]):
-        if obj.get("id") == obj_id:
-            deleted = mappings[type_key].pop(i)
-            save_mappings(mappings)
-            return jsonify({"message": "Deleted", "object": deleted})
+    index = find_mapping_index(mappings[type_key], obj_id)
+    if index is None:
+        return jsonify({"error": f"Object not found: {obj_id}"}), 404
 
-    return jsonify({"error": f"Object not found: {obj_id}"}), 404
+    deleted = mappings[type_key].pop(index)
+    save_mappings(mappings)
+    return jsonify({"message": "Deleted", "object": deleted})
 
 
 @app.route("/api/generate-spl", methods=['POST'])
@@ -227,6 +253,12 @@ def generate_spl():
         return jsonify({"error": "No data provided"}), 400
 
     mappings = load_mappings()
+    data_sources_by_id = index_by_id(mappings.get("dataSources", []))
+    patterns_by_id = index_by_id(mappings.get("patterns", []))
+    field_values_by_id = index_by_id(mappings.get("fieldValues", []))
+    output_shapes_by_id = index_by_id(mappings.get("outputShapes", []))
+    time_presets_by_id = index_by_id(mappings.get("timeRangePresets", []))
+    filter_objects_by_id = {**patterns_by_id, **field_values_by_id}
 
     # Extract selections from request
     data_sources = data.get("dataSources", [])
@@ -244,7 +276,7 @@ def generate_spl():
         ds_spls = []
         ds_names = []
         for ds_id in data_sources:
-            ds = next((d for d in mappings.get("dataSources", []) if d.get("id") == ds_id), None)
+            ds = data_sources_by_id.get(ds_id)
             if ds:
                 ds_spls.append(f"({ds.get('spl')})")
                 ds_names.append(ds.get("name"))
@@ -259,9 +291,8 @@ def generate_spl():
     if includes:
         include_spls = []
         include_names = []
-        all_objects = mappings.get("patterns", []) + mappings.get("fieldValues", [])
         for inc_id in includes:
-            obj = next((o for o in all_objects if o.get("id") == inc_id), None)
+            obj = filter_objects_by_id.get(inc_id)
             if obj:
                 include_spls.append(obj.get("spl"))
                 include_names.append(obj.get("name"))
@@ -273,9 +304,8 @@ def generate_spl():
     if excludes:
         exclude_spls = []
         exclude_names = []
-        all_objects = mappings.get("patterns", []) + mappings.get("fieldValues", [])
         for exc_id in excludes:
-            obj = next((o for o in all_objects if o.get("id") == exc_id), None)
+            obj = filter_objects_by_id.get(exc_id)
             if obj:
                 exclude_spls.append(f"NOT {obj.get('spl')}")
                 exclude_names.append(obj.get("name"))
@@ -287,7 +317,7 @@ def generate_spl():
     time_spl = ""
     if time_range:
         # Check if it's a preset ID
-        preset = next((t for t in mappings.get("timeRangePresets", []) if t.get("id") == time_range), None)
+        preset = time_presets_by_id.get(time_range)
         if preset:
             time_spl = preset.get("spl", "")
             explanation_parts.append(f"Time range: {preset.get('name')}")
@@ -304,7 +334,7 @@ def generate_spl():
     # Add output shape
     output_spl = ""
     if output_shape:
-        os_obj = next((o for o in mappings.get("outputShapes", []) if o.get("id") == output_shape), None)
+        os_obj = output_shapes_by_id.get(output_shape)
         if os_obj:
             output_spl = os_obj.get("spl", "")
             # Replace field placeholder if needed

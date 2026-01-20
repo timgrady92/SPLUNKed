@@ -16,11 +16,9 @@
     </header>
 
     <!-- Tabs Navigation -->
-    <div class="tabs-container" id="glossaryTabs">
-        <div class="tabs-list" role="tablist">
-            {{ category_tab('commands', 'Commands', active=true) }}
-            {{ category_tab('functions', 'Functions') }}
-        </div>
+    <div class="training-tabs" id="glossaryTabs">
+        <button class="training-tab active" data-category="commands">Commands</button>
+        <button class="training-tab" data-category="functions">Functions</button>
     </div>
 
     <!-- Controls Bar -->
@@ -117,5 +115,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='glossary.js') }}"></script>
+<!-- glossary.js is loaded globally in _base.html -->
 {% endblock %}

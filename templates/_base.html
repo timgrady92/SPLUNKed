@@ -9,7 +9,7 @@
     {% block head %}{% endblock %}
 </head>
 <body>
-    {% from "_components.html" import navbar, sidebar, footer %}
+    {% from "_components.html" import navbar, sidebar, footer, spl_reference_sidebar %}
 
     <!-- Navigation -->
     {{ navbar(request.endpoint) }}
@@ -25,8 +25,13 @@
     <!-- Footer -->
     {{ footer() }}
 
+    <!-- SPL Reference Sidebar (global) -->
+    {{ spl_reference_sidebar() }}
+
     <!-- Core Scripts -->
     <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script src="{{ url_for('static', filename='glossary.js') }}"></script>
+    <script src="{{ url_for('static', filename='spl-sidebar.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

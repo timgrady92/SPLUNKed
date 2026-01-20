@@ -45,10 +45,18 @@
                 <span class="query-category-badge" id="randomQueryCategory"></span>
                 <span class="query-difficulty-badge" id="randomQueryDifficulty"></span>
             </div>
-            <button class="random-query-another" id="randomQueryAnother">
-                <span class="random-icon">&#9861;</span>
-                <span>Another Random Query</span>
-            </button>
+            <div class="random-query-nav">
+                <button class="random-nav-btn" id="randomQueryBack" disabled aria-label="Previous query">
+                    <span>←</span>
+                </button>
+                <button class="random-query-another" id="randomQueryAnother">
+                    <span class="random-icon">&#9861;</span>
+                    <span>Random</span>
+                </button>
+                <button class="random-nav-btn" id="randomQueryForward" disabled aria-label="Next query">
+                    <span>→</span>
+                </button>
+            </div>
         </div>
     </div>
 
