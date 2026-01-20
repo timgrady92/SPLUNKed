@@ -3,87 +3,16 @@
 {% block title %}Enterprise Security - SPLUNKed{% endblock %}
 
 {% block content %}
-{% from "_components.html" import search_input, view_toggle %}
-
 <div class="page-container">
-    <!-- Page Header -->
     <header class="page-header">
         <h1 class="page-title">Enterprise Security</h1>
         <p class="page-subtitle">
-            Splunk ES features: Risk-Based Alerting, Notable Events, Asset/Identity Framework, and Threat Intelligence.
-            Click any entry to explore further.
+            Enterprise Security content now lives under Splunk Knowledge.
         </p>
+        <a class="btn btn-primary" href="{{ url_for('references') }}?tab=enterpriseSecurity">
+            Open Splunk Knowledge
+        </a>
     </header>
-
-    <!-- Controls Bar -->
-    <div class="controls-bar">
-        {{ search_input(placeholder='Search ES content...', id='esSearch') }}
-        {{ view_toggle(id='esView') }}
-    </div>
-
-    <!-- Icon Filter -->
-    <div class="icon-filter" id="esFilter">
-        <button class="icon-filter-btn active" data-filter="all">
-            <span>All</span>
-        </button>
-        <button class="icon-filter-btn" data-filter="rba">
-            <span class="filter-icon">⚡</span>
-            <span>RBA</span>
-        </button>
-        <button class="icon-filter-btn" data-filter="notable">
-            <span class="filter-icon">◉</span>
-            <span>Notables</span>
-        </button>
-        <button class="icon-filter-btn" data-filter="assetIdentity">
-            <span class="filter-icon">◎</span>
-            <span>Assets/Identity</span>
-        </button>
-        <button class="icon-filter-btn" data-filter="threatIntel">
-            <span class="filter-icon">⊛</span>
-            <span>Threat Intel</span>
-        </button>
-        <button class="icon-filter-btn" data-filter="detection">
-            <span class="filter-icon">◇</span>
-            <span>Detection</span>
-        </button>
-        <button class="icon-filter-btn" data-filter="operations">
-            <span class="filter-icon">⚙</span>
-            <span>Operations</span>
-        </button>
-    </div>
-
-    <!-- Content Grid -->
-    <div class="glossary-grid" id="esGrid">
-        <!-- Populated by JavaScript -->
-    </div>
-
-    <!-- Empty State -->
-    <div class="empty-state hidden" id="emptyState">
-        <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="M21 21l-4.35-4.35"/>
-            </svg>
-        </div>
-        <h3 class="empty-title">No matches found</h3>
-        <p class="empty-message">Try adjusting your search or filter criteria.</p>
-    </div>
-</div>
-
-<!-- Detail Modal -->
-<div class="modal-overlay" id="esModalOverlay">
-    <div class="modal" id="esModal" role="dialog" aria-labelledby="esModalTitle">
-        <div class="modal-header">
-            <h2 class="modal-title" id="esModalTitle"></h2>
-            <div class="modal-header-actions">
-                <button class="modal-back" id="esModalBack" aria-label="Go back" hidden>&larr;</button>
-                <button class="modal-close" aria-label="Close modal">&times;</button>
-            </div>
-        </div>
-        <div class="modal-content" id="esModalContent">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
 </div>
 {% endblock %}
 

@@ -3,7 +3,7 @@
 {% block title %}Query Library - SPLUNKed{% endblock %}
 
 {% block content %}
-{% from "_components.html" import search_input, view_toggle, category_tab %}
+{% from "_components.html" import search_input, empty_state, modal %}
 
 <div class="page-container">
     <!-- Page Header -->
@@ -32,7 +32,7 @@
             </div>
             <h3 class="random-query-title" id="randomQueryTitle"></h3>
             <p class="random-query-description" id="randomQueryDescription"></p>
-            <div class="random-query-spl">
+            <div class="random-query-spl spl-block">
                 <pre class="spl-code"><code id="randomQuerySPL"></code></pre>
                 <button class="spl-copy" id="randomQueryCopy" aria-label="Copy to clipboard">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -87,30 +87,18 @@
     </div>
 
     <!-- Empty State -->
-    <div class="empty-state hidden" id="emptyState">
-        <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="M21 21l-4.35-4.35"/>
-            </svg>
-        </div>
-        <h3 class="empty-title">No queries found</h3>
-        <p class="empty-message">Try adjusting your search or filter criteria.</p>
-    </div>
+    {{ empty_state(
+        title='No queries found',
+        message='Try adjusting your search or filter criteria.',
+        id='emptyState',
+        hidden=true
+    ) }}
 </div>
 
 <!-- Detail Modal -->
-<div class="modal-overlay" id="queryModalOverlay">
-    <div class="modal" id="queryModal" role="dialog" aria-labelledby="queryModalTitle">
-        <div class="modal-header">
-            <h2 class="modal-title" id="queryModalTitle"></h2>
-            <button class="modal-close" aria-label="Close modal">&times;</button>
-        </div>
-        <div class="modal-content" id="queryModalContent">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-</div>
+{% call modal('queryModal', '', 'queryModalContent') %}
+    <!-- Populated by JavaScript -->
+{% endcall %}
 {% endblock %}
 
 {% block scripts %}

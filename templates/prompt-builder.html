@@ -3,7 +3,7 @@
 {% block title %}Prompt Builder - SPLUNKed{% endblock %}
 
 {% block content %}
-{% from "_components.html" import search_input %}
+{% from "_components.html" import search_input, empty_state, modal %}
 
 <div class="page-container">
     <!-- Page Header -->
@@ -16,230 +16,331 @@
     </header>
 
     <!-- Main Tabs Navigation -->
-    <div class="builder-tabs-container">
-        <div class="builder-tabs" role="tablist">
-            <button class="builder-tab active" data-tab="build" role="tab" aria-selected="true">
-                <span class="tab-icon">&#9881;</span>
-                Build Query
-            </button>
-        </div>
-        <button class="manage-objects-btn" data-tab="manage" role="tab" aria-selected="false" title="Manage Objects">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    <div class="builder-tabs-container" role="tablist">
+        <button class="builder-tab active" data-tab="build" role="tab" aria-selected="true">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
+            <span class="tab-label">Build Query</span>
+        </button>
+        <button class="builder-tab" data-tab="manage" role="tab" aria-selected="false">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            <span class="tab-label">Manage Objects</span>
         </button>
     </div>
 
     <!-- Build Query Tab Panel -->
     <div id="buildPanel" class="builder-panel active" role="tabpanel">
-        <div class="builder-layout pb-with-toc">
-            <!-- Table of Contents Sidebar -->
-            <aside class="pb-toc" id="pbToc">
-                <div class="pb-toc-header">
-                    <span class="pb-toc-title">Contents</span>
-                    <button class="pb-toc-toggle" id="pbTocToggle" aria-label="Toggle table of contents">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 12H5M12 19l-7-7 7-7"/>
-                        </svg>
-                    </button>
-                </div>
-                <nav class="pb-toc-nav" aria-label="Page contents">
-                    <ul class="pb-toc-tree">
-                        <li class="pb-toc-item active" data-section="dataSources">
-                            <a href="#dataSourceChips" class="pb-toc-link">
-                                <span class="pb-toc-marker">1</span>
-                                <span class="pb-toc-text">Data Sources</span>
-                            </a>
-                        </li>
-                        <li class="pb-toc-item pb-toc-parent" data-section="includes">
-                            <a href="#includeChips" class="pb-toc-link">
-                                <span class="pb-toc-marker">2</span>
-                                <span class="pb-toc-text">Include Filters</span>
-                            </a>
-                            <ul class="pb-toc-children">
-                                <li class="pb-toc-item" data-section="patterns">
-                                    <a href="#includeChips" class="pb-toc-link" data-filter="patterns">
-                                        <span class="pb-toc-text">Patterns</span>
-                                    </a>
-                                </li>
-                                <li class="pb-toc-item" data-section="fieldValues">
-                                    <a href="#includeChips" class="pb-toc-link" data-filter="fieldValues">
-                                        <span class="pb-toc-text">Field Values</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                        <li class="pb-toc-item" data-section="excludes">
-                            <a href="#excludeChips" class="pb-toc-link">
-                                <span class="pb-toc-marker">3</span>
-                                <span class="pb-toc-text">Exclude Filters</span>
-                            </a>
-                        </li>
-                        <li class="pb-toc-item" data-section="timeRange">
-                            <a href="#timePresets" class="pb-toc-link">
-                                <span class="pb-toc-marker">4</span>
-                                <span class="pb-toc-text">Time Range</span>
-                            </a>
-                        </li>
-                        <li class="pb-toc-item" data-section="outputShape">
-                            <a href="#outputShapeChips" class="pb-toc-link">
-                                <span class="pb-toc-marker">5</span>
-                                <span class="pb-toc-text">Output Shape</span>
-                            </a>
-                        </li>
-                        <li class="pb-toc-item" data-section="splPreview">
-                            <a href="#splOutput" class="pb-toc-link">
-                                <span class="pb-toc-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="16 18 22 12 16 6"/>
-                                        <polyline points="8 6 2 12 8 18"/>
-                                    </svg>
-                                </span>
-                                <span class="pb-toc-text">Generated SPL</span>
-                            </a>
-                        </li>
-                        <li class="pb-toc-divider"></li>
-                        <li class="pb-toc-item pb-toc-parent" data-section="manage">
-                            <a href="#managePanel" class="pb-toc-link">
-                                <span class="pb-toc-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="3"/>
-                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                                    </svg>
-                                </span>
-                                <span class="pb-toc-text">Manage Objects</span>
-                            </a>
-                            <ul class="pb-toc-children">
-                                <li class="pb-toc-item" data-section="manage-dataSources">
-                                    <a href="#managePanel" class="pb-toc-link" data-object-type="dataSources">
-                                        <span class="pb-toc-text">Data Sources</span>
-                                    </a>
-                                </li>
-                                <li class="pb-toc-item" data-section="manage-fieldValues">
-                                    <a href="#managePanel" class="pb-toc-link" data-object-type="fieldValues">
-                                        <span class="pb-toc-text">Field Values</span>
-                                    </a>
-                                </li>
-                                <li class="pb-toc-item" data-section="manage-patterns">
-                                    <a href="#managePanel" class="pb-toc-link" data-object-type="patterns">
-                                        <span class="pb-toc-text">Patterns</span>
-                                    </a>
-                                </li>
-                                <li class="pb-toc-item" data-section="manage-outputShapes">
-                                    <a href="#managePanel" class="pb-toc-link" data-object-type="outputShapes">
-                                        <span class="pb-toc-text">Output Shapes</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </nav>
-            </aside>
-
-            <!-- Left Side: Query Composer -->
+        <div class="builder-layout">
+            <!-- Query Composer -->
             <div class="query-composer">
                 <!-- Data Sources Section -->
-                <section class="composer-section">
-                    <div class="section-header">
+                <section class="composer-section" data-section="dataSources">
+                    <div class="section-header" data-collapse-toggle>
                         <h3 class="section-title">
                             <span class="section-number">1</span>
                             Data Sources
                         </h3>
-                        <span class="section-hint">Where to search</span>
-                    </div>
-                    <div class="selector-container">
-                        <input type="text" class="selector-search" id="dsSearch" placeholder="Filter data sources...">
-                        <div class="chips-container" id="dataSourceChips">
-                            <!-- Populated by JavaScript -->
+                        <div class="section-header-right">
+                            <span class="section-selection-count" id="dsSelectionCount"></span>
+                            <span class="section-hint">Where to search</span>
+                            <button class="section-collapse-btn" aria-label="Toggle section">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
-                    <div class="selected-tags" id="selectedDataSources">
-                        <!-- Selected chips appear here -->
+                    <div class="section-content">
+                        <div class="selector-container">
+                            <input type="text" class="selector-search" id="dsSearch" placeholder="Filter data sources...">
+                            <div class="chips-container" id="dataSourceChips">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="selected-tags" id="selectedDataSources">
+                            <!-- Selected chips appear here -->
+                        </div>
                     </div>
                 </section>
 
-                <!-- Include Filters Section -->
-                <section class="composer-section">
-                    <div class="section-header">
+                <!-- Time Range Section (moved to position 2) -->
+                <section class="composer-section collapsed" data-section="timeRange">
+                    <div class="section-header" data-collapse-toggle>
                         <h3 class="section-title">
                             <span class="section-number">2</span>
-                            Include Filters
-                        </h3>
-                        <span class="section-hint">What to find</span>
-                    </div>
-                    <div class="filter-type-tabs">
-                        <button class="filter-type-tab active" data-filter-type="patterns">Patterns</button>
-                        <button class="filter-type-tab" data-filter-type="fieldValues">Field Values</button>
-                    </div>
-                    <div class="selector-container">
-                        <input type="text" class="selector-search" id="includeSearch" placeholder="Filter patterns & values...">
-                        <div class="chips-container" id="includeChips">
-                            <!-- Populated by JavaScript -->
-                        </div>
-                    </div>
-                    <div class="selected-tags" id="selectedIncludes">
-                        <!-- Selected chips appear here -->
-                    </div>
-                </section>
-
-                <!-- Exclude Filters Section -->
-                <section class="composer-section">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <span class="section-number">3</span>
-                            Exclude Filters
-                        </h3>
-                        <span class="section-hint">What to exclude</span>
-                    </div>
-                    <div class="selector-container">
-                        <input type="text" class="selector-search" id="excludeSearch" placeholder="Filter patterns & values...">
-                        <div class="chips-container" id="excludeChips">
-                            <!-- Populated by JavaScript -->
-                        </div>
-                    </div>
-                    <div class="selected-tags" id="selectedExcludes">
-                        <!-- Selected chips appear here -->
-                    </div>
-                </section>
-
-                <!-- Time Range Section -->
-                <section class="composer-section">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <span class="section-number">4</span>
                             Time Range
                         </h3>
-                        <span class="section-hint">Time boundaries</span>
-                    </div>
-                    <div class="time-range-container">
-                        <div class="time-presets" id="timePresets">
-                            <!-- Populated by JavaScript -->
+                        <div class="section-header-right">
+                            <span class="section-selection-count" id="timeSelectionCount"></span>
+                            <span class="section-hint">When to search</span>
+                            <button class="section-collapse-btn" aria-label="Toggle section">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
                         </div>
-                        <div class="time-custom">
-                            <label for="customTimeRange">Custom:</label>
-                            <input type="text" id="customTimeRange" class="custom-time-input" placeholder="earliest=-24h latest=now">
+                    </div>
+                    <div class="section-content">
+                        <div class="time-range-container">
+                            <div class="time-presets" id="timePresets">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                            <div class="time-custom">
+                                <label for="customTimeRange">Custom:</label>
+                                <input type="text" id="customTimeRange" class="custom-time-input" placeholder="earliest=-24h latest=now">
+                            </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Output Shape Section -->
-                <section class="composer-section">
-                    <div class="section-header">
+                <!-- Filters Section (combined Include/Exclude) -->
+                <section class="composer-section collapsed" data-section="filters">
+                    <div class="section-header" data-collapse-toggle>
                         <h3 class="section-title">
-                            <span class="section-number">5</span>
-                            Output Shape
+                            <span class="section-number">3</span>
+                            Filters
                         </h3>
-                        <span class="section-hint">How to display</span>
-                    </div>
-                    <div class="selector-container">
-                        <div class="chips-container output-shapes" id="outputShapeChips">
-                            <!-- Populated by JavaScript -->
+                        <div class="section-header-right">
+                            <span class="section-selection-count" id="filterSelectionCount"></span>
+                            <span class="section-hint" id="filterSectionHint">What to find <span class="hint-operator">AND</span></span>
+                            <button class="section-collapse-btn" aria-label="Toggle section">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
-                    <div class="output-field-container" id="outputFieldContainer" style="display: none;">
-                        <label for="outputField">Field name:</label>
-                        <input type="text" id="outputField" class="output-field-input" placeholder="e.g., user, src_ip, dest">
+                    <div class="section-content">
+                        <!-- Filter Mode Toggle (Include/Exclude) -->
+                        <div class="filter-mode-toggle">
+                            <button class="filter-mode-btn active" data-mode="include" type="button">
+                                <span class="mode-icon">+</span>
+                                <span class="mode-label">Include</span>
+                                <span class="mode-count" id="includeModeCount"></span>
+                            </button>
+                            <button class="filter-mode-btn" data-mode="exclude" type="button">
+                                <span class="mode-icon">&minus;</span>
+                                <span class="mode-label">Exclude</span>
+                                <span class="mode-count" id="excludeModeCount"></span>
+                            </button>
+                        </div>
+
+                        <!-- Filter Type Tabs (Patterns/Field Values) -->
+                        <div class="filter-type-tabs">
+                            <button class="filter-type-tab active" data-filter-type="patterns">Patterns</button>
+                            <button class="filter-type-tab" data-filter-type="fieldValues">Field Values</button>
+                        </div>
+
+                        <!-- Include Mode Content -->
+                        <div class="filter-mode-content" id="includeModeContent">
+                            <div class="selector-container">
+                                <input type="text" class="selector-search" id="includeSearch" placeholder="Search patterns & field values...">
+                                <div class="chips-container" id="includeChips">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                            <div class="selected-tags" id="selectedIncludes">
+                                <!-- Selected chips appear here -->
+                            </div>
+                        </div>
+
+                        <!-- Exclude Mode Content -->
+                        <div class="filter-mode-content hidden" id="excludeModeContent">
+                            <div class="selector-container">
+                                <input type="text" class="selector-search" id="excludeSearch" placeholder="Search patterns & field values to exclude...">
+                                <div class="chips-container" id="excludeChips">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                            <div class="selected-tags" id="selectedExcludes">
+                                <!-- Selected chips appear here -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Transformations Section -->
+                <section class="composer-section collapsed" data-section="transforms">
+                    <div class="section-header" data-collapse-toggle>
+                        <h3 class="section-title">
+                            <span class="section-number">4</span>
+                            Transformations
+                        </h3>
+                        <div class="section-header-right">
+                            <span class="section-selection-count" id="transformSelectionCount"></span>
+                            <span class="section-hint">Shape &amp; analyze</span>
+                            <button class="section-collapse-btn" aria-label="Toggle section">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <!-- Quick Actions Grid -->
+                        <div class="transform-quick-actions" id="transformQuickActions">
+                            <div class="quick-action-card" data-action="count-by" tabindex="0">
+                                <div class="quick-action-header">
+                                    <span class="quick-action-icon">Σ</span>
+                                    <span class="quick-action-title">Count by Field</span>
+                                </div>
+                                <p class="quick-action-desc">Group and count events by a field value</p>
+                                <code class="quick-action-spl">| stats count by {field}</code>
+                            </div>
+
+                            <div class="quick-action-card" data-action="top-values" tabindex="0">
+                                <div class="quick-action-header">
+                                    <span class="quick-action-icon">⊤</span>
+                                    <span class="quick-action-title">Top Values</span>
+                                </div>
+                                <p class="quick-action-desc">Find the most common values</p>
+                                <code class="quick-action-spl">| top limit=10 {field}</code>
+                            </div>
+
+                            <div class="quick-action-card" data-action="timeline" tabindex="0">
+                                <div class="quick-action-header">
+                                    <span class="quick-action-icon">📈</span>
+                                    <span class="quick-action-title">Timeline</span>
+                                </div>
+                                <p class="quick-action-desc">Chart events over time</p>
+                                <code class="quick-action-spl">| timechart count</code>
+                            </div>
+
+                            <div class="quick-action-card" data-action="unique-values" tabindex="0">
+                                <div class="quick-action-header">
+                                    <span class="quick-action-icon">#</span>
+                                    <span class="quick-action-title">Unique Count</span>
+                                </div>
+                                <p class="quick-action-desc">Count distinct values of a field</p>
+                                <code class="quick-action-spl">| stats dc({field})</code>
+                            </div>
+
+                            <div class="quick-action-card" data-action="sort-results" tabindex="0">
+                                <div class="quick-action-header">
+                                    <span class="quick-action-icon">↕</span>
+                                    <span class="quick-action-title">Sort Results</span>
+                                </div>
+                                <p class="quick-action-desc">Order results by field value</p>
+                                <code class="quick-action-spl">| sort -{field}</code>
+                            </div>
+
+                            <div class="quick-action-card" data-action="remove-duplicates" tabindex="0">
+                                <div class="quick-action-header">
+                                    <span class="quick-action-icon">⊖</span>
+                                    <span class="quick-action-title">Remove Duplicates</span>
+                                </div>
+                                <p class="quick-action-desc">Keep only unique combinations</p>
+                                <code class="quick-action-spl">| dedup {field}</code>
+                            </div>
+
+                            <div class="quick-action-card" data-action="select-fields" tabindex="0">
+                                <div class="quick-action-header">
+                                    <span class="quick-action-icon">▦</span>
+                                    <span class="quick-action-title">Select Fields</span>
+                                </div>
+                                <p class="quick-action-desc">Choose which fields to display</p>
+                                <code class="quick-action-spl">| table {fields}</code>
+                            </div>
+
+                            <div class="quick-action-card" data-action="calculate-field" tabindex="0">
+                                <div class="quick-action-header">
+                                    <span class="quick-action-icon">f(x)</span>
+                                    <span class="quick-action-title">Calculate Field</span>
+                                </div>
+                                <p class="quick-action-desc">Create a new computed field</p>
+                                <code class="quick-action-spl">| eval {new}={expr}</code>
+                            </div>
+                        </div>
+
+                        <!-- More Options Toggle -->
+                        <button class="transform-more-toggle" id="transformMoreToggle" type="button">
+                            <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                            <span>More transforms</span>
+                            <span class="toggle-hint">rex, rename, head, tail, custom SPL...</span>
+                        </button>
+
+                        <!-- Advanced Transform Options (hidden by default) -->
+                        <div class="transform-advanced-panel hidden" id="transformAdvancedPanel">
+                            <div class="advanced-transform-grid">
+                                <button class="advanced-transform-btn" data-type="rex" type="button">
+                                    <span class="adv-icon">.*</span>
+                                    <span class="adv-label">Extract Field (rex)</span>
+                                </button>
+                                <button class="advanced-transform-btn" data-type="rename" type="button">
+                                    <span class="adv-icon">→</span>
+                                    <span class="adv-label">Rename Field</span>
+                                </button>
+                                <button class="advanced-transform-btn" data-type="head" type="button">
+                                    <span class="adv-icon">⤒</span>
+                                    <span class="adv-label">First N (head)</span>
+                                </button>
+                                <button class="advanced-transform-btn" data-type="tail" type="button">
+                                    <span class="adv-icon">⤓</span>
+                                    <span class="adv-label">Last N (tail)</span>
+                                </button>
+                                <button class="advanced-transform-btn" data-type="chart" type="button">
+                                    <span class="adv-icon">📊</span>
+                                    <span class="adv-label">Chart</span>
+                                </button>
+                                <button class="advanced-transform-btn" data-type="custom" type="button">
+                                    <span class="adv-icon">&lt;/&gt;</span>
+                                    <span class="adv-label">Custom SPL</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Transform Pipeline (steps appear here) -->
+                        <div class="transform-pipeline" id="transformPipeline">
+                            <!-- Transform steps populated by JavaScript -->
+                        </div>
+
+                        <!-- Empty state when no transforms -->
+                        <div class="transform-empty" id="transformEmpty">
+                            <div class="empty-state-content">
+                                <span class="transform-empty-icon">|</span>
+                                <p class="transform-empty-title">No transformations added</p>
+                                <p class="transform-empty-text">Click any action above to transform your search results. Transformations process data after filtering.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Output Presets Section (quick templates) -->
+                <section class="composer-section collapsed" data-section="outputPresets">
+                    <div class="section-header" data-collapse-toggle>
+                        <h3 class="section-title">
+                            <span class="section-number">5</span>
+                            Output Presets
+                        </h3>
+                        <div class="section-header-right">
+                            <span class="section-selection-count" id="outputSelectionCount"></span>
+                            <span class="section-hint">Quick templates</span>
+                            <button class="section-collapse-btn" aria-label="Toggle section">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <p class="preset-hint">Select a preset to auto-add common output transformations, or build your own in section 4.</p>
+                        <div class="selector-container">
+                            <div class="chips-container output-shapes" id="outputShapeChips">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="output-field-container" id="outputFieldContainer" style="display: none;">
+                            <label for="outputField">Field name:</label>
+                            <input type="text" id="outputField" class="output-field-input" placeholder="e.g., user, src_ip, dest">
+                        </div>
                     </div>
                 </section>
 
@@ -299,93 +400,75 @@
         </div>
 
         <!-- Empty State -->
-        <div class="empty-state hidden" id="objectsEmptyState">
-            <div class="empty-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                </svg>
-            </div>
-            <h3 class="empty-title">No objects found</h3>
-            <p class="empty-message">Create your first search object to get started.</p>
-        </div>
+        {{ empty_state(
+            title='No objects found',
+            message='Create your first search object to get started.',
+            id='objectsEmptyState',
+            icon='stack',
+            hidden=true
+        ) }}
     </div>
 </div>
 
 <!-- Object Edit Modal -->
-<div class="modal-overlay" id="objectModalOverlay">
-    <div class="modal object-modal" id="objectModal" role="dialog" aria-labelledby="objectModalTitle">
-        <div class="modal-header">
-            <h2 class="modal-title" id="objectModalTitle">Add New Object</h2>
-            <button class="modal-close" aria-label="Close modal">&times;</button>
+{% call modal('objectModal', 'Add New Object', none, false, '', 'object-modal') %}
+    <form id="objectForm" class="object-form">
+        <input type="hidden" id="objectId" name="objectId">
+        <input type="hidden" id="objectType" name="objectType">
+
+        <div class="form-group">
+            <label for="objectName">Name</label>
+            <input type="text" id="objectName" name="name" required placeholder="e.g., Failed Logins">
         </div>
-        <div class="modal-content">
-            <form id="objectForm" class="object-form">
-                <input type="hidden" id="objectId" name="objectId">
-                <input type="hidden" id="objectType" name="objectType">
 
-                <div class="form-group">
-                    <label for="objectName">Name</label>
-                    <input type="text" id="objectName" name="name" required placeholder="e.g., Failed Logins">
-                </div>
-
-                <div class="form-group">
-                    <label for="objectFriendlyName">Display Name</label>
-                    <input type="text" id="objectFriendlyName" name="friendlyName" placeholder="e.g., FAILED LOGINS (auto-generated if empty)">
-                </div>
-
-                <div class="form-group">
-                    <label for="objectSPL">SPL Snippet</label>
-                    <textarea id="objectSPL" name="spl" required rows="3" placeholder="e.g., (action=failure OR EventCode=4625)"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="objectDescription">Description</label>
-                    <textarea id="objectDescription" name="description" rows="2" placeholder="What does this search for?"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="objectTags">Tags (comma-separated)</label>
-                    <input type="text" id="objectTags" name="tags" placeholder="e.g., authentication, detection">
-                </div>
-
-                <!-- Output Shape specific fields -->
-                <div class="form-group output-shape-fields" style="display: none;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="requiresField" name="requiresField">
-                        Requires field input
-                    </label>
-                    <div class="field-placeholder-group" style="display: none;">
-                        <label for="fieldPlaceholder">Field placeholder</label>
-                        <input type="text" id="fieldPlaceholder" name="fieldPlaceholder" placeholder="{field}">
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-ghost" id="cancelObject">Cancel</button>
-                    <button type="button" class="btn btn-secondary delete-btn" id="deleteObject" style="display: none;">Delete</button>
-                    <button type="submit" class="btn btn-primary">Save</button>
-                </div>
-            </form>
+        <div class="form-group">
+            <label for="objectFriendlyName">Display Name</label>
+            <input type="text" id="objectFriendlyName" name="friendlyName" placeholder="e.g., FAILED LOGINS (auto-generated if empty)">
         </div>
-    </div>
-</div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal-overlay" id="deleteModalOverlay">
-    <div class="modal delete-modal" id="deleteModal" role="dialog">
-        <div class="modal-header">
-            <h2 class="modal-title">Confirm Delete</h2>
-            <button class="modal-close" aria-label="Close modal">&times;</button>
+        <div class="form-group">
+            <label for="objectSPL">SPL Snippet</label>
+            <textarea id="objectSPL" name="spl" required rows="3" placeholder="e.g., (action=failure OR EventCode=4625)"></textarea>
         </div>
-        <div class="modal-content">
-            <p>Are you sure you want to delete this object? This action cannot be undone.</p>
-            <div class="form-actions">
-                <button type="button" class="btn btn-ghost" id="cancelDelete">Cancel</button>
-                <button type="button" class="btn btn-primary delete-confirm" id="confirmDelete">Delete</button>
+
+        <div class="form-group">
+            <label for="objectDescription">Description</label>
+            <textarea id="objectDescription" name="description" rows="2" placeholder="What does this search for?"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="objectTags">Tags (comma-separated)</label>
+            <input type="text" id="objectTags" name="tags" placeholder="e.g., authentication, detection">
+        </div>
+
+        <!-- Output Shape specific fields -->
+        <div class="form-group output-shape-fields" style="display: none;">
+            <label class="checkbox-label">
+                <input type="checkbox" id="requiresField" name="requiresField">
+                Requires field input
+            </label>
+            <div class="field-placeholder-group" style="display: none;">
+                <label for="fieldPlaceholder">Field placeholder</label>
+                <input type="text" id="fieldPlaceholder" name="fieldPlaceholder" placeholder="{field}">
             </div>
         </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn btn-ghost" id="cancelObject">Cancel</button>
+            <button type="button" class="btn btn-secondary delete-btn" id="deleteObject" style="display: none;">Delete</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+    </form>
+{% endcall %}
+
+<!-- Delete Confirmation Modal -->
+{% call modal('deleteModal', 'Confirm Delete', none, false, '', 'delete-modal') %}
+    <p>Are you sure you want to delete this object? This action cannot be undone.</p>
+    <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="cancelDelete">Cancel</button>
+        <button type="button" class="btn btn-primary delete-confirm" id="confirmDelete">Delete</button>
     </div>
-</div>
+{% endcall %}
 {% endblock %}
 
 {% block scripts %}

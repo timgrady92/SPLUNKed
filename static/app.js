@@ -67,30 +67,17 @@ function initTabs(containerSelector, options = {}) {
     const panels = document.querySelectorAll('.tab-panel');
     const storageKey = options.storageKey || null;
 
-    // Restore saved tab if available
-    if (storageKey) {
-        const savedTab = localStorage.getItem(storageKey);
-        if (savedTab) {
-            activateTab(savedTab);
-        }
-    }
-
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const category = tab.dataset.category;
-            activateTab(category);
-
-            if (storageKey) {
-                localStorage.setItem(storageKey, category);
-            }
-
-            if (options.onTabChange) {
-                options.onTabChange(category);
-            }
+            activateTab(category, { persist: true });
         });
     });
 
-    function activateTab(category) {
+    function activateTab(category, activateOptions = {}) {
+        if (!category) return;
+
+        const { notify = true, persist = false } = activateOptions;
         tabs.forEach(t => {
             t.classList.toggle('active', t.dataset.category === category);
             t.setAttribute('aria-selected', t.dataset.category === category);
@@ -101,6 +88,25 @@ function initTabs(containerSelector, options = {}) {
             p.classList.toggle('active', isActive);
             p.hidden = !isActive;
         });
+
+        if (persist && storageKey) {
+            localStorage.setItem(storageKey, category);
+        }
+
+        if (notify && options.onTabChange) {
+            options.onTabChange(category);
+        }
+    }
+
+    // Restore saved tab if available
+    if (storageKey) {
+        const savedTab = localStorage.getItem(storageKey);
+        if (savedTab) {
+            const hasTab = Array.from(tabs).some(t => t.dataset.category === savedTab);
+            if (hasTab) {
+                activateTab(savedTab, { notify: true, persist: false });
+            }
+        }
     }
 
     return { activateTab };
@@ -203,6 +209,40 @@ function initFilter(selectId, options = {}) {
 }
 
 /**
+ * Icon Filter (single-select)
+ */
+function initIconFilter(containerId, options = {}) {
+    const filterContainer = document.getElementById(containerId);
+    if (!filterContainer) return;
+
+    const { filterSet = null, onChange = null } = options;
+
+    filterContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.icon-filter-btn');
+        if (!btn) return;
+
+        const filterValue = btn.dataset.filter;
+
+        filterContainer.querySelectorAll('.icon-filter-btn').forEach(b => {
+            b.classList.remove('active');
+        });
+
+        btn.classList.add('active');
+
+        if (filterSet) {
+            filterSet.clear();
+            if (filterValue !== 'all') {
+                filterSet.add(filterValue);
+            }
+        }
+
+        if (onChange) {
+            onChange(filterValue);
+        }
+    });
+}
+
+/**
  * View Toggle (Grid/List)
  */
 function initViewToggle(containerId, options = {}) {
@@ -247,6 +287,31 @@ function initViewToggle(containerId, options = {}) {
 /**
  * Copy to Clipboard
  */
+async function copyToClipboard(text, button = null, options = {}) {
+    if (!text) return;
+
+    const { label = null, labelTarget = button, resetDelay = 2000 } = options;
+    const originalLabel = label && labelTarget ? labelTarget.textContent : null;
+
+    try {
+        await navigator.clipboard.writeText(text);
+        if (button) {
+            button.classList.add('copied');
+            if (label && labelTarget) {
+                labelTarget.textContent = label;
+            }
+            setTimeout(() => {
+                button.classList.remove('copied');
+                if (label && labelTarget && originalLabel !== null) {
+                    labelTarget.textContent = originalLabel;
+                }
+            }, resetDelay);
+        }
+    } catch (err) {
+        console.error('Failed to copy:', err);
+    }
+}
+
 function initCopyButtons() {
     document.addEventListener('click', async (e) => {
         const copyBtn = e.target.closest('.spl-copy');
@@ -256,15 +321,7 @@ function initCopyButtons() {
         const code = block?.querySelector('code');
 
         if (code) {
-            try {
-                await navigator.clipboard.writeText(code.textContent);
-                copyBtn.classList.add('copied');
-                setTimeout(() => {
-                    copyBtn.classList.remove('copied');
-                }, 2000);
-            } catch (err) {
-                console.error('Failed to copy:', err);
-            }
+            copyToClipboard(code.textContent, copyBtn);
         }
     });
 }
@@ -272,18 +329,26 @@ function initCopyButtons() {
 /**
  * Modal Management
  */
+let openModalCount = 0;
+
 function openModal(modalId) {
     const overlay = document.getElementById(`${modalId}Overlay`);
-    if (overlay) {
-        overlay.classList.add('open');
+    if (!overlay || overlay.classList.contains('open')) return;
+
+    overlay.classList.add('open');
+    openModalCount += 1;
+    if (openModalCount === 1) {
         document.body.style.overflow = 'hidden';
     }
 }
 
 function closeModal(modalId) {
     const overlay = document.getElementById(`${modalId}Overlay`);
-    if (overlay) {
-        overlay.classList.remove('open');
+    if (!overlay || !overlay.classList.contains('open')) return;
+
+    overlay.classList.remove('open');
+    openModalCount = Math.max(0, openModalCount - 1);
+    if (openModalCount === 0) {
         document.body.style.overflow = '';
     }
 }
@@ -520,7 +585,9 @@ function highlightSPL(code, options = {}) {
 /**
  * Apply SPL highlighting to all code blocks on the page
  */
-function applySPLHighlighting(container = document) {
+function applySPLHighlighting(container = document, options = {}) {
+    const { force = false } = options;
+
     // Select all SPL code blocks
     const selectors = [
         '.spl-code code',
@@ -533,7 +600,7 @@ function applySPLHighlighting(container = document) {
 
     codeBlocks.forEach(block => {
         // Skip if already highlighted
-        if (block.dataset.splHighlighted) return;
+        if (!force && block.dataset.splHighlighted) return;
 
         // Get the original text content
         const originalCode = block.textContent;
@@ -598,6 +665,98 @@ function debounce(fn, wait) {
 }
 
 /**
+ * Data Loaders
+ */
+const DATA_CACHE = {};
+const DATA_PROMISES = {};
+
+function loadJsonOnce(cacheKey, url) {
+    if (DATA_CACHE[cacheKey]) {
+        return Promise.resolve(DATA_CACHE[cacheKey]);
+    }
+
+    if (!DATA_PROMISES[cacheKey]) {
+        DATA_PROMISES[cacheKey] = fetch(url)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Failed to load ${url}`);
+                }
+                return response.json();
+            })
+            .then((data) => {
+                DATA_CACHE[cacheKey] = data;
+                return data;
+            })
+            .catch((error) => {
+                console.error(error);
+                return null;
+            });
+    }
+
+    return DATA_PROMISES[cacheKey];
+}
+
+function loadGlossaryData() {
+    return loadJsonOnce('glossary', '/static/data/glossary.json')
+        .then((data) => {
+            if (data) {
+                window.GLOSSARY_DATA = data;
+                syncSPLSyntax(data);
+                applySPLHighlighting(document, { force: true });
+            }
+            return data;
+        });
+}
+
+function loadReferencesData() {
+    return loadJsonOnce('references', '/static/data/references.json')
+        .then((data) => {
+            if (data) {
+                window.REFERENCE_DATA = data;
+            }
+            return data;
+        });
+}
+
+function loadTrainingData() {
+    return loadJsonOnce('training', '/static/data/training.json')
+        .then((data) => {
+            if (data) {
+                window.GUIDES_DATA = data.guides || {};
+                window.TRAINING_DATA = data.training || [];
+                window.PIPELINES_DATA = data.pipelines || [];
+            }
+            return data;
+        });
+}
+
+function loadQueryData() {
+    return loadJsonOnce('queries', '/static/data/queries.json')
+        .then((data) => {
+            if (data) {
+                window.QUERY_CATEGORIES = data.categories || {};
+                window.QUERY_LIBRARY = data.library || [];
+            }
+            return data;
+        });
+}
+
+function syncSPLSyntax(glossaryData) {
+    if (!glossaryData) return;
+
+    const commandNames = (glossaryData.commands || []).map(entry => entry.name);
+    const functionNames = [
+        ...(glossaryData.functions || []).map(entry => entry.name),
+        ...(glossaryData.statsFunctions || []).map(entry => entry.name)
+    ];
+
+    const unique = (items) => [...new Set(items.filter(Boolean))];
+
+    SPL_SYNTAX.commands = unique(commandNames);
+    SPL_SYNTAX.functions = unique(functionNames);
+}
+
+/**
  * Global Search (Navbar)
  */
 function initGlobalSearch() {
@@ -612,13 +771,13 @@ function initGlobalSearch() {
     // Handle input
     input.addEventListener('input', () => {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
+        debounceTimer = setTimeout(async () => {
             const query = input.value.toLowerCase().trim();
             if (query.length < 2) {
                 hideResults();
                 return;
             }
-            const results = performGlobalSearch(query);
+            const results = await performGlobalSearch(query);
             renderSearchResults(results, query);
         }, 200);
     });
@@ -682,7 +841,7 @@ function initGlobalSearch() {
         }
     }
 
-    function performGlobalSearch(query) {
+    async function performGlobalSearch(query) {
         const results = {
             commands: [],
             functions: [],
@@ -690,10 +849,16 @@ function initGlobalSearch() {
             guides: []
         };
 
+        const [glossaryData, referenceData, trainingData] = await Promise.all([
+            window.GLOSSARY_DATA ? Promise.resolve(window.GLOSSARY_DATA) : loadGlossaryData(),
+            window.REFERENCE_DATA ? Promise.resolve(window.REFERENCE_DATA) : loadReferencesData(),
+            window.TRAINING_DATA ? Promise.resolve({ guides: window.GUIDES_DATA }) : loadTrainingData()
+        ]);
+
         // Search glossary data if available
-        if (window.GLOSSARY_DATA && window.TAB_CATEGORY_MAP) {
+        if (glossaryData) {
             // Commands
-            const commands = window.GLOSSARY_DATA.commands || [];
+            const commands = glossaryData.commands || [];
             commands.forEach(entry => {
                 if (matchesQuery(entry, query)) {
                     results.commands.push(entry);
@@ -702,17 +867,19 @@ function initGlobalSearch() {
 
             // Functions (merged tab)
             ['functions', 'statsFunctions'].forEach(cat => {
-                const entries = window.GLOSSARY_DATA[cat] || [];
+                const entries = glossaryData[cat] || [];
                 entries.forEach(entry => {
                     if (matchesQuery(entry, query)) {
                         results.functions.push(entry);
                     }
                 });
             });
+        }
 
-            // Reference (merged tab)
-            ['fields', 'cim', 'concepts', 'extractions', 'macros'].forEach(cat => {
-                const entries = window.GLOSSARY_DATA[cat] || [];
+        // Search reference data if available
+        if (referenceData) {
+            ['fields', 'cim', 'concepts', 'extractions', 'macros', 'enterpriseSecurity', 'antipatterns', 'engineering'].forEach(cat => {
+                const entries = referenceData[cat] || [];
                 entries.forEach(entry => {
                     if (matchesQuery(entry, query)) {
                         results.reference.push(entry);
@@ -722,9 +889,9 @@ function initGlobalSearch() {
         }
 
         // Search guides data if available
-        if (window.GUIDES_DATA) {
-            Object.keys(window.GUIDES_DATA).forEach(category => {
-                const guides = window.GUIDES_DATA[category] || [];
+        if (trainingData && trainingData.guides) {
+            Object.keys(trainingData.guides).forEach(category => {
+                const guides = trainingData.guides[category] || [];
                 guides.forEach(guide => {
                     if (matchesGuide(guide, query)) {
                         results.guides.push({ ...guide, _category: category });
@@ -853,6 +1020,7 @@ window.SPLUNKed = {
     initTabs,
     initSearch,
     initFilter,
+    initIconFilter,
     initViewToggle,
     initModal,
     initDisclosure,
@@ -860,6 +1028,12 @@ window.SPLUNKed = {
     closeModal,
     highlightSPL,
     applySPLHighlighting,
+    copyToClipboard,
+    loadGlossaryData,
+    loadReferencesData,
+    loadTrainingData,
+    loadQueryData,
+    syncSPLSyntax,
     escapeHtml,
     storage,
     debounce

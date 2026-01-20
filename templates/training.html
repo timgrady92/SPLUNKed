@@ -3,7 +3,7 @@
 {% block title %}Training - SPLUNKed{% endblock %}
 
 {% block content %}
-{% from "_components.html" import search_input, category_tab %}
+{% from "_components.html" import search_input, empty_state %}
 
 <div class="page-container">
     <!-- Page Header -->
@@ -17,11 +17,11 @@
 
     <!-- Tab Navigation -->
     <div class="training-tabs" id="trainingTabs">
-        <button class="training-tab active" data-tab="guides">How-To Guides</button>
-        <button class="training-tab" data-tab="tutorials">Tutorials</button>
-        <button class="training-tab" data-tab="scenarios">Scenarios</button>
-        <button class="training-tab" data-tab="challenges">Challenges</button>
-        <button class="training-tab" data-tab="pipelines">Learning Paths</button>
+        <button class="training-tab active" data-category="guides">How-To Guides</button>
+        <button class="training-tab" data-category="tutorials">Tutorials</button>
+        <button class="training-tab" data-category="scenarios">Scenarios</button>
+        <button class="training-tab" data-category="challenges">Challenges</button>
+        <button class="training-tab" data-category="pipelines">Learning Paths</button>
     </div>
 
     <!-- Controls Bar -->
@@ -61,16 +61,12 @@
     </div>
 
     <!-- Empty State -->
-    <div class="empty-state hidden" id="trainingEmptyState">
-        <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="M21 21l-4.35-4.35"/>
-            </svg>
-        </div>
-        <h3 class="empty-title">No content found</h3>
-        <p class="empty-message">Try adjusting your search criteria.</p>
-    </div>
+    {{ empty_state(
+        title='No content found',
+        message='Try adjusting your search criteria.',
+        id='trainingEmptyState',
+        hidden=true
+    ) }}
 </div>
 
 <!-- Guide Modal (for How-To Guides) -->
@@ -78,9 +74,12 @@
     <div class="guide-modal-overlay" id="guideModalOverlay"></div>
     <div class="guide-modal-content">
         <div class="guide-modal-header">
-            <h2 class="guide-modal-title" id="guideModalTitle"></h2>
+            <div class="guide-modal-meta">
+                <span class="guide-modal-badge">📖 Guide</span>
+            </div>
             <button class="guide-modal-close" id="guideModalClose" aria-label="Close modal">&times;</button>
         </div>
+        <h2 class="guide-modal-title" id="guideModalTitle"></h2>
         <div class="guide-modal-body" id="guideModalBody">
             <!-- Populated by JavaScript -->
         </div>

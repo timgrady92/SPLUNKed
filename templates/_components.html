@@ -225,16 +225,6 @@
 <span class="skill-badge {{ level }}">{{ level | capitalize }}</span>
 {% endmacro %}
 
-{# Category Tab #}
-{% macro category_tab(id, label, active=false) %}
-<button class="category-tab {{ 'active' if active else '' }}"
-        data-category="{{ id }}"
-        role="tab"
-        aria-selected="{{ 'true' if active else 'false' }}">
-    {{ label }}
-</button>
-{% endmacro %}
-
 {# Search Input #}
 {% macro search_input(placeholder="Search...", id="searchInput") %}
 <div class="search-container">
@@ -250,18 +240,6 @@
            placeholder="{{ placeholder }}"
            autocomplete="off">
     <button class="search-clear" id="{{ id }}Clear" aria-label="Clear search">&times;</button>
-</div>
-{% endmacro %}
-
-{# Filter Dropdown #}
-{% macro filter_dropdown(id, label, options) %}
-<div class="filter-dropdown">
-    <label for="{{ id }}" class="filter-label">{{ label }}</label>
-    <select id="{{ id }}" class="filter-select">
-        {% for option in options %}
-        <option value="{{ option.value }}">{{ option.label }}</option>
-        {% endfor %}
-    </select>
 </div>
 {% endmacro %}
 
@@ -285,75 +263,29 @@
 {% endmacro %}
 
 {# Modal Container #}
-{% macro modal(id, title) %}
-<div class="modal-overlay" id="{{ id }}Overlay">
-    <div class="modal" id="{{ id }}" role="dialog" aria-labelledby="{{ id }}Title">
+{% macro modal(id, title, content_id=none, show_actions=false, actions_html='', modal_class='', overlay_class='') %}
+<div class="modal-overlay {{ overlay_class }}" id="{{ id }}Overlay">
+    <div class="modal {{ modal_class }}" id="{{ id }}" role="dialog" aria-labelledby="{{ id }}Title">
         <div class="modal-header">
             <h2 class="modal-title" id="{{ id }}Title">{{ title }}</h2>
+            {% if show_actions %}
+            <div class="modal-header-actions">
+                {{ actions_html | safe }}
+            </div>
+            {% else %}
             <button class="modal-close" aria-label="Close modal">&times;</button>
+            {% endif %}
         </div>
-        <div class="modal-content">
+        <div class="modal-content" {% if content_id %}id="{{ content_id }}"{% endif %}>
             {{ caller() }}
         </div>
     </div>
 </div>
 {% endmacro %}
 
-{# Glossary Entry Card #}
-{% macro glossary_card(entry) %}
-<div class="glossary-card" data-id="{{ entry.id }}" data-difficulty="{{ entry.difficulty }}">
-    <div class="glossary-card-header">
-        <code class="glossary-name">{{ entry.name }}</code>
-        <span class="skill-badge {{ entry.difficulty }}">{{ entry.difficulty }}</span>
-    </div>
-    <p class="glossary-takeaway">{{ entry.takeaway }}</p>
-    <button class="glossary-expand" aria-label="Expand details">
-        <span class="expand-icon">+</span>
-    </button>
-</div>
-{% endmacro %}
-
-{# Guide Card #}
-{% macro guide_card(guide) %}
-<div class="guide-card" data-id="{{ guide.id }}" data-category="{{ guide.category }}">
-    <div class="guide-card-header">
-        <span class="guide-category-badge">{{ guide.category }}</span>
-        <span class="skill-badge {{ guide.difficulty }}">{{ guide.difficulty }}</span>
-    </div>
-    <h3 class="guide-title">{{ guide.title }}</h3>
-    <p class="guide-description">{{ guide.description }}</p>
-    <button class="guide-open-btn">
-        Open Guide
-        <span class="btn-arrow">&rarr;</span>
-    </button>
-</div>
-{% endmacro %}
-
-{# SPL Code Block #}
-{% macro spl_block(code, copyable=true) %}
-<div class="spl-block">
-    <pre class="spl-code"><code>{{ code }}</code></pre>
-    {% if copyable %}
-    <button class="spl-copy" aria-label="Copy to clipboard">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2"/>
-            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-        </svg>
-    </button>
-    {% endif %}
-</div>
-{% endmacro %}
-
-{# Tooltip #}
-{% macro tooltip(content, position="top") %}
-<span class="tooltip" data-tooltip="{{ content }}" data-position="{{ position }}">
-    {{ caller() }}
-</span>
-{% endmacro %}
-
 {# Empty State #}
-{% macro empty_state(title, message, icon="search") %}
-<div class="empty-state">
+{% macro empty_state(title, message, icon="search", id=none, hidden=true, extra_class="") %}
+<div class="empty-state {{ 'hidden' if hidden else '' }} {{ extra_class }}" {% if id %}id="{{ id }}"{% endif %}>
     <div class="empty-icon">
         {% if icon == "search" %}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -364,46 +296,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
         </svg>
+        {% elif icon == "stack" %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
         {% endif %}
     </div>
     <h3 class="empty-title">{{ title }}</h3>
     <p class="empty-message">{{ message }}</p>
-</div>
-{% endmacro %}
-
-{# Loading Spinner #}
-{% macro loading_spinner(size="medium") %}
-<div class="loading-spinner {{ size }}">
-    <div class="spinner"></div>
-</div>
-{% endmacro %}
-
-{# Tab Panel #}
-{% macro tab_panel(id, active=false) %}
-<div class="tab-panel {{ 'active' if active else '' }}"
-     id="{{ id }}Panel"
-     role="tabpanel"
-     aria-labelledby="{{ id }}Tab"
-     {% if not active %}hidden{% endif %}>
-    {{ caller() }}
-</div>
-{% endmacro %}
-
-{# Progressive Disclosure Section #}
-{% macro disclosure_section(title, level="intermediate", expanded=false) %}
-<div class="disclosure-section {{ level }} {{ 'expanded' if expanded else '' }}">
-    <button class="disclosure-header" aria-expanded="{{ 'true' if expanded else 'false' }}">
-        <span class="disclosure-level">{{ level | capitalize }}</span>
-        <span class="disclosure-title">{{ title }}</span>
-        <span class="disclosure-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 12 15 18 9"/>
-            </svg>
-        </span>
-    </button>
-    <div class="disclosure-content">
-        {{ caller() }}
-    </div>
 </div>
 {% endmacro %}
 
@@ -443,8 +343,32 @@
                    autocomplete="off">
             <kbd class="spl-sidebar-search-hint">S</kbd>
         </div>
+        <div class="spl-sidebar-filters" id="splSidebarFilters">
+            <button class="spl-sidebar-filter active" data-filter="all">
+                <span class="filter-label">All</span>
+                <span class="filter-count" id="filterCountAll">0</span>
+            </button>
+            <button class="spl-sidebar-filter filter-command" data-filter="command">
+                <span class="filter-icon">|</span>
+                <span class="filter-label">Commands</span>
+                <span class="filter-count" id="filterCountCommands">0</span>
+            </button>
+            <button class="spl-sidebar-filter filter-function" data-filter="function">
+                <span class="filter-icon">f(x)</span>
+                <span class="filter-label">Eval</span>
+                <span class="filter-count" id="filterCountFunctions">0</span>
+            </button>
+            <button class="spl-sidebar-filter filter-stats" data-filter="stats">
+                <span class="filter-icon">&Sigma;</span>
+                <span class="filter-label">Stats</span>
+                <span class="filter-count" id="filterCountStats">0</span>
+            </button>
+        </div>
     </div>
     <div class="spl-sidebar-body">
+        <div class="spl-sidebar-alpha-nav" id="splSidebarAlphaNav">
+            <!-- Populated by JavaScript -->
+        </div>
         <div class="spl-sidebar-list" id="splSidebarList">
             <!-- Populated by JavaScript -->
         </div>

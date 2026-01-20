@@ -3,7 +3,7 @@
 {% block title %}Splunk Knowledge - SPLUNKed{% endblock %}
 
 {% block content %}
-{% from "_components.html" import search_input, view_toggle, category_tab %}
+{% from "_components.html" import search_input, view_toggle, empty_state, modal %}
 
 <div class="page-container">
     <!-- Page Header -->
@@ -113,33 +113,22 @@
     </div>
 
     <!-- Empty State -->
-    <div class="empty-state hidden" id="emptyState">
-        <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="M21 21l-4.35-4.35"/>
-            </svg>
-        </div>
-        <h3 class="empty-title">No matches found</h3>
-        <p class="empty-message">Try adjusting your search or filter criteria.</p>
-    </div>
+    {{ empty_state(
+        title='No matches found',
+        message='Try adjusting your search or filter criteria.',
+        id='emptyState',
+        hidden=true
+    ) }}
 </div>
 
 <!-- Detail Modal -->
-<div class="modal-overlay" id="referencesModalOverlay">
-    <div class="modal" id="referencesModal" role="dialog" aria-labelledby="referencesModalTitle">
-        <div class="modal-header">
-            <h2 class="modal-title" id="referencesModalTitle"></h2>
-            <div class="modal-header-actions">
-                <button class="modal-back" id="referencesModalBack" aria-label="Go back" hidden>&larr;</button>
-                <button class="modal-close" aria-label="Close modal">&times;</button>
-            </div>
-        </div>
-        <div class="modal-content" id="referencesModalContent">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
-</div>
+{% set references_actions %}
+<button class="modal-back" id="referencesModalBack" aria-label="Go back" hidden>&larr;</button>
+<button class="modal-close" aria-label="Close modal">&times;</button>
+{% endset %}
+{% call modal('referencesModal', '', 'referencesModalContent', true, references_actions) %}
+    <!-- Populated by JavaScript -->
+{% endcall %}
 {% endblock %}
 
 {% block scripts %}

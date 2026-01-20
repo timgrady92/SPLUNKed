@@ -19,12 +19,14 @@
             dataSources: [],
             includes: [],
             excludes: [],
+            transforms: [],
             timeRange: null,
             outputShape: null,
             outputField: ''
         },
         currentObjectType: 'dataSources',
         currentFilterType: 'patterns',
+        currentFilterMode: 'include',
         editingObject: null
     };
 
@@ -45,7 +47,6 @@
     function cacheElements() {
         // Main tabs
         elements.builderTabs = document.querySelectorAll('.builder-tab');
-        elements.manageObjectsBtn = document.querySelector('.manage-objects-btn');
         elements.buildPanel = document.getElementById('buildPanel');
         elements.managePanel = document.getElementById('managePanel');
 
@@ -62,6 +63,11 @@
         elements.excludeSearch = document.getElementById('excludeSearch');
         elements.excludeChips = document.getElementById('excludeChips');
         elements.selectedExcludes = document.getElementById('selectedExcludes');
+
+        // Transform elements
+        elements.transformCategories = document.querySelectorAll('.transform-category-btn');
+        elements.transformPipeline = document.getElementById('transformPipeline');
+        elements.transformEmpty = document.getElementById('transformEmpty');
 
         elements.timePresets = document.getElementById('timePresets');
         elements.customTimeRange = document.getElementById('customTimeRange');
@@ -103,12 +109,6 @@
         elements.deleteModalOverlay = document.getElementById('deleteModalOverlay');
         elements.cancelDelete = document.getElementById('cancelDelete');
         elements.confirmDelete = document.getElementById('confirmDelete');
-
-        // Table of Contents
-        elements.toc = document.getElementById('pbToc');
-        elements.tocToggle = document.getElementById('pbTocToggle');
-        elements.tocLinks = document.querySelectorAll('.pb-toc-link');
-        elements.tocItems = document.querySelectorAll('.pb-toc-item');
     }
 
     async function loadMappings() {
@@ -128,8 +128,37 @@
             tab.addEventListener('click', () => switchMainTab(tab.dataset.tab));
         });
 
-        // Manage Objects icon button
-        elements.manageObjectsBtn?.addEventListener('click', () => switchMainTab('manage'));
+        // Filter mode toggle (include/exclude)
+        document.querySelectorAll('.filter-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                state.currentFilterMode = mode;
+
+                // Update button states
+                document.querySelectorAll('.filter-mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Update section hint text and styling
+                const filterHint = document.getElementById('filterSectionHint');
+                if (filterHint) {
+                    filterHint.innerHTML = mode === 'include'
+                        ? 'What to find <span class="hint-operator">AND</span>'
+                        : 'What to exclude <span class="hint-operator exclude">NOT</span>';
+                    filterHint.classList.toggle('exclude-mode', mode === 'exclude');
+                }
+
+                // Toggle content visibility
+                document.getElementById('includeModeContent')?.classList.toggle('hidden', mode !== 'include');
+                document.getElementById('excludeModeContent')?.classList.toggle('hidden', mode !== 'exclude');
+
+                // Re-render appropriate chips
+                if (mode === 'include') {
+                    renderIncludeChips();
+                } else {
+                    renderExcludeChips();
+                }
+            });
+        });
 
         // Filter type tabs (patterns/field values)
         elements.filterTypeTabs.forEach(tab => {
@@ -137,7 +166,12 @@
                 state.currentFilterType = tab.dataset.filterType;
                 elements.filterTypeTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                renderIncludeChips();
+                // Render chips for current mode
+                if (state.currentFilterMode === 'include') {
+                    renderIncludeChips();
+                } else {
+                    renderExcludeChips();
+                }
             });
         });
 
@@ -160,6 +194,7 @@
                 document.querySelectorAll('.time-preset').forEach(p => p.classList.remove('selected'));
                 state.selections.timeRange = elements.customTimeRange.value;
                 updateSPLPreview();
+                updateSelectionCounts();
             }
         });
 
@@ -188,10 +223,7 @@
         elements.addNewObject?.addEventListener('click', () => openObjectModal());
 
         // Modal events
-        elements.objectModalOverlay?.addEventListener('click', (e) => {
-            if (e.target === elements.objectModalOverlay) closeObjectModal();
-        });
-        elements.objectModal?.querySelector('.modal-close')?.addEventListener('click', closeObjectModal);
+        window.SPLUNKed?.initModal?.('objectModal');
         elements.cancelObject?.addEventListener('click', closeObjectModal);
         elements.objectForm?.addEventListener('submit', handleObjectSubmit);
         elements.deleteObject?.addEventListener('click', showDeleteConfirmation);
@@ -203,10 +235,7 @@
         });
 
         // Delete confirmation modal
-        elements.deleteModalOverlay?.addEventListener('click', (e) => {
-            if (e.target === elements.deleteModalOverlay) closeDeleteModal();
-        });
-        elements.deleteModalOverlay?.querySelector('.modal-close')?.addEventListener('click', closeDeleteModal);
+        window.SPLUNKed?.initModal?.('deleteModal');
         elements.cancelDelete?.addEventListener('click', closeDeleteModal);
         elements.confirmDelete?.addEventListener('click', handleDeleteConfirm);
 
@@ -218,106 +247,629 @@
             }
         });
 
-        // Table of Contents
-        setupTocListeners();
+        // Collapsible sections
+        setupCollapsibleSections();
+
+        // Transform pipeline
+        setupTransformListeners();
     }
 
-    // Table of Contents Functions
-    function setupTocListeners() {
-        // TOC toggle for mobile
-        elements.tocToggle?.addEventListener('click', () => {
-            elements.toc?.classList.toggle('expanded');
+    // Collapsible Sections
+    function setupCollapsibleSections() {
+        const sections = document.querySelectorAll('.composer-section');
+        sections.forEach(section => {
+            const header = section.querySelector('.section-header[data-collapse-toggle]');
+            if (header) {
+                header.addEventListener('click', (e) => {
+                    // Don't collapse if clicking on interactive elements inside header
+                    if (e.target.closest('input, button:not(.section-collapse-btn), select')) {
+                        return;
+                    }
+                    section.classList.toggle('collapsed');
+                });
+            }
         });
+    }
 
-        // TOC link clicks
-        elements.tocLinks?.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                handleTocClick(link);
+    // Update selection count badges
+    function updateSelectionCounts() {
+        // Data sources count
+        const dsCount = document.getElementById('dsSelectionCount');
+        if (dsCount) {
+            const count = state.selections.dataSources.length;
+            dsCount.textContent = count;
+            dsCount.classList.toggle('visible', count > 0);
+        }
+
+        // Combined filters count (for section header)
+        const filterCount = document.getElementById('filterSelectionCount');
+        if (filterCount) {
+            const totalFilters = state.selections.includes.length + state.selections.excludes.length;
+            filterCount.textContent = totalFilters;
+            filterCount.classList.toggle('visible', totalFilters > 0);
+        }
+
+        // Include mode count (for toggle button)
+        const includeModeCount = document.getElementById('includeModeCount');
+        if (includeModeCount) {
+            const count = state.selections.includes.length;
+            includeModeCount.textContent = count;
+            includeModeCount.classList.toggle('visible', count > 0);
+        }
+
+        // Exclude mode count (for toggle button)
+        const excludeModeCount = document.getElementById('excludeModeCount');
+        if (excludeModeCount) {
+            const count = state.selections.excludes.length;
+            excludeModeCount.textContent = count;
+            excludeModeCount.classList.toggle('visible', count > 0);
+        }
+
+        // Transforms count
+        const transformCount = document.getElementById('transformSelectionCount');
+        if (transformCount) {
+            const count = state.selections.transforms.length;
+            transformCount.textContent = count;
+            transformCount.classList.toggle('visible', count > 0);
+        }
+
+        // Time range count (1 if selected)
+        const timeCount = document.getElementById('timeSelectionCount');
+        if (timeCount) {
+            const hasTime = state.selections.timeRange !== null;
+            timeCount.textContent = hasTime ? '1' : '';
+            timeCount.classList.toggle('visible', hasTime);
+        }
+
+        // Output shape count (1 if selected)
+        const outputCount = document.getElementById('outputSelectionCount');
+        if (outputCount) {
+            const hasOutput = state.selections.outputShape !== null;
+            outputCount.textContent = hasOutput ? '1' : '';
+            outputCount.classList.toggle('visible', hasOutput);
+        }
+    }
+
+    // ============================================
+    // Transformation Pipeline Management
+    // ============================================
+
+    // Transform type definitions with their UI configuration
+    const TRANSFORM_TYPES = {
+        // Field Operations
+        eval: {
+            category: 'fields',
+            label: 'Eval Expression',
+            icon: 'f(x)',
+            fields: [
+                { name: 'fieldName', label: 'New Field Name', type: 'text', placeholder: 'e.g., duration_mins' },
+                { name: 'expression', label: 'Expression', type: 'textarea', placeholder: 'e.g., round(duration/60, 2)', mono: true }
+            ],
+            presets: [
+                { label: 'lower(field)', value: 'lower({field})' },
+                { label: 'upper(field)', value: 'upper({field})' },
+                { label: 'len(field)', value: 'len({field})' },
+                { label: 'round(num,2)', value: 'round({field}, 2)' },
+                { label: 'now()', value: 'now()' },
+                { label: 'if(cond,t,f)', value: 'if({condition}, {true_val}, {false_val})' }
+            ],
+            toSPL: (step) => step.fieldName && step.expression ? `| eval ${step.fieldName}=${step.expression}` : ''
+        },
+        rex: {
+            category: 'fields',
+            label: 'Extract Field (rex)',
+            icon: '.*',
+            fields: [
+                { name: 'sourceField', label: 'Source Field', type: 'text', placeholder: 'e.g., _raw, message' },
+                { name: 'pattern', label: 'Regex Pattern', type: 'textarea', placeholder: 'e.g., user=(?<username>\\w+)', mono: true, hint: 'Use (?<fieldname>...) for named capture groups' }
+            ],
+            presets: [
+                { label: 'IP Address', value: '(?<ip_addr>\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})' },
+                { label: 'Email', value: '(?<email>[\\w.-]+@[\\w.-]+)' },
+                { label: 'Key=Value', value: '{key}=(?<{key}_value>[^\\s]+)' }
+            ],
+            toSPL: (step) => step.sourceField && step.pattern ? `| rex field=${step.sourceField} "${step.pattern}"` : ''
+        },
+        rename: {
+            category: 'fields',
+            label: 'Rename Field',
+            icon: 'A→B',
+            fields: [
+                { name: 'oldName', label: 'Original Field', type: 'text', placeholder: 'e.g., src_ip' },
+                { name: 'newName', label: 'New Name', type: 'text', placeholder: 'e.g., source_address' }
+            ],
+            toSPL: (step) => step.oldName && step.newName ? `| rename ${step.oldName} AS ${step.newName}` : ''
+        },
+
+        // Aggregation Operations
+        stats: {
+            category: 'aggregate',
+            label: 'Statistics',
+            icon: 'Σ',
+            fields: [
+                { name: 'functions', label: 'Aggregation Functions', type: 'textarea', placeholder: 'e.g., count, avg(bytes), max(duration)', mono: true },
+                { name: 'byFields', label: 'Group By Fields (optional)', type: 'text', placeholder: 'e.g., user, src_ip' }
+            ],
+            presets: [
+                { label: 'count', value: 'count' },
+                { label: 'count by field', value: 'count by {field}' },
+                { label: 'dc(field)', value: 'dc({field})' },
+                { label: 'sum(field)', value: 'sum({field})' },
+                { label: 'avg(field)', value: 'avg({field})' },
+                { label: 'min/max', value: 'min({field}), max({field})' },
+                { label: 'values(field)', value: 'values({field})' },
+                { label: 'list(field)', value: 'list({field})' }
+            ],
+            toSPL: (step) => {
+                if (!step.functions) return '';
+                let spl = `| stats ${step.functions}`;
+                if (step.byFields) spl += ` by ${step.byFields}`;
+                return spl;
+            }
+        },
+        chart: {
+            category: 'aggregate',
+            label: 'Chart',
+            icon: '📊',
+            fields: [
+                { name: 'functions', label: 'Aggregation', type: 'text', placeholder: 'e.g., count, avg(bytes)' },
+                { name: 'overField', label: 'X-Axis Field', type: 'text', placeholder: 'e.g., status' },
+                { name: 'byField', label: 'Split By (optional)', type: 'text', placeholder: 'e.g., host' }
+            ],
+            toSPL: (step) => {
+                if (!step.functions || !step.overField) return '';
+                let spl = `| chart ${step.functions} over ${step.overField}`;
+                if (step.byField) spl += ` by ${step.byField}`;
+                return spl;
+            }
+        },
+        timechart: {
+            category: 'aggregate',
+            label: 'Time Chart',
+            icon: '📈',
+            fields: [
+                { name: 'span', label: 'Time Span', type: 'select', options: ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w'] },
+                { name: 'functions', label: 'Aggregation', type: 'text', placeholder: 'e.g., count, avg(response_time)' },
+                { name: 'byField', label: 'Split By (optional)', type: 'text', placeholder: 'e.g., status' }
+            ],
+            toSPL: (step) => {
+                if (!step.functions) return '';
+                let spl = `| timechart`;
+                if (step.span) spl += ` span=${step.span}`;
+                spl += ` ${step.functions}`;
+                if (step.byField) spl += ` by ${step.byField}`;
+                return spl;
+            }
+        },
+
+        // Data Shaping Operations
+        sort: {
+            category: 'shape',
+            label: 'Sort',
+            icon: '↕',
+            fields: [
+                { name: 'fields', label: 'Sort Fields', type: 'text', placeholder: 'e.g., -count, +user (- desc, + asc)' },
+                { name: 'limit', label: 'Limit (optional)', type: 'text', placeholder: 'e.g., 100' }
+            ],
+            toSPL: (step) => {
+                if (!step.fields) return '';
+                let spl = `| sort`;
+                if (step.limit) spl += ` ${step.limit}`;
+                spl += ` ${step.fields}`;
+                return spl;
+            }
+        },
+        dedup: {
+            category: 'shape',
+            label: 'Deduplicate',
+            icon: '⊖',
+            fields: [
+                { name: 'fields', label: 'Dedup Fields', type: 'text', placeholder: 'e.g., user, src_ip' },
+                { name: 'keepevents', label: 'Keep Events', type: 'select', options: ['', 'keepevents=true'], advanced: true },
+                { name: 'consecutive', label: 'Consecutive Only', type: 'select', options: ['', 'consecutive=true'], advanced: true }
+            ],
+            toSPL: (step) => {
+                if (!step.fields) return '';
+                let spl = `| dedup ${step.fields}`;
+                if (step.keepevents) spl += ` ${step.keepevents}`;
+                if (step.consecutive) spl += ` ${step.consecutive}`;
+                return spl;
+            }
+        },
+        table: {
+            category: 'shape',
+            label: 'Table',
+            icon: '▦',
+            fields: [
+                { name: 'fields', label: 'Fields to Display', type: 'textarea', placeholder: 'e.g., _time, user, action, status', mono: true }
+            ],
+            toSPL: (step) => step.fields ? `| table ${step.fields}` : ''
+        },
+        head: {
+            category: 'shape',
+            label: 'Head (First N)',
+            icon: '⤒',
+            fields: [
+                { name: 'count', label: 'Number of Results', type: 'text', placeholder: 'e.g., 10' }
+            ],
+            toSPL: (step) => step.count ? `| head ${step.count}` : ''
+        },
+        tail: {
+            category: 'shape',
+            label: 'Tail (Last N)',
+            icon: '⤓',
+            fields: [
+                { name: 'count', label: 'Number of Results', type: 'text', placeholder: 'e.g., 10' }
+            ],
+            toSPL: (step) => step.count ? `| tail ${step.count}` : ''
+        },
+
+        // Custom SPL
+        custom: {
+            category: 'custom',
+            label: 'Custom SPL',
+            icon: '</>',
+            fields: [
+                { name: 'spl', label: 'SPL Commands', type: 'textarea', placeholder: 'e.g., | lookup users.csv user OUTPUT department | where isnotnull(department)', mono: true, rows: 3 }
+            ],
+            toSPL: (step) => step.spl ? (step.spl.startsWith('|') ? step.spl : `| ${step.spl}`) : ''
+        }
+    };
+
+    // Category to transform type mapping
+    const CATEGORY_TRANSFORMS = {
+        fields: ['eval', 'rex', 'rename'],
+        aggregate: ['stats', 'chart', 'timechart'],
+        shape: ['sort', 'dedup', 'table', 'head', 'tail'],
+        custom: ['custom']
+    };
+
+    // Quick Action definitions - map action names to transform configurations
+    const QUICK_ACTIONS = {
+        'count-by': {
+            type: 'stats',
+            defaults: { functions: 'count', byFields: '' },
+            prompt: 'byFields',
+            promptLabel: 'Group by field'
+        },
+        'top-values': {
+            type: 'custom',
+            defaults: { spl: '| top limit=10 ' },
+            prompt: 'spl',
+            promptLabel: 'Field to count',
+            appendToSpl: true
+        },
+        'timeline': {
+            type: 'timechart',
+            defaults: { span: '1h', functions: 'count', byField: '' }
+        },
+        'unique-values': {
+            type: 'stats',
+            defaults: { functions: 'dc()', byFields: '' },
+            prompt: 'functions',
+            promptLabel: 'Field for distinct count',
+            wrapInFunction: 'dc'
+        },
+        'sort-results': {
+            type: 'sort',
+            defaults: { fields: '-', limit: '' },
+            prompt: 'fields',
+            promptLabel: 'Sort by field (- for descending)'
+        },
+        'remove-duplicates': {
+            type: 'dedup',
+            defaults: { fields: '' },
+            prompt: 'fields',
+            promptLabel: 'Deduplicate by field(s)'
+        },
+        'select-fields': {
+            type: 'table',
+            defaults: { fields: '_time, ' },
+            prompt: 'fields',
+            promptLabel: 'Fields to display'
+        },
+        'calculate-field': {
+            type: 'eval',
+            defaults: { fieldName: '', expression: '' },
+            prompt: 'fieldName',
+            promptLabel: 'New field name'
+        }
+    };
+
+    // Setup transform listeners for Quick Actions and advanced panel
+    function setupTransformListeners() {
+        // Quick Action cards
+        document.querySelectorAll('.quick-action-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const action = card.dataset.action;
+                handleQuickAction(action);
+            });
+            // Keyboard support
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const action = card.dataset.action;
+                    handleQuickAction(action);
+                }
             });
         });
 
-        // Close TOC on mobile when clicking outside
-        document.addEventListener('click', (e) => {
-            if (elements.toc?.classList.contains('expanded') &&
-                !elements.toc.contains(e.target)) {
-                elements.toc.classList.remove('expanded');
-            }
+        // More Transforms toggle
+        const moreToggle = document.getElementById('transformMoreToggle');
+        const advancedPanel = document.getElementById('transformAdvancedPanel');
+        moreToggle?.addEventListener('click', () => {
+            moreToggle.classList.toggle('expanded');
+            advancedPanel?.classList.toggle('hidden');
+        });
+
+        // Advanced transform buttons
+        document.querySelectorAll('.advanced-transform-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                addTransformStep(type);
+            });
         });
     }
 
-    function handleTocClick(link) {
-        const href = link.getAttribute('href');
-        const targetId = href?.replace('#', '');
-        const filterType = link.dataset.filter;
-        const objectType = link.dataset.objectType;
-        const tocItem = link.closest('.pb-toc-item');
-        const section = tocItem?.dataset.section;
+    // Handle Quick Action click
+    function handleQuickAction(actionName) {
+        const action = QUICK_ACTIONS[actionName];
+        if (!action) return;
 
-        // Determine if we need to switch main tabs
-        const isBuildSection = ['build', 'dataSources', 'includes', 'patterns', 'fieldValues', 'excludes', 'timeRange', 'outputShape', 'splPreview'].includes(section);
-        const isManageSection = section?.startsWith('manage');
+        const config = TRANSFORM_TYPES[action.type];
+        if (!config) return;
 
-        if (isBuildSection) {
-            switchMainTab('build');
-        } else if (isManageSection || objectType) {
-            switchMainTab('manage');
-        }
+        // Create the step with defaults
+        const step = {
+            id: Date.now(),
+            type: action.type,
+            ...Object.fromEntries(config.fields.map(f => [f.name, ''])),
+            ...action.defaults
+        };
 
-        // Handle filter type switching
-        if (filterType) {
-            const filterTab = document.querySelector(`.filter-type-tab[data-filter-type="${filterType}"]`);
-            if (filterTab) {
-                state.currentFilterType = filterType;
-                elements.filterTypeTabs.forEach(t => t.classList.remove('active'));
-                filterTab.classList.add('active');
-                renderIncludeChips();
-            }
-        }
+        state.selections.transforms.push(step);
+        renderTransformPipeline();
+        updateSPLPreview();
+        updateSelectionCounts();
 
-        // Handle object type switching in manage panel
-        if (objectType) {
-            const objectTab = document.querySelector(`.object-tab[data-object-type="${objectType}"]`);
-            if (objectTab) {
-                state.currentObjectType = objectType;
-                elements.objectTabs.forEach(t => t.classList.remove('active'));
-                objectTab.classList.add('active');
-                renderObjectsGrid();
-            }
-        }
-
-        // Scroll to target element
-        const targetElement = document.getElementById(targetId);
-        if (targetElement) {
+        // Focus the prompt field if specified
+        if (action.prompt) {
             setTimeout(() => {
-                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
+                const lastStep = document.querySelector('.transform-step:last-child');
+                const input = lastStep?.querySelector(`[data-field="${action.prompt}"]`);
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 50);
         }
-
-        // Update TOC active state
-        updateTocActiveState(section);
-
-        // Close mobile TOC
-        elements.toc?.classList.remove('expanded');
     }
 
-    function updateTocActiveState(activeSection) {
-        elements.tocItems?.forEach(item => {
-            item.classList.remove('active');
-        });
+    // Add a new transform step
+    function addTransformStep(type) {
+        const config = TRANSFORM_TYPES[type];
+        if (!config) return;
 
-        // Activate the clicked item
-        const activeItem = document.querySelector(`.pb-toc-item[data-section="${activeSection}"]`);
-        if (activeItem) {
-            activeItem.classList.add('active');
+        const step = {
+            id: Date.now(),
+            type: type,
+            // Initialize all field values to empty
+            ...Object.fromEntries(config.fields.map(f => [f.name, '']))
+        };
 
-            // Also activate parent items
-            let parent = activeItem.parentElement?.closest('.pb-toc-item');
-            while (parent) {
-                parent.classList.add('active');
-                parent = parent.parentElement?.closest('.pb-toc-item');
-            }
+        state.selections.transforms.push(step);
+        renderTransformPipeline();
+        updateSPLPreview();
+        updateSelectionCounts();
+    }
+
+    // Remove a transform step
+    function removeTransformStep(stepId) {
+        state.selections.transforms = state.selections.transforms.filter(s => s.id !== stepId);
+        renderTransformPipeline();
+        updateSPLPreview();
+        updateSelectionCounts();
+    }
+
+    // Move a transform step up or down
+    function moveTransformStep(stepId, direction) {
+        const index = state.selections.transforms.findIndex(s => s.id === stepId);
+        if (index === -1) return;
+
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= state.selections.transforms.length) return;
+
+        const [step] = state.selections.transforms.splice(index, 1);
+        state.selections.transforms.splice(newIndex, 0, step);
+        renderTransformPipeline();
+        updateSPLPreview();
+    }
+
+    // Update a transform step field value
+    function updateTransformStep(stepId, fieldName, value) {
+        const step = state.selections.transforms.find(s => s.id === stepId);
+        if (step) {
+            step[fieldName] = value;
+            updateSPLPreview();
         }
+    }
+
+    // Render the entire transform pipeline
+    function renderTransformPipeline() {
+        if (!elements.transformPipeline) return;
+
+        const hasTransforms = state.selections.transforms.length > 0;
+
+        // Toggle empty state visibility
+        if (elements.transformEmpty) {
+            elements.transformEmpty.classList.toggle('hidden', hasTransforms);
+        }
+
+        // Toggle pipeline visibility
+        elements.transformPipeline.classList.toggle('hidden', !hasTransforms);
+
+        if (!hasTransforms) {
+            elements.transformPipeline.innerHTML = '';
+            return;
+        }
+
+        elements.transformPipeline.innerHTML = state.selections.transforms.map((step, index) => {
+            const config = TRANSFORM_TYPES[step.type];
+            if (!config) return '';
+
+            const hasAdvanced = config.fields.some(f => f.advanced);
+
+            return `
+                <div class="transform-step" data-step-id="${step.id}">
+                    <div class="transform-step-header">
+                        <span class="transform-step-number">${index + 1}</span>
+                        <span class="transform-step-type">${config.label}</span>
+                        <div class="transform-step-actions">
+                            ${index > 0 ? `
+                                <button class="transform-step-btn move-up" title="Move up" type="button">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="18 15 12 9 6 15"/>
+                                    </svg>
+                                </button>
+                            ` : ''}
+                            ${index < state.selections.transforms.length - 1 ? `
+                                <button class="transform-step-btn move-down" title="Move down" type="button">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </button>
+                            ` : ''}
+                            <button class="transform-step-btn delete" title="Remove" type="button">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="transform-step-body">
+                        ${renderTransformFields(step, config)}
+                        ${config.presets ? renderTransformPresets(step, config) : ''}
+                        ${hasAdvanced ? renderAdvancedToggle(step, config) : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach event listeners
+        attachTransformStepListeners();
+    }
+
+    // Render fields for a transform step
+    function renderTransformFields(step, config) {
+        const basicFields = config.fields.filter(f => !f.advanced);
+        return basicFields.map(field => renderTransformField(step, field)).join('');
+    }
+
+    // Render a single field
+    function renderTransformField(step, field) {
+        const value = step[field.name] || '';
+        const monoClass = field.mono ? 'style="font-family: var(--font-mono);"' : '';
+
+        let input;
+        if (field.type === 'select') {
+            const options = field.options.map(opt =>
+                `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt || '(none)'}</option>`
+            ).join('');
+            input = `<select class="transform-field-select" data-field="${field.name}">${options}</select>`;
+        } else if (field.type === 'textarea') {
+            const rows = field.rows || 2;
+            input = `<textarea class="transform-field-textarea" data-field="${field.name}"
+                        placeholder="${field.placeholder || ''}" rows="${rows}" ${monoClass}>${value}</textarea>`;
+        } else {
+            input = `<input type="text" class="transform-field-input" data-field="${field.name}"
+                        value="${value}" placeholder="${field.placeholder || ''}" ${monoClass}>`;
+        }
+
+        return `
+            <div class="transform-field-group">
+                <label class="transform-field-label">${field.label}</label>
+                ${input}
+                ${field.hint ? `<div class="transform-field-hint">${field.hint}</div>` : ''}
+            </div>
+        `;
+    }
+
+    // Render preset chips
+    function renderTransformPresets(step, config) {
+        if (!config.presets || config.presets.length === 0) return '';
+
+        return `
+            <div class="transform-presets">
+                ${config.presets.map(preset =>
+                    `<button class="transform-preset" data-value="${preset.value}" type="button">${preset.label}</button>`
+                ).join('')}
+            </div>
+        `;
+    }
+
+    // Render advanced options toggle
+    function renderAdvancedToggle(step, config) {
+        const advancedFields = config.fields.filter(f => f.advanced);
+
+        return `
+            <button class="transform-advanced-toggle" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+                Advanced options
+            </button>
+            <div class="transform-advanced-options">
+                ${advancedFields.map(field => renderTransformField(step, field)).join('')}
+            </div>
+        `;
+    }
+
+    // Attach event listeners to transform step elements
+    function attachTransformStepListeners() {
+        document.querySelectorAll('.transform-step').forEach(stepEl => {
+            const stepId = parseInt(stepEl.dataset.stepId);
+
+            // Field inputs
+            stepEl.querySelectorAll('.transform-field-input, .transform-field-textarea, .transform-field-select').forEach(input => {
+                input.addEventListener('input', () => {
+                    updateTransformStep(stepId, input.dataset.field, input.value);
+                });
+                input.addEventListener('change', () => {
+                    updateTransformStep(stepId, input.dataset.field, input.value);
+                });
+            });
+
+            // Preset buttons - insert into the first textarea or appropriate field
+            stepEl.querySelectorAll('.transform-preset').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const textarea = stepEl.querySelector('.transform-field-textarea, .transform-field-input[data-field="expression"], .transform-field-input[data-field="functions"]');
+                    if (textarea) {
+                        const cursorPos = textarea.selectionStart || textarea.value.length;
+                        const before = textarea.value.substring(0, cursorPos);
+                        const after = textarea.value.substring(cursorPos);
+                        textarea.value = before + btn.dataset.value + after;
+                        textarea.focus();
+                        updateTransformStep(stepId, textarea.dataset.field, textarea.value);
+                    }
+                });
+            });
+
+            // Move buttons
+            stepEl.querySelector('.move-up')?.addEventListener('click', () => moveTransformStep(stepId, 'up'));
+            stepEl.querySelector('.move-down')?.addEventListener('click', () => moveTransformStep(stepId, 'down'));
+
+            // Delete button
+            stepEl.querySelector('.delete')?.addEventListener('click', () => removeTransformStep(stepId));
+
+            // Advanced toggle
+            const advToggle = stepEl.querySelector('.transform-advanced-toggle');
+            const advOptions = stepEl.querySelector('.transform-advanced-options');
+            advToggle?.addEventListener('click', () => {
+                advToggle.classList.toggle('expanded');
+                advOptions?.classList.toggle('visible');
+            });
+        });
     }
 
     // Tab Management
@@ -325,16 +877,11 @@
         elements.builderTabs.forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
-        // Toggle active state on manage objects icon button
-        elements.manageObjectsBtn?.classList.toggle('active', tabName === 'manage');
 
         elements.buildPanel.classList.toggle('active', tabName === 'build');
         elements.buildPanel.hidden = tabName !== 'build';
         elements.managePanel.classList.toggle('active', tabName === 'manage');
         elements.managePanel.hidden = tabName !== 'manage';
-
-        // Update TOC active state for main sections
-        updateTocActiveState(tabName);
     }
 
     // Render Functions
@@ -438,9 +985,10 @@
 
     function renderExcludeChips() {
         const searchTerm = elements.excludeSearch?.value.toLowerCase() || '';
-        const allItems = [...state.mappings.patterns, ...state.mappings.fieldValues];
+        const sourceType = state.currentFilterType;
+        const items = state.mappings[sourceType] || [];
 
-        const filtered = allItems.filter(item =>
+        const filtered = items.filter(item =>
             (item.name.toLowerCase().includes(searchTerm) ||
             item.friendlyName.toLowerCase().includes(searchTerm) ||
             item.tags.some(t => t.toLowerCase().includes(searchTerm))) &&
@@ -497,6 +1045,7 @@
                 state.selections.timeRange = btn.dataset.id;
                 elements.customTimeRange.value = '';
                 updateSPLPreview();
+                updateSelectionCounts();
             });
         });
     }
@@ -530,6 +1079,7 @@
                 }
 
                 updateSPLPreview();
+                updateSelectionCounts();
             });
         });
     }
@@ -558,6 +1108,7 @@
         }
 
         updateSPLPreview();
+        updateSelectionCounts();
     }
 
     // SPL Generation
@@ -589,6 +1140,18 @@
                 return ds?.name;
             }).filter(Boolean);
             explanations.push(`Search in: ${dsNames.join(', ')}`);
+        }
+
+        // Time range (placed early to match UI order and SPL best practice)
+        if (state.selections.timeRange) {
+            const preset = state.mappings.timeRangePresets.find(t => t.id === state.selections.timeRange);
+            if (preset) {
+                parts.push(preset.spl);
+                explanations.push(`Time: ${preset.name}`);
+            } else {
+                parts.push(state.selections.timeRange);
+                explanations.push(`Time: ${state.selections.timeRange}`);
+            }
         }
 
         // Includes (AND together)
@@ -624,23 +1187,28 @@
             explanations.push(`Excluding: ${excludeNames.join(', ')}`);
         }
 
-        // Time range
-        let timeSpl = '';
-        if (state.selections.timeRange) {
-            const preset = state.mappings.timeRangePresets.find(t => t.id === state.selections.timeRange);
-            if (preset) {
-                timeSpl = preset.spl;
-                explanations.push(`Time range: ${preset.name}`);
-            } else {
-                timeSpl = state.selections.timeRange;
-                explanations.push(`Time range: ${state.selections.timeRange}`);
-            }
-        }
-
         // Build base search
         let baseSearch = parts.length > 0 ? parts.join(' ') : '*';
-        if (timeSpl) {
-            baseSearch = `${baseSearch} ${timeSpl}`;
+
+        // Transformations
+        let transformSpl = '';
+        if (state.selections.transforms.length > 0) {
+            const transformParts = state.selections.transforms.map(step => {
+                const config = TRANSFORM_TYPES[step.type];
+                if (config && config.toSPL) {
+                    return config.toSPL(step);
+                }
+                return '';
+            }).filter(Boolean);
+
+            if (transformParts.length > 0) {
+                transformSpl = transformParts.join(' ');
+                const transformNames = state.selections.transforms.map(step => {
+                    const config = TRANSFORM_TYPES[step.type];
+                    return config?.label || step.type;
+                });
+                explanations.push(`Transform: ${transformNames.join(' → ')}`);
+            }
         }
 
         // Output shape
@@ -658,7 +1226,14 @@
             }
         }
 
-        const fullSpl = outputSpl ? `${baseSearch} ${outputSpl}` : baseSearch;
+        // Combine: base search + transforms + output shape
+        let fullSpl = baseSearch;
+        if (transformSpl) {
+            fullSpl = `${fullSpl} ${transformSpl}`;
+        }
+        if (outputSpl) {
+            fullSpl = `${fullSpl} ${outputSpl}`;
+        }
 
         return {
             spl: fullSpl,
@@ -693,14 +1268,16 @@
 
     function copySPLToClipboard() {
         const spl = elements.splOutput.querySelector('.spl-code-display').textContent;
-        navigator.clipboard.writeText(spl).then(() => {
-            elements.copySPL.classList.add('copied');
-            elements.copySPL.querySelector('span').textContent = 'Copied!';
-            setTimeout(() => {
-                elements.copySPL.classList.remove('copied');
-                elements.copySPL.querySelector('span').textContent = 'Copy';
-            }, 2000);
-        });
+        if (window.SPLUNKed?.copyToClipboard) {
+            window.SPLUNKed.copyToClipboard(spl, elements.copySPL, {
+                label: 'Copied!',
+                labelTarget: elements.copySPL.querySelector('span')
+            });
+        } else {
+            navigator.clipboard.writeText(spl).catch((error) => {
+                console.error('Failed to copy SPL:', error);
+            });
+        }
     }
 
     function clearBuilder() {
@@ -708,6 +1285,7 @@
             dataSources: [],
             includes: [],
             excludes: [],
+            transforms: [],
             timeRange: null,
             outputShape: null,
             outputField: ''
@@ -721,6 +1299,8 @@
         elements.outputFieldContainer.style.display = 'none';
 
         renderBuilder();
+        renderTransformPipeline();
+        updateSelectionCounts();
     }
 
     // Object Management
@@ -807,11 +1387,19 @@
         const showOutputFields = state.currentObjectType === 'outputShapes';
         document.querySelector('.output-shape-fields').style.display = showOutputFields ? 'block' : 'none';
 
-        elements.objectModalOverlay.classList.add('open');
+        if (window.SPLUNKed?.openModal) {
+            window.SPLUNKed.openModal('objectModal');
+        } else {
+            elements.objectModalOverlay.classList.add('open');
+        }
     }
 
     function closeObjectModal() {
-        elements.objectModalOverlay.classList.remove('open');
+        if (window.SPLUNKed?.closeModal) {
+            window.SPLUNKed.closeModal('objectModal');
+        } else {
+            elements.objectModalOverlay.classList.remove('open');
+        }
         state.editingObject = null;
     }
 
@@ -868,11 +1456,19 @@
     }
 
     function showDeleteConfirmation() {
-        elements.deleteModalOverlay.classList.add('open');
+        if (window.SPLUNKed?.openModal) {
+            window.SPLUNKed.openModal('deleteModal');
+        } else {
+            elements.deleteModalOverlay.classList.add('open');
+        }
     }
 
     function closeDeleteModal() {
-        elements.deleteModalOverlay.classList.remove('open');
+        if (window.SPLUNKed?.closeModal) {
+            window.SPLUNKed.closeModal('deleteModal');
+        } else {
+            elements.deleteModalOverlay.classList.remove('open');
+        }
     }
 
     async function handleDeleteConfirm() {
