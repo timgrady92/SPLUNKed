@@ -1,0 +1,117 @@
+{
+  "id": "dash-soc-dashboard-challenge",
+  "type": "challenge",
+  "title": "Build a Complete SOC Operations Dashboard",
+  "description": "Design and build a privileged account monitoring dashboard meeting specific operational requirements and performance constraints.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "35 min",
+  "tags": ["dashboards", "challenge", "privileged-access", "soc"],
+  "objectives": [
+    "Apply dashboard design principles to a real-world use case",
+    "Build a dashboard meeting specific functional requirements",
+    "Optimize dashboard performance within constraints",
+    "Implement interactivity and drilldown capabilities"
+  ],
+  "content": {
+    "problem_statement": {
+      "title": "Challenge: Privileged Account Monitoring Dashboard",
+      "description": "Your SOC has identified a gap in visibility: there's no dedicated monitoring for privileged account activity. Privileged accounts (administrators, service accounts, root) have elevated access and are high-value targets for attackers. Your task is to build a dashboard that provides real-time visibility into privileged account usage.",
+      "requirements": [
+        "Dashboard must include at least one KPI panel showing current privileged authentication volume",
+        "Dashboard must include a timechart showing privileged auth activity over the last 24 hours",
+        "Dashboard must include a table of recent privileged account activity with drilldown capability",
+        "Dashboard must support filtering by account type (admin, service, root)",
+        "Dashboard must load completely in under 10 seconds",
+        "All searches must be based on: index=security sourcetype=auth"
+      ],
+      "data_context": "Privileged accounts can be identified by: user field matching patterns (*admin*, svc_*, root) or by a field privileged_account=true. Authentication events have fields: _time, user, src_ip, dest, action (success/failure), and app."
+    },
+    "constraints": [
+      "Total panel count: 4-6 panels (no more, no less)",
+      "Time range: Default to last 24 hours, user-adjustable",
+      "Table results: Limited to 50 rows maximum",
+      "Load time: Must complete within 10 seconds on typical Splunk deployment"
+    ],
+    "hints": [
+      {
+        "id": 1,
+        "title": "Identifying Privileged Accounts",
+        "content": "Use eval with match() or like() to identify privileged accounts: eval is_privileged = if(match(user, \"(?i)(admin|svc_|root)\") OR privileged_account=\"true\", 1, 0) | where is_privileged=1"
+      },
+      {
+        "id": 2,
+        "title": "KPI with Context",
+        "content": "A good KPI shows current value plus trend. Use sparkline() in stats to add a mini-chart: | stats count, sparkline(count) as trend | The sparkline shows whether activity is increasing or decreasing."
+      },
+      {
+        "id": 3,
+        "title": "Performance Optimization",
+        "content": "For performance within 10 seconds: 1) Use earliest=-24h explicitly, 2) Apply the privileged filter early in the search, 3) Use fields command to limit transferred fields, 4) Consider using tstats if a data model is available."
+      }
+    ],
+    "solution": {
+      "title": "Reference Solution",
+      "description": "This is one valid approach. Your solution may differ in structure while still meeting requirements.",
+      "panels": [
+        {
+          "title": "Panel 1: Privileged Auth KPI",
+          "purpose": "Show current privileged authentication count with trend",
+          "spl": "index=security sourcetype=auth earliest=-24h\n| eval is_privileged = if(match(user, \"(?i)(admin|svc_|root)\") OR privileged_account=\"true\", 1, 0)\n| where is_privileged=1\n| timechart span=1h count as hourly_count\n| stats latest(hourly_count) as current_hour, sparkline(hourly_count) as trend, sum(hourly_count) as total_24h",
+          "visualization": "Single Value with sparkline",
+          "notes": "Shows current hour's count, sparkline of 24-hour trend, and total. Use single value visualization configured to show 'current_hour' with sparkline."
+        },
+        {
+          "title": "Panel 2: Failure Rate KPI",
+          "purpose": "Show privileged auth failure rate - critical security metric",
+          "spl": "index=security sourcetype=auth earliest=-24h\n| eval is_privileged = if(match(user, \"(?i)(admin|svc_|root)\") OR privileged_account=\"true\", 1, 0)\n| where is_privileged=1\n| stats count as total, count(eval(action=\"failure\")) as failures\n| eval failure_rate = round((failures/total)*100, 1)\n| eval status = case(failure_rate < 5, \"normal\", failure_rate < 15, \"elevated\", true(), \"critical\")",
+          "visualization": "Single Value with threshold coloring",
+          "notes": "Privileged account failures above 5% warrant attention. Above 15% may indicate an attack."
+        },
+        {
+          "title": "Panel 3: Activity Timechart",
+          "purpose": "Show privileged auth trends over 24 hours by outcome",
+          "spl": "index=security sourcetype=auth earliest=-24h\n| eval is_privileged = if(match(user, \"(?i)(admin|svc_|root)\") OR privileged_account=\"true\", 1, 0)\n| where is_privileged=1\n| eval outcome = if(action=\"success\", \"Success\", \"Failure\")\n| timechart span=30m count by outcome",
+          "visualization": "Line chart with two series",
+          "notes": "30-minute span gives 48 data points - good balance of detail and readability. Configure drilldown to open raw search for clicked time bucket."
+        },
+        {
+          "title": "Panel 4: Top Accounts Table",
+          "purpose": "Show most active privileged accounts for quick triage",
+          "spl": "index=security sourcetype=auth earliest=-24h\n| eval is_privileged = if(match(user, \"(?i)(admin|svc_|root)\") OR privileged_account=\"true\", 1, 0)\n| where is_privileged=1\n| stats count as total_auth, count(eval(action=\"failure\")) as failures, count(eval(action=\"success\")) as successes, dc(src_ip) as unique_sources, dc(dest) as unique_destinations, latest(_time) as last_activity by user\n| eval failure_rate = round((failures/total_auth)*100, 1)\n| sort - total_auth\n| head 50\n| fieldformat last_activity = strftime(last_activity, \"%m/%d %H:%M\")\n| table user, total_auth, successes, failures, failure_rate, unique_sources, unique_destinations, last_activity",
+          "visualization": "Table with drilldown",
+          "notes": "Limited to 50 rows per requirements. Configure row drilldown to open user investigation dashboard or detailed search."
+        },
+        {
+          "title": "Panel 5: Account Type Filter",
+          "purpose": "Allow filtering by privileged account type",
+          "input_type": "dropdown",
+          "configuration": "Token: account_type, Choices: All Types (*), Admin (*admin*), Service (svc_*), Root (root). Integrate into all panel searches using: | where (\"$account_type$\"=\"*\" OR match(user, \"$account_type$\"))",
+          "notes": "This is an input control, not a visualization panel. Place at top of dashboard."
+        },
+        {
+          "title": "Panel 6: Recent Activity Table",
+          "purpose": "Show most recent privileged auth events for real-time awareness",
+          "spl": "index=security sourcetype=auth earliest=-4h\n| eval is_privileged = if(match(user, \"(?i)(admin|svc_|root)\") OR privileged_account=\"true\", 1, 0)\n| where is_privileged=1\n| table _time, user, action, src_ip, dest, app\n| sort - _time\n| head 50\n| rename action as \"Result\", src_ip as \"Source\", dest as \"Destination\", app as \"Application\"",
+          "visualization": "Table with conditional formatting",
+          "notes": "Recent events limited to 4 hours and 50 rows for performance. Configure action column to show red for failures."
+        }
+      ],
+      "performance_notes": "This solution uses explicit time ranges, applies the privileged filter early (where clause immediately after eval), and limits table rows. Base search pattern could be used if panels share significant overlap, but for 4-6 panels the overhead may not be worth it. For larger dashboards, consolidate with base searches."
+    },
+    "acceptance_criteria": [
+      "Dashboard contains 4-6 panels as specified",
+      "At least one KPI panel displays privileged authentication volume",
+      "Timechart shows 24-hour activity trend",
+      "Table displays recent activity with meaningful columns",
+      "Filtering by account type functions correctly",
+      "Dashboard loads completely in under 10 seconds",
+      "Drilldown is configured on at least one panel"
+    ],
+    "evaluation_rubric": {
+      "meets_requirements": "Dashboard includes all required panel types (KPI, timechart, table) and supports filtering",
+      "exceeds_requirements": "Dashboard includes additional context (failure rate KPI, source/destination analysis) and well-designed drilldowns",
+      "exceptional": "Dashboard demonstrates sophisticated design (base search optimization, conditional formatting, external tool links) while maintaining performance"
+    }
+  }
+}

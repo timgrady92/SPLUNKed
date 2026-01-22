@@ -1112,10 +1112,50 @@
     }
 
     // SPL Generation
+    function normalizeSplPart(spl) {
+        return spl ? spl.trim().replace(/\s+/g, ' ') : '';
+    }
+
+    function isGeneratingSpl(spl) {
+        return normalizeSplPart(spl).startsWith('|');
+    }
+
+    function isWrapped(spl) {
+        return spl.startsWith('(') && spl.endsWith(')');
+    }
+
+    function isNegated(spl) {
+        const trimmed = normalizeSplPart(spl);
+        return /^NOT\b/i.test(trimmed);
+    }
+
+    function wrapSpl(spl) {
+        const trimmed = normalizeSplPart(spl);
+        if (!trimmed) return '';
+        return isWrapped(trimmed) ? trimmed : `(${trimmed})`;
+    }
+
+    function wrapIfOr(spl) {
+        const trimmed = normalizeSplPart(spl);
+        if (!trimmed) return '';
+        if (isNegated(trimmed)) {
+            const remainder = trimmed.replace(/^NOT\b\s*/i, '');
+            if (!remainder) return trimmed;
+            if (/\bOR\b/i.test(remainder) && !isWrapped(remainder)) {
+                return `NOT ${wrapSpl(remainder)}`;
+            }
+            return trimmed;
+        }
+        return /\bOR\b/i.test(trimmed) ? wrapSpl(trimmed) : trimmed;
+    }
+
     async function updateSPLPreview() {
         const spl = generateLocalSPL();
         elements.splOutput.querySelector('.spl-code-display').textContent = spl.spl;
         elements.splExplanation.textContent = spl.explanation;
+        if (window.SPLUNKed?.applySPLHighlighting) {
+            window.SPLUNKed.applySPLHighlighting(elements.splOutput, { force: true });
+        }
     }
 
     function generateLocalSPL() {
@@ -1123,35 +1163,30 @@
         const explanations = [];
 
         // Data sources (OR together)
+        const dataSourceEntries = [];
         if (state.selections.dataSources.length > 0) {
-            const dsSpls = state.selections.dataSources.map(id => {
+            state.selections.dataSources.forEach(id => {
                 const ds = state.mappings.dataSources.find(d => d.id === id);
-                return ds ? `(${ds.spl})` : null;
-            }).filter(Boolean);
-
-            if (dsSpls.length > 1) {
-                parts.push(`(${dsSpls.join(' OR ')})`);
-            } else if (dsSpls.length === 1) {
-                parts.push(dsSpls[0]);
-            }
-
-            const dsNames = state.selections.dataSources.map(id => {
-                const ds = state.mappings.dataSources.find(d => d.id === id);
-                return ds?.name;
-            }).filter(Boolean);
-            explanations.push(`Search in: ${dsNames.join(', ')}`);
+                if (!ds) return;
+                const spl = normalizeSplPart(ds.spl);
+                if (!spl) return;
+                dataSourceEntries.push({ name: ds.name, spl });
+            });
         }
 
-        // Time range (placed early to match UI order and SPL best practice)
-        if (state.selections.timeRange) {
-            const preset = state.mappings.timeRangePresets.find(t => t.id === state.selections.timeRange);
-            if (preset) {
-                parts.push(preset.spl);
-                explanations.push(`Time: ${preset.name}`);
-            } else {
-                parts.push(state.selections.timeRange);
-                explanations.push(`Time: ${state.selections.timeRange}`);
-            }
+        let baseSearch = '';
+        const generatingSources = dataSourceEntries.filter(entry => isGeneratingSpl(entry.spl));
+        const eventSources = dataSourceEntries.filter(entry => !isGeneratingSpl(entry.spl));
+
+        if (generatingSources.length > 0) {
+            baseSearch = generatingSources[0].spl;
+            explanations.push(`Search in: ${generatingSources[0].name}`);
+        } else if (eventSources.length > 0) {
+            const sourceNames = eventSources.map(entry => entry.name);
+            const sourceSpls = eventSources.map(entry => entry.spl);
+            const orGroup = sourceSpls.join(' OR ');
+            baseSearch = sourceSpls.length > 1 ? orGroup : sourceSpls[0];
+            explanations.push(`Search in: ${sourceNames.join(', ')}`);
         }
 
         // Includes (AND together)
@@ -1159,14 +1194,18 @@
         if (state.selections.includes.length > 0) {
             const includeSpls = state.selections.includes.map(id => {
                 const item = allItems.find(i => i.id === id);
-                return item?.spl;
+                if (!item) return null;
+                const normalized = normalizeSplPart(item.spl);
+                if (!normalized) return null;
+                return wrapIfOr(normalized);
             }).filter(Boolean);
 
             parts.push(...includeSpls);
 
             const includeNames = state.selections.includes.map(id => {
                 const item = allItems.find(i => i.id === id);
-                return item?.name;
+                if (!item) return null;
+                return normalizeSplPart(item.spl) ? item.name : null;
             }).filter(Boolean);
             explanations.push(`Filter for: ${includeNames.join(', ')}`);
         }
@@ -1175,20 +1214,60 @@
         if (state.selections.excludes.length > 0) {
             const excludeSpls = state.selections.excludes.map(id => {
                 const item = allItems.find(i => i.id === id);
-                return item ? `NOT ${item.spl}` : null;
+                if (!item) return null;
+                const normalized = normalizeSplPart(item.spl);
+                if (!normalized) return null;
+                if (isNegated(normalized)) {
+                    return wrapIfOr(normalized);
+                }
+                return `NOT ${wrapSpl(normalized)}`;
             }).filter(Boolean);
 
             parts.push(...excludeSpls);
 
             const excludeNames = state.selections.excludes.map(id => {
                 const item = allItems.find(i => i.id === id);
-                return item?.name;
+                if (!item) return null;
+                return normalizeSplPart(item.spl) ? item.name : null;
             }).filter(Boolean);
             explanations.push(`Excluding: ${excludeNames.join(', ')}`);
         }
 
-        // Build base search
-        let baseSearch = parts.length > 0 ? parts.join(' ') : '*';
+        // Time range (placed early to match UI order and SPL best practice)
+        let timeSpl = '';
+        if (state.selections.timeRange) {
+            const preset = state.mappings.timeRangePresets.find(t => t.id === state.selections.timeRange);
+            if (preset) {
+                timeSpl = normalizeSplPart(preset.spl);
+                explanations.push(`Time: ${preset.name}`);
+            } else {
+                timeSpl = normalizeSplPart(state.selections.timeRange);
+                explanations.push(`Time: ${state.selections.timeRange}`);
+            }
+        }
+
+        // Build base search with filters
+        const filterParts = parts.filter(Boolean);
+        if (!baseSearch && filterParts.length === 0) {
+            baseSearch = '*';
+        }
+
+        if (baseSearch && !isGeneratingSpl(baseSearch)) {
+            if (eventSources.length > 1 && (filterParts.length > 0 || timeSpl)) {
+                baseSearch = wrapSpl(baseSearch);
+            }
+            const combined = [baseSearch, timeSpl, ...filterParts].filter(Boolean);
+            baseSearch = combined.join(' ');
+        } else if (baseSearch) {
+            if (timeSpl) {
+                baseSearch = `${baseSearch} ${timeSpl}`;
+            }
+            if (filterParts.length > 0) {
+                baseSearch = `${baseSearch} | search ${filterParts.join(' ')}`;
+            }
+        } else if (filterParts.length > 0 || timeSpl) {
+            baseSearch = [filterParts.join(' '), timeSpl].filter(Boolean).join(' ');
+        }
 
         // Transformations
         let transformSpl = '';
@@ -1260,6 +1339,9 @@
                 const result = await response.json();
                 elements.splOutput.querySelector('.spl-code-display').textContent = result.spl;
                 elements.splExplanation.textContent = result.explanation;
+                if (window.SPLUNKed?.applySPLHighlighting) {
+                    window.SPLUNKed.applySPLHighlighting(elements.splOutput, { force: true });
+                }
             }
         } catch (error) {
             console.error('Failed to generate SPL:', error);

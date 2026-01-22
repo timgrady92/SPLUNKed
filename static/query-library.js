@@ -21,6 +21,29 @@ let QUERY_LIBRARY = []
 // UI State
 // ============================================
 
+// Unified state management - single source of truth
+let state = null;
+
+function initState() {
+    if (state) return state;
+
+    state = window.SPLUNKed?.createFeatureState?.({
+        category: 'all',
+        difficulty: 'all',
+        search: ''
+    }, {
+        storageKey: 'queryLibrary',
+        persistKeys: ['category', 'difficulty']
+    });
+
+    return state;
+}
+
+// State accessors
+const getCategory = () => state?.get('category') || 'all';
+const getDifficulty = () => state?.get('difficulty') || 'all';
+const getSearch = () => state?.get('search') || '';
+
 let filteredQueries = [...QUERY_LIBRARY];
 let currentRandomQuery = null;
 let randomQueryHistory = [];
@@ -37,6 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initQueryLibrary() {
+    initState();
+
     if (window.SPLUNKed?.loadQueryData) {
         const data = await SPLUNKed.loadQueryData();
         QUERY_CATEGORIES = data?.categories || {};
@@ -48,7 +73,15 @@ async function initQueryLibrary() {
 
     filteredQueries = [...QUERY_LIBRARY];
     initializeFilters();
-    renderQueryGrid();
+
+    // Restore persisted filter states
+    const categoryFilter = document.getElementById('categoryFilter');
+    const difficultyFilter = document.getElementById('difficultyFilter');
+
+    if (categoryFilter) categoryFilter.value = getCategory();
+    if (difficultyFilter) difficultyFilter.value = getDifficulty();
+
+    applyFilters();
     setupEventListeners();
     updateQueryCount();
 }
@@ -75,18 +108,19 @@ function initializeFilters() {
 
 function renderQueryGrid() {
     const grid = document.getElementById('queryGrid');
-    const emptyState = document.getElementById('emptyState');
+    const hasContent = filteredQueries.length > 0;
 
-    if (filteredQueries.length === 0) {
+    if (!hasContent) {
         grid.classList.add('hidden');
-        emptyState.classList.remove('hidden');
-        return;
+        grid.innerHTML = '';
+    } else {
+        grid.classList.remove('hidden');
+        grid.innerHTML = filteredQueries.map(query => createQueryCard(query)).join('');
     }
 
-    grid.classList.remove('hidden');
-    emptyState.classList.add('hidden');
-
-    grid.innerHTML = filteredQueries.map(query => createQueryCard(query)).join('');
+    if (window.SPLUNKed?.showEmptyState) {
+        SPLUNKed.showEmptyState('emptyState', hasContent);
+    }
 
     // Add click handlers
     grid.querySelectorAll('.query-card').forEach(card => {
@@ -116,59 +150,11 @@ function renderQueryGrid() {
     });
 }
 
+/**
+ * Create query card HTML using shared component
+ */
 function createQueryCard(query) {
-    const category = QUERY_CATEGORIES[query.category];
-
-    // Get first 3 lines of SPL for preview
-    const splLines = query.spl.split('\n');
-    const splPreview = splLines.slice(0, 3).join('\n');
-    const hasMoreLines = splLines.length > 3;
-
-    // Apply syntax highlighting if available
-    const highlightedPreview = window.SPLUNKed?.highlightSPL
-        ? window.SPLUNKed.highlightSPL(splPreview)
-        : SPLUNKed.escapeHtml(splPreview);
-
-    // Build metadata badges
-    const metadataBadges = [];
-    if (query.dataSource) {
-        metadataBadges.push(`<span class="query-meta-badge data-source" title="Data Source">${SPLUNKed.escapeHtml(query.dataSource)}</span>`);
-    }
-    if (query.mitre) {
-        const mitreArray = Array.isArray(query.mitre) ? query.mitre : [query.mitre];
-        mitreArray.forEach(technique => {
-            metadataBadges.push(`<span class="query-meta-badge mitre" title="MITRE ATT&CK">${SPLUNKed.escapeHtml(technique)}</span>`);
-        });
-    }
-    if (query.useCase) {
-        metadataBadges.push(`<span class="query-meta-badge use-case" title="Use Case">${SPLUNKed.escapeHtml(query.useCase)}</span>`);
-    }
-
-    return `
-        <div class="query-card" data-id="${query.id}" data-category="${query.category}" data-difficulty="${query.difficulty}">
-            <div class="query-card-header">
-                <span class="query-category-icon">${category.icon}</span>
-                <span class="query-difficulty-badge ${query.difficulty}">${query.difficulty}</span>
-            </div>
-            <h3 class="query-card-title">${query.title}</h3>
-            <p class="query-card-description">${query.description}</p>
-            ${metadataBadges.length > 0 ? `<div class="query-card-meta">${metadataBadges.join('')}</div>` : ''}
-            <div class="query-card-preview${hasMoreLines ? ' has-more' : ''}">
-                <pre><code>${highlightedPreview}</code></pre>
-            </div>
-            <div class="query-card-footer">
-                <div class="query-tags">
-                    ${query.tags.slice(0, 3).map(tag => `<span class="query-tag">${tag}</span>`).join('')}
-                </div>
-                <button class="query-copy-btn" aria-label="Copy query">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2"/>
-                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    `;
+    return SPLUNKed.components.createCard(query, { variant: 'query' });
 }
 
 // ============================================
@@ -348,8 +334,11 @@ function hideRandomQuery() {
 
 function applyFilters() {
     const searchTerm = document.getElementById('querySearch').value.toLowerCase();
-    const categoryFilter = document.getElementById('categoryFilter').value;
-    const difficultyFilter = document.getElementById('difficultyFilter').value;
+    const category = document.getElementById('categoryFilter').value;
+    const difficulty = document.getElementById('difficultyFilter').value;
+
+    // Sync state
+    state?.set({ search: searchTerm, category, difficulty });
 
     filteredQueries = QUERY_LIBRARY.filter(query => {
         const matchesSearch = !searchTerm ||
@@ -358,8 +347,8 @@ function applyFilters() {
             query.spl.toLowerCase().includes(searchTerm) ||
             query.tags.some(tag => tag.toLowerCase().includes(searchTerm));
 
-        const matchesCategory = categoryFilter === 'all' || query.category === categoryFilter;
-        const matchesDifficulty = difficultyFilter === 'all' || query.difficulty === difficultyFilter;
+        const matchesCategory = category === 'all' || query.category === category;
+        const matchesDifficulty = difficulty === 'all' || query.difficulty === difficulty;
 
         return matchesSearch && matchesCategory && matchesDifficulty;
     });

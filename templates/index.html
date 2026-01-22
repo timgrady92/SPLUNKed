@@ -25,10 +25,6 @@
                 <span class="hero-nav-icon">&#9670;</span>
                 <span class="hero-nav-title">Knowledge</span>
             </a>
-            <a href="{{ url_for('guides') }}" class="hero-nav-link">
-                <span class="hero-nav-icon">?</span>
-                <span class="hero-nav-title">Guides</span>
-            </a>
             <a href="{{ url_for('training') }}" class="hero-nav-link">
                 <span class="hero-nav-icon">&#9655;</span>
                 <span class="hero-nav-title">Training</span>
@@ -65,14 +61,6 @@
         ) }}
 
         {{ feature_card(
-            title="Investigation Guides",
-            description="Detection-driven and data-source guides for security investigations. Real-world scenarios with SPL patterns you can apply immediately.",
-            icon="?",
-            link=url_for('guides'),
-            link_text="View Guides"
-        ) }}
-
-        {{ feature_card(
             title="Training Center",
             description="Hands-on tutorials, realistic scenarios, and skill challenges. Progress from foundations to expert-level techniques at your own pace.",
             icon="▷",
@@ -90,7 +78,7 @@
 
         {{ feature_card(
             title="Query Library",
-            description="100 curated SPL queries for security analysts. Browse by category, search by keyword, or discover random queries for creative inspiration.",
+            description="200+ curated SPL queries for security analysts. Browse by category, search by keyword, or discover random queries for creative inspiration.",
             icon="&#9861;",
             link=url_for('query_library'),
             link_text="Browse Queries"

@@ -4,54 +4,118 @@
    ============================================ */
 
 /* ============================================
+   Offline Font Faces
+   ============================================ */
+@font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/static/fonts/IBMPlexSans-Latin.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/static/fonts/IBMPlexSans-Latin.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/static/fonts/IBMPlexSans-Latin.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'IBM Plex Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/static/fonts/IBMPlexMono-Regular-Latin.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'IBM Plex Mono';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/static/fonts/IBMPlexMono-SemiBold-Latin.woff2') format('woff2');
+}
+
+/* ============================================
    CSS Variables - Design Tokens
    ============================================ */
 :root {
-    /* Background Colors - Dark Tech Stack */
-    --bg-dark: #0a0a0a;
-    --bg-mid: #1a1a1a;
-    --bg-bright: #252525;
-    --bg-elevated: #2a2a2a;
-    --bg-hover: #333333;
+    /* Background Colors - Warm Graphite */
+    --bg-dark: #120c0a;
+    --bg-mid: #1b1410;
+    --bg-bright: #241b15;
+    --bg-elevated: #2b2119;
+    --bg-hover: #35291f;
 
-    /* Splunk-Inspired Accent Colors */
-    --splunk-orange: #ff6b35;
-    --splunk-orange-rgb: 255, 107, 53;
-    --splunk-orange-dark: #cc5629;
-    --splunk-orange-light: #ff8c5a;
+    /* Anchor Accent - Copper Rail */
+    --splunk-orange: #e07a3a;
+    --splunk-orange-rgb: 224, 122, 58;
+    --splunk-orange-dark: #c0672f;
+    --splunk-orange-light: #f3a86c;
 
-    --splunk-green: #65d26e;
-    --splunk-green-rgb: 101, 210, 110;
-    --splunk-green-dark: #4fa858;
+    --splunk-green: #7fbe89;
+    --splunk-green-rgb: 127, 190, 137;
+    --splunk-green-dark: #5d9a66;
 
-    --splunk-pink: #ed4a7b;
-    --splunk-pink-rgb: 237, 74, 123;
+    --splunk-pink: #e05a7a;
+    --splunk-pink-rgb: 224, 90, 122;
 
-    --splunk-teal: #00c4b4;
-    --splunk-teal-rgb: 0, 196, 180;
+    --splunk-teal: #c29a6b;
+    --splunk-teal-rgb: 194, 154, 107;
 
-    --splunk-amber: #f5a623;
-    --splunk-amber-rgb: 245, 166, 35;
+    --splunk-amber: #f0b04e;
+    --splunk-amber-rgb: 240, 176, 78;
 
-    --splunk-blue: #5b9bd5;
-    --splunk-blue-rgb: 91, 155, 213;
+    --splunk-blue: #9a8f84;
+    --splunk-blue-rgb: 154, 143, 132;
+
+    /* SPL Syntax Highlighting - Splunk-aligned */
+    --spl-syntax-command: #2a7ba6;
+    --spl-syntax-keyword: #f79a3e;
+    --spl-syntax-function: #7b4c9d;
+    --spl-syntax-field: #65a637;
+    --spl-syntax-string: #e8c14c;
+    --spl-syntax-number: #6fb7d9;
+    --spl-syntax-operator: #9aa3ad;
+    --spl-syntax-macro: #bc3a86;
 
     /* Text Colors */
-    --text-main: #f0f0f0;
-    --text-muted: #a0a0a0;
-    --text-dim: #666666;
-    --text-inverse: #0a0a0a;
+    --text-main: #f3ede7;
+    --text-muted: #c7b7a8;
+    --text-dim: #8b7c6f;
+    --text-inverse: #120c0a;
 
     /* Border Colors */
-    --border-subtle: #333333;
-    --border-default: #444444;
-    --border-strong: #555555;
+    --border-subtle: #3a2b21;
+    --border-default: #4a372a;
+    --border-strong: #5b4434;
+
+    /* Surface Colors */
+    --surface-card: linear-gradient(180deg, rgba(42, 33, 26, 0.68), rgba(23, 18, 14, 0.56));
+    --surface-panel: linear-gradient(180deg, rgba(40, 31, 25, 0.78), rgba(22, 17, 13, 0.68));
+    --surface-glow: rgba(var(--splunk-orange-rgb), 0.06);
+
+    /* Rail + Node */
+    --rail-soft: rgba(var(--splunk-orange-rgb), 0.25);
+    --rail-strong: rgba(var(--splunk-orange-rgb), 0.65);
+    --rail-node: #f1b37c;
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
-    --shadow-glow: 0 0 20px rgba(var(--splunk-orange-rgb), 0.3);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.22);
+    --shadow-md: 0 6px 14px rgba(0, 0, 0, 0.28);
+    --shadow-lg: 0 12px 26px rgba(0, 0, 0, 0.35);
+    --shadow-glow: 0 0 16px rgba(var(--splunk-orange-rgb), 0.22);
+    --shadow-lift: 0 14px 30px rgba(0, 0, 0, 0.32);
 
     /* Spacing */
     --space-xs: 0.25rem;
@@ -63,8 +127,8 @@
     --space-3xl: 4rem;
 
     /* Typography */
-    --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
     --text-xs: 0.75rem;
     --text-sm: 0.875rem;
@@ -79,6 +143,7 @@
     --radius-sm: 4px;
     --radius-md: 8px;
     --radius-lg: 12px;
+    --radius-xl: 18px;
     --radius-full: 9999px;
 
     /* Transitions */
@@ -97,6 +162,25 @@
     --z-sidebar: 200;
     --z-modal: 300;
     --z-tooltip: 400;
+
+    /* Badge Tokens */
+    --badge-padding: 4px 10px;
+    --badge-radius-rect: var(--radius-sm);
+    --badge-radius-pill: var(--radius-full);
+    --badge-opacity: 0.15;
+    --badge-font-size: var(--text-xs);
+
+    /* Card Tokens */
+    --card-padding: var(--space-xl);
+    --card-transition: var(--transition-base);
+    --card-title-size: var(--text-lg);
+    --card-header-margin: var(--space-md);
+
+    /* Modal Tokens */
+    --modal-backdrop-blur: 8px;
+    --modal-close-size: 36px;
+    --modal-max-width-md: 700px;
+    --modal-max-width-lg: 900px;
 }
 
 /* ============================================
@@ -136,11 +220,22 @@ body::before {
     width: 100%;
     height: 100%;
     background-image:
-        linear-gradient(rgba(var(--splunk-orange-rgb), 0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(var(--splunk-orange-rgb), 0.02) 1px, transparent 1px);
-    background-size: 50px 50px;
+        radial-gradient(circle at 18% 18%, rgba(var(--splunk-orange-rgb), 0.09), transparent 40%),
+        radial-gradient(circle at 82% 12%, rgba(var(--splunk-amber-rgb), 0.06), transparent 42%),
+        linear-gradient(rgba(var(--splunk-orange-rgb), 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--splunk-orange-rgb), 0.025) 1px, transparent 1px);
+    background-size: 1200px 1200px, 900px 900px, 52px 52px, 52px 52px;
     pointer-events: none;
     z-index: -1;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(18, 12, 10, 0.55) 0%, rgba(22, 16, 13, 0.12) 55%, rgba(18, 12, 10, 0.6) 100%);
+    pointer-events: none;
+    z-index: -2;
 }
 
 /* ============================================
@@ -219,9 +314,9 @@ kbd {
     left: 0;
     right: 0;
     height: var(--navbar-height);
-    background: linear-gradient(180deg, rgba(26, 26, 26, 0.98) 0%, rgba(10, 10, 10, 0.95) 100%);
+    background: linear-gradient(180deg, rgba(20, 23, 30, 0.98) 0%, rgba(10, 12, 16, 0.95) 100%);
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 107, 53, 0.15);
+    border-bottom: 1px solid rgba(var(--splunk-orange-rgb), 0.18);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 20px rgba(0, 0, 0, 0.15);
     z-index: var(--z-sticky);
 }
@@ -255,14 +350,14 @@ kbd {
 }
 
 .navbar-brand:hover .brand-icon {
-    text-shadow: 0 0 12px rgba(255, 107, 53, 0.6);
+    text-shadow: 0 0 12px rgba(var(--splunk-orange-rgb), 0.6);
 }
 
 .brand-icon {
     color: var(--splunk-orange);
     font-family: var(--font-mono);
     font-size: var(--text-2xl);
-    text-shadow: 0 0 8px rgba(255, 107, 53, 0.4);
+    text-shadow: 0 0 8px rgba(var(--splunk-orange-rgb), 0.4);
     transition: text-shadow var(--transition-fast);
 }
 
@@ -272,7 +367,7 @@ kbd {
 
 .brand-text {
     font-family: var(--font-mono);
-    letter-spacing: 1px;
+    letter-spacing: 0.08em;
 }
 
 .brand-accent {
@@ -651,13 +746,42 @@ kbd {
 
 .page-header {
     margin-bottom: var(--space-2xl);
-    text-align: center;
+    text-align: left;
+    position: relative;
+    padding: var(--space-lg) var(--space-lg) var(--space-lg) calc(var(--space-lg) + 20px);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(30, 35, 45, 0.45), rgba(18, 21, 27, 0.65));
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-sm);
+}
+
+.page-header::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    bottom: 12px;
+    width: 2px;
+    background: linear-gradient(180deg, transparent, var(--rail-strong), transparent);
+    border-radius: 2px;
+}
+
+.page-header::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    width: 8px;
+    height: 8px;
+    background: var(--rail-node);
+    border-radius: 50%;
+    box-shadow: 0 0 12px rgba(var(--splunk-orange-rgb), 0.35);
 }
 
 .page-title {
     font-size: var(--text-4xl);
     margin-bottom: var(--space-md);
-    background: linear-gradient(135deg, var(--text-main), var(--splunk-orange));
+    background: linear-gradient(135deg, var(--text-main), var(--splunk-orange-light));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -666,8 +790,8 @@ kbd {
 .page-subtitle {
     font-size: var(--text-lg);
     color: var(--text-muted);
-    max-width: 600px;
-    margin: 0 auto;
+    max-width: 680px;
+    margin: 0;
 }
 
 /* ============================================
@@ -695,8 +819,8 @@ kbd {
     height: 800px;
     background: radial-gradient(
         circle,
-        rgba(var(--splunk-orange-rgb), 0.1) 0%,
-        transparent 70%
+        rgba(var(--splunk-orange-rgb), 0.12) 0%,
+        transparent 68%
     );
     pointer-events: none;
 }
@@ -790,12 +914,12 @@ kbd {
 }
 
 .btn-primary {
-    background: var(--splunk-orange);
+    background: linear-gradient(135deg, var(--splunk-orange), var(--splunk-amber));
     color: var(--text-inverse);
 }
 
 .btn-primary:hover {
-    background: var(--splunk-orange-light);
+    background: linear-gradient(135deg, var(--splunk-orange-light), var(--splunk-amber));
     color: var(--text-inverse);
     box-shadow: var(--shadow-glow);
     transform: translateY(-2px);
@@ -877,7 +1001,7 @@ kbd {
 }
 
 .feature-card {
-    background: var(--bg-mid);
+    background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     padding: var(--space-xl);
@@ -893,7 +1017,7 @@ kbd {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, var(--splunk-orange), var(--splunk-pink));
+    background: linear-gradient(90deg, var(--splunk-orange), var(--splunk-amber));
     transform: scaleX(0);
     transform-origin: left;
     transition: transform var(--transition-base);
@@ -902,7 +1026,7 @@ kbd {
 .feature-card:hover {
     border-color: var(--splunk-orange);
     transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lift);
 }
 
 .feature-card:hover::before {
@@ -942,6 +1066,50 @@ kbd {
 
 .feature-link:hover .link-arrow {
     transform: translateX(4px);
+}
+
+/* ============================================
+   Unified Badge System (BEM)
+   Base: .splunked-badge
+   Modifiers: --pill, --beginner, --intermediate, --advanced
+   ============================================ */
+.splunked-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--badge-padding);
+    border-radius: var(--badge-radius-rect);
+    font-size: var(--badge-font-size);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.splunked-badge--pill {
+    border-radius: var(--badge-radius-pill);
+}
+
+/* Level/difficulty color variants */
+.splunked-badge--beginner {
+    background: rgba(var(--splunk-green-rgb), var(--badge-opacity));
+    color: var(--splunk-green);
+}
+
+.splunked-badge--intermediate {
+    background: rgba(var(--splunk-amber-rgb), var(--badge-opacity));
+    color: var(--splunk-amber);
+}
+
+.splunked-badge--advanced {
+    background: rgba(var(--splunk-orange-rgb), var(--badge-opacity));
+    color: var(--splunk-orange);
+}
+
+/* Badge padding standardization via :where() for legacy classes */
+:where(.skill-badge, .training-type-badge, .guide-type-badge,
+       .level-badge, .query-difficulty-badge, .pipeline-level-badge, .pipeline-track-badge) {
+    padding: var(--badge-padding);
+    font-size: var(--badge-font-size);
 }
 
 /* ============================================
@@ -1068,8 +1236,8 @@ kbd {
 }
 
 :where(.card-icon.macros, .icon-filter-btn[data-filter="macros"]) {
-    --icon-color: #818cf8;
-    --icon-bg: rgba(129, 140, 248, 0.15);
+    --icon-color: var(--splunk-blue);
+    --icon-bg: rgba(var(--splunk-blue-rgb), 0.15);
 }
 
 :where(.card-icon.engineering, .icon-filter-btn[data-filter="engineering"]) {
@@ -1398,7 +1566,14 @@ kbd {
     border-bottom: 1px solid var(--border-subtle);
 }
 
-.category-tab {
+/* ============================================
+   Unified Tab System (BEM)
+   Base: .splunked-tab
+   Modifiers: --underline (glossary/references), --pill (training)
+   ============================================ */
+
+/* Base tab styles - shared by all tab variants */
+.splunked-tab {
     padding: var(--space-md) var(--space-lg);
     background: transparent;
     border: none;
@@ -1411,7 +1586,87 @@ kbd {
     position: relative;
 }
 
-.category-tab::after {
+.splunked-tab:hover {
+    color: var(--text-main);
+}
+
+.splunked-tab.active {
+    color: var(--splunk-orange);
+}
+
+.splunked-tab:focus-visible {
+    outline: 2px solid var(--splunk-orange);
+    outline-offset: 2px;
+}
+
+/* Unified focus-visible state for all tab variants */
+:where(.splunked-tab, .category-tab, .training-tab):focus-visible {
+    outline: 2px solid var(--splunk-orange);
+    outline-offset: 2px;
+}
+
+/* Underline variant - styles now shared with .category-tab below */
+
+/* Pill variant - used by training (shared with .training-tab) */
+:where(.splunked-tab--pill, .training-tab) {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-base);
+}
+
+:where(.splunked-tab--pill, .training-tab):hover {
+    background: var(--bg-mid);
+    border-color: var(--border-default);
+}
+
+:where(.splunked-tab--pill, .training-tab).active {
+    background: var(--bg-mid);
+    border-color: var(--splunk-orange);
+    color: var(--text-main);
+}
+
+:where(.splunked-tab--pill, .training-tab).active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--splunk-orange);
+    border-radius: 2px 2px 0 0;
+}
+
+/* Tab container variants */
+.splunked-tabs {
+    display: flex;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+}
+
+.splunked-tabs--bordered {
+    padding-bottom: var(--space-md);
+    margin-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Legacy support - .category-tab inherits from .splunked-tab--underline via shared selectors */
+:where(.category-tab) {
+    /* Inherits base tab styles */
+    padding: var(--space-md) var(--space-lg);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+/* Shared underline behavior for both unified and legacy classes */
+:where(.splunked-tab--underline, .category-tab)::after {
     content: '';
     position: absolute;
     bottom: -1px;
@@ -1423,15 +1678,15 @@ kbd {
     transition: transform var(--transition-fast);
 }
 
-.category-tab:hover {
+:where(.splunked-tab--underline, .category-tab):hover {
     color: var(--text-main);
 }
 
-.category-tab.active {
+:where(.splunked-tab--underline, .category-tab).active {
     color: var(--splunk-orange);
 }
 
-.category-tab.active::after {
+:where(.splunked-tab--underline, .category-tab).active::after {
     transform: scaleX(1);
 }
 
@@ -1472,23 +1727,23 @@ kbd {
 .glossary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--space-lg);
+    gap: var(--space-xl);
 }
 
 .glossary-card {
-    background: var(--bg-mid);
+    background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
-    padding: var(--space-lg);
+    padding: var(--card-padding);
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all var(--card-transition);
     position: relative;
 }
 
 .glossary-card:hover {
     border-color: var(--splunk-orange);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lift);
 }
 
 .glossary-card.expanded {
@@ -1665,6 +1920,7 @@ kbd {
 
 /* ============================================
    Training Tabs Navigation
+   Legacy support - .training-tab now extends .splunked-tab--pill
    ============================================ */
 .training-tabs {
     display: flex;
@@ -1675,40 +1931,19 @@ kbd {
     flex-wrap: wrap;
 }
 
+/* .training-tab - base properties only, pill variant styles shared above */
 .training-tab {
     padding: var(--space-md) var(--space-lg);
-    background: var(--bg-dark);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
     color: var(--text-muted);
     font-size: var(--text-sm);
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--transition-base);
+    white-space: nowrap;
+    position: relative;
 }
 
 .training-tab:hover {
-    background: var(--bg-mid);
     color: var(--text-main);
-    border-color: var(--border-default);
-}
-
-.training-tab.active {
-    position: relative;
-    background: var(--bg-mid);
-    border-color: var(--splunk-orange);
-    color: var(--text-main);
-}
-
-.training-tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--splunk-orange);
-    border-radius: 2px 2px 0 0;
 }
 
 /* ============================================
@@ -1830,21 +2065,21 @@ kbd {
 }
 
 /* ============================================
-   Guide Cards
+   Lesson Cards
    ============================================ */
-.guides-grid {
+.lessons-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--space-lg);
+    gap: var(--space-xl);
 }
 
 .guide-card {
     position: relative;
-    background: var(--bg-mid);
+    background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
-    padding: var(--space-lg);
-    transition: all var(--transition-base);
+    padding: var(--card-padding);
+    transition: all var(--card-transition);
     display: flex;
     flex-direction: column;
     cursor: pointer;
@@ -1857,16 +2092,16 @@ kbd {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, var(--splunk-green), var(--splunk-teal));
+    background: linear-gradient(90deg, var(--splunk-orange), var(--splunk-amber));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     opacity: 0;
     transition: opacity var(--transition-fast);
 }
 
 .guide-card:hover {
-    border-color: var(--splunk-teal);
+    border-color: var(--splunk-orange);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lift);
 }
 
 .guide-card:hover::before {
@@ -1877,7 +2112,7 @@ kbd {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    margin-bottom: var(--space-md);
+    margin-bottom: var(--card-header-margin);
 }
 
 .guide-type-badge {
@@ -2083,6 +2318,7 @@ kbd {
     margin: 0;
 }
 
+/* .guide-modal-close - hover shared with training/pipeline modals */
 .guide-modal-close {
     width: 36px;
     height: 36px;
@@ -2097,11 +2333,6 @@ kbd {
     cursor: pointer;
     transition: all var(--transition-fast);
     flex-shrink: 0;
-}
-
-.guide-modal-close:hover {
-    background: var(--bg-elevated);
-    color: var(--text-main);
 }
 
 .guide-modal-body {
@@ -2296,43 +2527,44 @@ kbd {
 }
 
 .spl-pipe {
-    color: var(--splunk-orange);
+    color: var(--spl-syntax-operator);
     font-weight: 600;
-    opacity: 0.8;
+    opacity: 0.9;
 }
 
 /* SPL Syntax Highlighting */
 .spl-keyword {
-    color: #f472b6;
+    color: var(--spl-syntax-keyword);
+    font-weight: 600;
 }
 
 .spl-command {
-    color: #fb923c;
+    color: var(--spl-syntax-command);
     font-weight: 500;
 }
 
 .spl-function {
-    color: #2dd4bf;
+    color: var(--spl-syntax-function);
 }
 
 .spl-field {
-    color: #4ade80;
+    color: var(--spl-syntax-field);
 }
 
 .spl-string {
-    color: #fbbf24;
+    color: var(--spl-syntax-string);
 }
 
 .spl-number {
-    color: #60a5fa;
+    color: var(--spl-syntax-number);
 }
 
 .spl-operator {
-    color: #94a3b8;
+    color: var(--spl-syntax-operator);
 }
 
 .spl-macro {
-    color: #c084fc;
+    color: var(--spl-syntax-macro);
     font-style: italic;
 }
 
@@ -2438,18 +2670,18 @@ kbd {
     color: var(--splunk-amber);
 }
 
-/* Note Callout - Blue accent */
+/* Note Callout - Orange accent */
 .guide-callout.note {
-    background: rgba(59, 130, 246, 0.08);
-    border-color: var(--splunk-blue);
+    background: rgba(var(--splunk-orange-rgb), 0.08);
+    border-color: var(--splunk-orange);
 }
 
 .guide-callout.note::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' x2='12' y1='16' y2='12'/%3E%3Cline x1='12' x2='12.01' y1='8' y2='8'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e07a3a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' x2='12' y1='16' y2='12'/%3E%3Cline x1='12' x2='12.01' y1='8' y2='8'/%3E%3C/svg%3E");
 }
 
 .guide-callout.note .guide-callout-title {
-    color: var(--splunk-blue);
+    color: var(--splunk-orange);
 }
 
 /* Success/Remember Callout - Green accent */
@@ -2506,9 +2738,93 @@ kbd {
 }
 
 /* ============================================
-   Modal (Generic)
+   Unified Modal System (BEM)
+   Base: .splunked-modal
+   Modifiers: --guide, --training, --pipeline
+   Note: Core styles shared with legacy .modal-* below
    ============================================ */
-.modal-overlay {
+
+/* Shared modal overlay base */
+.splunked-modal__overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: var(--z-modal);
+}
+
+/* Modal container - base positioning */
+.splunked-modal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xl);
+}
+
+.splunked-modal.active {
+    display: flex;
+}
+
+/* Modal content - position and z-index overrides */
+.splunked-modal__content {
+    position: relative;
+    width: 90%;
+    max-width: 800px;
+    z-index: 1;
+}
+
+/* Close button enhanced hover */
+.splunked-modal__close {
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+}
+
+.splunked-modal__close:hover {
+    background: var(--bg-elevated);
+    color: var(--text-main);
+}
+
+/* Guide variant */
+.splunked-modal--guide {
+    align-items: flex-start;
+    overflow-y: auto;
+}
+
+/* Training variant */
+.splunked-modal--training .splunked-modal__content {
+    max-width: 900px;
+}
+
+/* Pipeline variant */
+.splunked-modal--pipeline .splunked-modal__content {
+    max-width: 850px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .splunked-modal {
+        padding: 0;
+    }
+
+    .splunked-modal__content {
+        width: 100%;
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+}
+
+/* ============================================
+   Modal (Generic) - Legacy support
+   Shares styles with unified .splunked-modal system
+   ============================================ */
+
+/* Shared overlay styles */
+:where(.modal-overlay) {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.8);
@@ -2519,11 +2835,12 @@ kbd {
     padding: var(--space-xl);
 }
 
-.modal-overlay.open {
+:where(.modal-overlay, .splunked-modal).open {
     display: flex;
 }
 
-.modal {
+/* Shared modal container styles */
+:where(.modal, .splunked-modal__content) {
     width: 100%;
     max-width: 700px;
     max-height: 90vh;
@@ -2535,7 +2852,8 @@ kbd {
     flex-direction: column;
 }
 
-.modal-header {
+/* Shared header styles */
+:where(.modal-header, .splunked-modal__header) {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2580,9 +2898,10 @@ kbd {
     font-size: var(--text-xl);
 }
 
-.modal-close {
-    width: 32px;
-    height: 32px;
+/* Shared close button styles - standardized size across all modals */
+:where(.modal-close, .splunked-modal__close) {
+    width: var(--modal-close-size);
+    height: var(--modal-close-size);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2591,14 +2910,46 @@ kbd {
     color: var(--text-muted);
     font-size: var(--text-2xl);
     cursor: pointer;
-    transition: color var(--transition-fast);
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-md);
 }
 
-.modal-close:hover {
+:where(.modal-close, .splunked-modal__close):hover {
+    background: var(--bg-elevated);
     color: var(--splunk-orange);
 }
 
-.modal-content {
+/* Consistent close button hover for all modal types */
+:where(.modal-close, .splunked-modal__close,
+       .training-modal-close, .guide-modal-close,
+       .pipeline-modal-close):hover {
+    background: var(--bg-elevated);
+    color: var(--splunk-orange);
+}
+
+/* Standardized backdrop blur across all modal overlays */
+:where(.modal-overlay, .splunked-modal__overlay,
+       .training-modal-overlay, .guide-modal-overlay,
+       .pipeline-modal-overlay) {
+    backdrop-filter: blur(var(--modal-backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--modal-backdrop-blur));
+}
+
+/* Mobile breakpoints for generic modals */
+@media (max-width: 768px) {
+    .modal-overlay {
+        padding: 0;
+    }
+    .modal {
+        width: 100%;
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+}
+
+/* Shared body styles */
+:where(.modal-content, .splunked-modal__body) {
     padding: var(--space-lg);
     overflow-y: auto;
     flex: 1;
@@ -2899,7 +3250,7 @@ kbd {
     }
 
     .glossary-grid,
-    .guides-grid {
+    .lessons-grid {
         grid-template-columns: 1fr;
     }
 
@@ -3135,11 +3486,11 @@ kbd {
 }
 
 .tabbed-section.section-what {
-    border-left-color: var(--splunk-blue);
+    border-left-color: var(--splunk-amber);
 }
 
 .tabbed-section.section-what .tabbed-section-header {
-    color: var(--splunk-blue);
+    color: var(--splunk-amber);
 }
 
 .tabbed-section.section-why {
@@ -3826,13 +4177,13 @@ kbd {
     margin-bottom: var(--space-xl);
     display: flex;
     gap: var(--space-sm);
-    background: rgba(26, 26, 26, 0.6);
+    background: var(--surface-panel);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     padding: var(--space-xs);
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-sm);
 }
 
 .builder-tab {
@@ -3869,9 +4220,9 @@ kbd {
 }
 
 .builder-tab.active {
-    background: linear-gradient(135deg, var(--splunk-orange), var(--splunk-orange-dark));
+    background: linear-gradient(135deg, var(--splunk-orange), var(--splunk-amber));
     color: var(--text-inverse);
-    box-shadow: 0 4px 15px rgba(var(--splunk-orange-rgb), 0.4);
+    box-shadow: 0 6px 18px rgba(var(--splunk-orange-rgb), 0.35);
 }
 
 .builder-panel {
@@ -4232,18 +4583,16 @@ kbd {
 
 /* Glassmorphism Section Cards */
 .composer-section {
-    background: linear-gradient(135deg, rgba(26, 26, 26, 0.8), rgba(37, 37, 37, 0.6));
+    background: var(--surface-card);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     padding: var(--space-md) var(--space-lg);
     position: relative;
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow:
-        0 4px 24px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 /* Collapsed section is more compact */
@@ -4262,11 +4611,8 @@ kbd {
 }
 
 .composer-section:hover {
-    border-color: rgba(var(--splunk-orange-rgb), 0.2);
-    box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(var(--splunk-orange-rgb), 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border-color: rgba(var(--splunk-orange-rgb), 0.3);
+    box-shadow: var(--shadow-lift);
 }
 
 .section-header {
@@ -4422,13 +4768,13 @@ kbd {
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
 }
 
-/* Section 1: Data Sources - OR logic (Blue) */
+/* Section 1: Data Sources - OR logic (Teal) */
 .composer-section:nth-child(1) .section-hint {
-    background: linear-gradient(135deg, rgba(var(--splunk-blue-rgb), 0.2), rgba(var(--splunk-blue-rgb), 0.1));
-    border: 1px solid rgba(var(--splunk-blue-rgb), 0.3);
-    color: var(--splunk-blue);
+    background: linear-gradient(135deg, rgba(var(--splunk-teal-rgb), 0.22), rgba(var(--splunk-teal-rgb), 0.12));
+    border: 1px solid rgba(var(--splunk-teal-rgb), 0.35);
+    color: var(--splunk-teal);
     box-shadow:
-        0 2px 8px rgba(var(--splunk-blue-rgb), 0.15),
+        0 2px 8px rgba(var(--splunk-teal-rgb), 0.18),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -4437,7 +4783,7 @@ kbd {
     font-family: var(--font-mono);
     font-weight: 700;
     font-size: 0.7rem;
-    background: var(--splunk-blue);
+    background: var(--splunk-orange);
     color: white;
     padding: 2px 6px;
     border-radius: 4px;
@@ -4492,13 +4838,13 @@ kbd {
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* Section 4: Transformations (Purple) */
+/* Section 4: Transformations (Teal) */
 .composer-section:nth-child(4) .section-hint {
-    background: linear-gradient(135deg, rgba(147, 112, 219, 0.2), rgba(147, 112, 219, 0.1));
-    border: 1px solid rgba(147, 112, 219, 0.3);
-    color: #9370db;
+    background: linear-gradient(135deg, rgba(var(--splunk-teal-rgb), 0.22), rgba(var(--splunk-teal-rgb), 0.12));
+    border: 1px solid rgba(var(--splunk-teal-rgb), 0.35);
+    color: var(--splunk-teal);
     box-shadow:
-        0 2px 8px rgba(147, 112, 219, 0.15),
+        0 2px 8px rgba(var(--splunk-teal-rgb), 0.18),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -4535,24 +4881,24 @@ kbd {
     display: flex;
     flex-direction: column;
     padding: var(--space-sm) var(--space-md);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(16, 20, 26, 0.4));
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-md);
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .quick-action-card:hover {
-    background: linear-gradient(135deg, rgba(147, 112, 219, 0.15), rgba(147, 112, 219, 0.05));
-    border-color: rgba(147, 112, 219, 0.4);
+    background: linear-gradient(135deg, rgba(var(--splunk-teal-rgb), 0.16), rgba(16, 20, 26, 0.2));
+    border-color: rgba(var(--splunk-teal-rgb), 0.4);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(147, 112, 219, 0.2);
+    box-shadow: 0 4px 12px rgba(var(--splunk-teal-rgb), 0.22);
 }
 
 .quick-action-card:focus {
     outline: none;
-    border-color: rgba(147, 112, 219, 0.6);
-    box-shadow: 0 0 0 3px rgba(147, 112, 219, 0.2);
+    border-color: rgba(var(--splunk-teal-rgb), 0.6);
+    box-shadow: 0 0 0 3px rgba(var(--splunk-teal-rgb), 0.25);
 }
 
 .quick-action-header {
@@ -4568,12 +4914,12 @@ kbd {
     justify-content: center;
     width: 24px;
     height: 24px;
-    background: rgba(147, 112, 219, 0.2);
+    background: rgba(var(--splunk-teal-rgb), 0.2);
     border-radius: var(--radius-sm);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     font-weight: 700;
-    color: #9370db;
+    color: var(--splunk-teal);
 }
 
 .quick-action-title {
@@ -4620,7 +4966,7 @@ kbd {
 }
 
 .transform-more-toggle:hover {
-    border-color: rgba(147, 112, 219, 0.3);
+    border-color: rgba(var(--splunk-teal-rgb), 0.3);
     color: var(--text-muted);
     background: rgba(255, 255, 255, 0.02);
 }
@@ -4681,15 +5027,15 @@ kbd {
 }
 
 .advanced-transform-btn:hover {
-    background: rgba(147, 112, 219, 0.1);
-    border-color: rgba(147, 112, 219, 0.3);
+    background: rgba(var(--splunk-teal-rgb), 0.12);
+    border-color: rgba(var(--splunk-teal-rgb), 0.35);
     color: var(--text-main);
 }
 
 .advanced-transform-btn .adv-icon {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    color: #9370db;
+    color: var(--splunk-teal);
     width: 20px;
     text-align: center;
 }
@@ -4733,7 +5079,7 @@ kbd {
     display: block;
     font-family: var(--font-mono);
     font-size: var(--text-2xl);
-    color: rgba(147, 112, 219, 0.3);
+    color: rgba(var(--splunk-teal-rgb), 0.35);
     margin-bottom: var(--space-sm);
 }
 
@@ -4761,7 +5107,7 @@ kbd {
 }
 
 .transform-step:hover {
-    border-color: rgba(147, 112, 219, 0.3);
+    border-color: rgba(var(--splunk-teal-rgb), 0.3);
 }
 
 .transform-step-header {
@@ -4769,7 +5115,7 @@ kbd {
     align-items: center;
     gap: var(--space-sm);
     padding: var(--space-sm) var(--space-md);
-    background: rgba(147, 112, 219, 0.1);
+    background: rgba(var(--splunk-teal-rgb), 0.12);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -4779,8 +5125,8 @@ kbd {
     justify-content: center;
     width: 20px;
     height: 20px;
-    background: rgba(147, 112, 219, 0.3);
-    color: #9370db;
+    background: rgba(var(--splunk-teal-rgb), 0.3);
+    color: var(--splunk-teal);
     font-size: var(--text-xs);
     font-weight: 700;
     border-radius: var(--radius-full);
@@ -4869,8 +5215,8 @@ kbd {
 .transform-field-select:focus,
 .transform-field-textarea:focus {
     outline: none;
-    border-color: rgba(147, 112, 219, 0.5);
-    box-shadow: 0 0 0 3px rgba(147, 112, 219, 0.15);
+    border-color: rgba(var(--splunk-teal-rgb), 0.5);
+    box-shadow: 0 0 0 3px rgba(var(--splunk-teal-rgb), 0.15);
 }
 
 .transform-field-select {
@@ -4916,9 +5262,9 @@ kbd {
 }
 
 .transform-preset:hover {
-    background: rgba(147, 112, 219, 0.15);
-    border-color: rgba(147, 112, 219, 0.3);
-    color: #9370db;
+    background: rgba(var(--splunk-teal-rgb), 0.18);
+    border-color: rgba(var(--splunk-teal-rgb), 0.35);
+    color: var(--splunk-teal);
 }
 
 /* Advanced options toggle */
@@ -4968,7 +5314,7 @@ kbd {
     right: 0;
     margin-top: var(--space-xs);
     background: var(--bg-elevated);
-    border: 1px solid rgba(147, 112, 219, 0.3);
+    border: 1px solid rgba(var(--splunk-teal-rgb), 0.3);
     border-radius: var(--radius-md);
     padding: var(--space-xs);
     z-index: var(--z-tooltip);
@@ -4994,7 +5340,7 @@ kbd {
 }
 
 .transform-type-option:hover {
-    background: rgba(147, 112, 219, 0.15);
+    background: rgba(var(--splunk-teal-rgb), 0.18);
     color: var(--text-main);
 }
 
@@ -5003,7 +5349,7 @@ kbd {
     font-size: var(--text-xs);
     width: 28px;
     text-align: center;
-    color: #9370db;
+    color: var(--splunk-teal);
 }
 
 .type-option-label {
@@ -5225,29 +5571,29 @@ kbd {
     font-weight: 700;
 }
 
-/* Data Source Chips - Blue tint */
+/* Data Source Chips - Orange tint */
 #dataSourceChips .chip {
     background: linear-gradient(135deg, rgba(40, 45, 55, 0.9), rgba(30, 35, 45, 0.8));
-    border-color: rgba(var(--splunk-blue-rgb), 0.15);
+    border-color: rgba(var(--splunk-orange-rgb), 0.18);
 }
 
 #dataSourceChips .chip:hover {
-    border-color: rgba(var(--splunk-blue-rgb), 0.5);
+    border-color: rgba(var(--splunk-orange-rgb), 0.5);
     box-shadow:
         0 8px 20px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(var(--splunk-blue-rgb), 0.15);
+        0 0 0 1px rgba(var(--splunk-orange-rgb), 0.18);
 }
 
 #dataSourceChips .chip.selected {
     background: linear-gradient(135deg,
-        rgba(var(--splunk-blue-rgb), 0.3) 0%,
-        rgba(var(--splunk-blue-rgb), 0.15) 50%,
-        rgba(var(--splunk-blue-rgb), 0.2) 100%
+        rgba(var(--splunk-orange-rgb), 0.3) 0%,
+        rgba(var(--splunk-orange-rgb), 0.15) 50%,
+        rgba(var(--splunk-orange-rgb), 0.2) 100%
     );
-    border-color: var(--splunk-blue);
-    text-shadow: 0 0 10px rgba(var(--splunk-blue-rgb), 0.5);
+    border-color: var(--splunk-orange);
+    text-shadow: 0 0 10px rgba(var(--splunk-orange-rgb), 0.45);
     box-shadow:
-        0 0 25px rgba(var(--splunk-blue-rgb), 0.25),
+        0 0 25px rgba(var(--splunk-orange-rgb), 0.2),
         0 4px 15px rgba(0, 0, 0, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
@@ -5424,20 +5770,20 @@ kbd {
     transform: scale(0.95);
 }
 
-/* Data Source Selected Tags - Blue */
+/* Data Source Selected Tags - Orange */
 #selectedDataSources .selected-tag {
-    background: linear-gradient(135deg, var(--splunk-blue), #4a8bc4);
+    background: linear-gradient(135deg, var(--splunk-orange), var(--splunk-amber));
     box-shadow:
-        0 4px 12px rgba(var(--splunk-blue-rgb), 0.35),
+        0 4px 12px rgba(var(--splunk-orange-rgb), 0.35),
         0 2px 4px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-/* Include Selected Tags - Teal */
+/* Include Selected Tags - Amber */
 #selectedIncludes .selected-tag {
-    background: linear-gradient(135deg, var(--splunk-teal), #00a89a);
+    background: linear-gradient(135deg, var(--splunk-amber), var(--splunk-orange-light));
     box-shadow:
-        0 4px 12px rgba(var(--splunk-teal-rgb), 0.35),
+        0 4px 12px rgba(var(--splunk-amber-rgb), 0.35),
         0 2px 4px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
@@ -6573,7 +6919,7 @@ kbd {
     gap: var(--space-md);
     margin-bottom: var(--space-xl);
     padding: var(--space-md) var(--space-lg);
-    background: var(--bg-mid);
+    background: var(--surface-panel);
     border-radius: var(--radius-md);
     border-left: 4px solid var(--splunk-orange);
 }
@@ -6620,9 +6966,9 @@ kbd {
 }
 
 .level-badge.es {
-    background: rgba(79, 70, 229, 0.2);
-    color: #818cf8;
-    border: 1px solid rgba(79, 70, 229, 0.3);
+    background: rgba(var(--splunk-amber-rgb), 0.2);
+    color: var(--splunk-amber);
+    border: 1px solid rgba(var(--splunk-amber-rgb), 0.3);
 }
 
 .level-badge.gettingStarted {
@@ -6653,17 +6999,17 @@ kbd {
 .training-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--space-lg);
+    gap: var(--space-xl);
 }
 
 /* Training Card */
 .training-card {
     position: relative;
-    background: var(--bg-mid);
+    background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
-    padding: var(--space-lg);
-    transition: all var(--transition-base);
+    padding: var(--card-padding);
+    transition: all var(--card-transition);
     cursor: pointer;
 }
 
@@ -6681,7 +7027,7 @@ kbd {
 
 .training-card:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lift);
 }
 
 .training-card:hover::before {
@@ -6690,11 +7036,11 @@ kbd {
 
 /* Training card type-specific hover colors */
 .training-card:has(.training-type-badge.tutorial) {
-    --card-accent: var(--splunk-blue);
+    --card-accent: var(--splunk-amber);
 }
 
 .training-card:has(.training-type-badge.scenario) {
-    --card-accent: var(--splunk-teal);
+    --card-accent: var(--splunk-orange-light);
 }
 
 .training-card:has(.training-type-badge.challenge) {
@@ -6713,7 +7059,7 @@ kbd {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    margin-bottom: var(--space-md);
+    margin-bottom: var(--card-header-margin);
     flex-wrap: wrap;
 }
 
@@ -6729,13 +7075,13 @@ kbd {
 }
 
 .training-type-badge.tutorial {
-    background: rgba(var(--splunk-blue-rgb), 0.2);
-    color: var(--splunk-blue);
+    background: rgba(var(--splunk-amber-rgb), 0.2);
+    color: var(--splunk-amber);
 }
 
 .training-type-badge.scenario {
-    background: rgba(var(--splunk-teal-rgb), 0.2);
-    color: var(--splunk-teal);
+    background: rgba(var(--splunk-orange-rgb), 0.2);
+    color: var(--splunk-orange);
 }
 
 .training-type-badge.challenge {
@@ -6934,11 +7280,11 @@ kbd {
 }
 
 .training-modal-header:has(.training-type-badge.tutorial)::after {
-    background: linear-gradient(90deg, var(--splunk-blue), transparent);
+    background: linear-gradient(90deg, var(--splunk-amber), transparent);
 }
 
 .training-modal-header:has(.training-type-badge.scenario)::after {
-    background: linear-gradient(90deg, var(--splunk-teal), transparent);
+    background: linear-gradient(90deg, var(--splunk-orange-light), transparent);
 }
 
 .training-modal-header:has(.training-type-badge.challenge)::after {
@@ -6951,6 +7297,7 @@ kbd {
     gap: var(--space-md);
 }
 
+/* .training-modal-close - shares base styles with unified modal system */
 .training-modal-close {
     width: 36px;
     height: 36px;
@@ -6967,7 +7314,8 @@ kbd {
     transition: all var(--transition-fast);
 }
 
-.training-modal-close:hover {
+/* Shared close button hover (all modals) */
+:where(.training-modal-close, .pipeline-modal-close, .guide-modal-close):hover {
     background: var(--bg-elevated);
     color: var(--text-main);
 }
@@ -7035,11 +7383,11 @@ kbd {
     align-items: center;
     justify-content: center;
     background: var(--bg-mid);
-    border: 2px solid var(--splunk-blue);
+    border: 2px solid var(--splunk-amber);
     border-radius: 50%;
     font-size: var(--text-sm);
     font-weight: 600;
-    color: var(--splunk-blue);
+    color: var(--splunk-amber);
 }
 
 .tutorial-section:last-child {
@@ -7081,7 +7429,7 @@ kbd {
     border-radius: var(--radius-sm);
     font-family: var(--font-mono);
     font-size: 0.9em;
-    color: var(--splunk-blue);
+    color: var(--splunk-amber);
 }
 
 .tutorial-section-body ul,
@@ -7170,8 +7518,8 @@ kbd {
 /* Scenario Styles */
 .scenario-situation {
     padding: var(--space-lg);
-    background: linear-gradient(135deg, rgba(var(--splunk-teal-rgb), 0.1) 0%, rgba(var(--splunk-blue-rgb), 0.05) 100%);
-    border: 1px solid rgba(var(--splunk-teal-rgb), 0.2);
+    background: linear-gradient(135deg, rgba(var(--splunk-orange-rgb), 0.1) 0%, rgba(var(--splunk-amber-rgb), 0.05) 100%);
+    border: 1px solid rgba(var(--splunk-orange-rgb), 0.2);
     border-radius: var(--radius-md);
     margin-bottom: var(--space-xl);
 }
@@ -7179,7 +7527,7 @@ kbd {
 .scenario-situation h3 {
     font-size: var(--text-lg);
     font-weight: 600;
-    color: var(--splunk-teal);
+    color: var(--splunk-orange);
     margin-bottom: var(--space-md);
     display: flex;
     align-items: center;
@@ -7622,9 +7970,10 @@ kbd {
 /* Challenge Workspace (SPL Input) */
 .challenge-workspace {
     margin-bottom: var(--space-xl);
-    border: 1px solid var(--border-subtle);
+    border: 1px solid rgba(var(--splunk-orange-rgb), 0.25);
     border-radius: var(--radius-md);
     overflow: hidden;
+    background: rgba(0, 0, 0, 0.25);
 }
 
 .challenge-workspace-header {
@@ -7632,15 +7981,17 @@ kbd {
     align-items: center;
     justify-content: space-between;
     padding: var(--space-sm) var(--space-md);
-    background: var(--bg-elevated);
+    background: linear-gradient(90deg, rgba(var(--splunk-orange-rgb), 0.12) 0%, rgba(0, 0, 0, 0.35) 100%);
     border-bottom: 1px solid var(--border-subtle);
 }
 
 .challenge-workspace-header h4 {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     font-weight: 600;
-    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--splunk-amber);
 }
 
 .challenge-workspace-actions {
@@ -7665,28 +8016,72 @@ kbd {
     color: var(--splunk-orange);
 }
 
-.challenge-spl-input {
-    width: 100%;
-    min-height: 150px;
+.challenge-spl-editor {
+    position: relative;
+    background: rgba(0, 0, 0, 0.45);
+    border-left: 3px solid var(--splunk-orange);
+}
+
+.challenge-spl-highlight {
+    position: absolute;
+    inset: 0;
+    margin: 0;
     padding: var(--space-md);
-    background: rgba(0, 0, 0, 0.4);
-    border: none;
-    border-left: 3px solid var(--splunk-teal);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     line-height: 1.7;
     color: var(--text-main);
+    white-space: pre-wrap;
+    word-break: break-word;
+    pointer-events: none;
+    overflow: auto;
+    scrollbar-width: none;
+    tab-size: 4;
+}
+
+.challenge-spl-highlight::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.challenge-spl-input {
+    width: 100%;
+    min-height: 170px;
+    padding: var(--space-md);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.7;
+    color: var(--text-main);
+    caret-color: var(--splunk-amber);
+    tab-size: 4;
     resize: vertical;
+    position: relative;
+    z-index: 1;
 }
 
 .challenge-spl-input::placeholder {
     color: var(--text-dim);
 }
 
+.challenge-spl-input::selection {
+    background: rgba(var(--splunk-amber-rgb), 0.35);
+}
+
 .challenge-spl-input:focus {
     outline: none;
-    border-left-color: var(--splunk-orange);
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.55);
+}
+
+/* Overlay highlight: keep text visible when JS adds class */
+.challenge-spl-editor.spl-highlight-ready .challenge-spl-input {
+    color: transparent;
+}
+
+.challenge-spl-editor.spl-highlight-ready .challenge-spl-input::placeholder {
+    color: var(--text-dim);
 }
 
 /* Challenge Solution */
@@ -7788,32 +8183,6 @@ kbd {
     color: var(--text-dim);
 }
 
-/* SPL Syntax Highlighting */
-.spl-keyword {
-    color: var(--splunk-blue);
-    font-weight: 500;
-}
-
-.spl-function {
-    color: var(--splunk-teal);
-}
-
-.spl-field {
-    color: var(--splunk-amber);
-}
-
-.spl-operator {
-    color: var(--splunk-pink);
-}
-
-.spl-string {
-    color: var(--splunk-green);
-}
-
-.spl-number {
-    color: var(--splunk-orange);
-}
-
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .training-level-info {
@@ -7869,18 +8238,18 @@ kbd {
 .pipelines-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--space-lg);
+    gap: var(--space-xl);
 }
 
 /* Pipeline Card */
 .pipeline-card {
     position: relative;
-    background: var(--bg-mid);
+    background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
-    padding: var(--space-xl);
+    padding: var(--card-padding);
     cursor: pointer;
-    transition: all var(--transition-base);
+    transition: all var(--card-transition);
 }
 
 .pipeline-card::before {
@@ -7899,7 +8268,7 @@ kbd {
 .pipeline-card:hover {
     border-color: var(--splunk-orange);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lift);
 }
 
 .pipeline-card:hover::before {
@@ -7915,7 +8284,7 @@ kbd {
     display: flex;
     align-items: center;
     gap: var(--space-md);
-    margin-bottom: var(--space-md);
+    margin-bottom: var(--card-header-margin);
 }
 
 .pipeline-level-badge {
@@ -7929,19 +8298,47 @@ kbd {
     letter-spacing: 0.5px;
 }
 
+.pipeline-track-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    background: rgba(var(--splunk-orange-rgb), 0.15);
+    color: var(--splunk-orange-light);
+}
+
+.pipeline-track-badge.power-user {
+    background: rgba(var(--splunk-amber-rgb), 0.18);
+    color: var(--splunk-amber);
+}
+
+.pipeline-track-badge.administrator {
+    background: rgba(var(--splunk-orange-rgb), 0.18);
+    color: var(--splunk-orange);
+}
+
+.pipeline-track-badge.architect {
+    background: rgba(var(--splunk-pink-rgb), 0.2);
+    color: var(--splunk-pink);
+}
+
 .pipeline-level-badge.beginner {
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
+    background: rgba(var(--splunk-green-rgb), var(--badge-opacity));
+    color: var(--splunk-green);
 }
 
 .pipeline-level-badge.intermediate {
-    background: rgba(251, 191, 36, 0.15);
-    color: #fbbf24;
+    background: rgba(var(--splunk-amber-rgb), var(--badge-opacity));
+    color: var(--splunk-amber);
 }
 
 .pipeline-level-badge.advanced {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
+    background: rgba(var(--splunk-orange-rgb), var(--badge-opacity));
+    color: var(--splunk-orange);
 }
 
 .pipeline-duration {
@@ -7950,7 +8347,7 @@ kbd {
 }
 
 .pipeline-card-title {
-    font-size: var(--text-xl);
+    font-size: var(--card-title-size);
     font-weight: 600;
     color: var(--text-main);
     margin-bottom: var(--space-sm);
@@ -8079,6 +8476,7 @@ kbd {
     gap: var(--space-md);
 }
 
+/* .pipeline-modal-close - hover shared with training/guide modals above */
 .pipeline-modal-close {
     width: 36px;
     height: 36px;
@@ -8092,11 +8490,6 @@ kbd {
     cursor: pointer;
     border-radius: var(--radius-sm);
     transition: all var(--transition-fast);
-}
-
-.pipeline-modal-close:hover {
-    background: var(--bg-elevated);
-    color: var(--text-main);
 }
 
 .pipeline-modal-title {
@@ -8224,14 +8617,15 @@ kbd {
     color: var(--text-muted);
 }
 
-.pipeline-step-type.guide {
+.pipeline-step-type.guide,
+.pipeline-step-type.lesson {
     background: rgba(var(--splunk-teal-rgb), 0.15);
     color: var(--splunk-teal);
 }
 
 .pipeline-step-type.tutorial {
-    background: rgba(var(--splunk-blue-rgb), 0.15);
-    color: var(--splunk-blue);
+    background: rgba(var(--splunk-amber-rgb), 0.15);
+    color: var(--splunk-amber);
 }
 
 .pipeline-step-type.scenario {
@@ -8339,22 +8733,22 @@ kbd {
 
 /* Stagger animation for cards in grids */
 .training-grid .training-card:nth-child(1),
-.guides-grid .guide-card:nth-child(1),
+.lessons-grid .guide-card:nth-child(1),
 .pipelines-grid .pipeline-card:nth-child(1) { animation-delay: 0.05s; }
 .training-grid .training-card:nth-child(2),
-.guides-grid .guide-card:nth-child(2),
+.lessons-grid .guide-card:nth-child(2),
 .pipelines-grid .pipeline-card:nth-child(2) { animation-delay: 0.1s; }
 .training-grid .training-card:nth-child(3),
-.guides-grid .guide-card:nth-child(3),
+.lessons-grid .guide-card:nth-child(3),
 .pipelines-grid .pipeline-card:nth-child(3) { animation-delay: 0.15s; }
 .training-grid .training-card:nth-child(4),
-.guides-grid .guide-card:nth-child(4),
+.lessons-grid .guide-card:nth-child(4),
 .pipelines-grid .pipeline-card:nth-child(4) { animation-delay: 0.2s; }
 .training-grid .training-card:nth-child(5),
-.guides-grid .guide-card:nth-child(5),
+.lessons-grid .guide-card:nth-child(5),
 .pipelines-grid .pipeline-card:nth-child(5) { animation-delay: 0.25s; }
 .training-grid .training-card:nth-child(6),
-.guides-grid .guide-card:nth-child(6),
+.lessons-grid .guide-card:nth-child(6),
 .pipelines-grid .pipeline-card:nth-child(6) { animation-delay: 0.3s; }
 
 /* Enhanced keyboard focus states */
@@ -8515,12 +8909,12 @@ kbd {
 }
 
 .random-query-card {
-    background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-mid) 100%);
-    border: 1px solid rgba(var(--splunk-orange-rgb), 0.3);
+    background: var(--surface-panel);
+    border: 1px solid rgba(var(--splunk-orange-rgb), 0.35);
     border-radius: var(--radius-lg);
     padding: var(--space-xl);
     position: relative;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: var(--shadow-lift);
 }
 
 .random-query-header {
@@ -8683,17 +9077,17 @@ kbd {
 .query-library-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--space-lg);
+    gap: var(--space-xl);
 }
 
 /* Query Card */
 .query-card {
-    background: var(--bg-mid);
+    background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
-    padding: var(--space-lg);
+    padding: var(--card-padding);
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all var(--card-transition);
     display: flex;
     flex-direction: column;
 }
@@ -8701,7 +9095,7 @@ kbd {
 .query-card:hover {
     border-color: var(--splunk-orange);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lift);
 }
 
 .query-card-header {
@@ -8716,7 +9110,7 @@ kbd {
 }
 
 .query-card-title {
-    font-size: var(--text-base);
+    font-size: var(--card-title-size);
     font-weight: 600;
     color: var(--text-main);
     margin-bottom: var(--space-sm);
@@ -8748,9 +9142,9 @@ kbd {
 }
 
 .query-meta-badge.data-source {
-    background: rgba(99, 179, 237, 0.15);
-    color: #63b3ed;
-    border: 1px solid rgba(99, 179, 237, 0.3);
+    background: rgba(var(--splunk-orange-rgb), 0.14);
+    color: var(--splunk-orange-light);
+    border: 1px solid rgba(var(--splunk-orange-rgb), 0.28);
 }
 
 .query-meta-badge.mitre {
@@ -8760,9 +9154,9 @@ kbd {
 }
 
 .query-meta-badge.use-case {
-    background: rgba(159, 122, 234, 0.15);
-    color: #9f7aea;
-    border: 1px solid rgba(159, 122, 234, 0.3);
+    background: rgba(var(--splunk-amber-rgb), 0.18);
+    color: var(--splunk-amber);
+    border: 1px solid rgba(var(--splunk-amber-rgb), 0.32);
 }
 
 /* Query Card Preview - Enhanced */
@@ -8861,17 +9255,17 @@ kbd {
 }
 
 .query-difficulty-badge.beginner {
-    background: rgba(var(--splunk-green-rgb), 0.15);
+    background: rgba(var(--splunk-green-rgb), var(--badge-opacity));
     color: var(--splunk-green);
 }
 
 .query-difficulty-badge.intermediate {
-    background: rgba(var(--splunk-amber-rgb), 0.15);
+    background: rgba(var(--splunk-amber-rgb), var(--badge-opacity));
     color: var(--splunk-amber);
 }
 
 .query-difficulty-badge.advanced {
-    background: rgba(var(--splunk-pink-rgb), 0.15);
+    background: rgba(var(--splunk-pink-rgb), var(--badge-opacity));
     color: var(--splunk-pink);
 }
 
@@ -8879,8 +9273,8 @@ kbd {
 .query-category-badge {
     font-size: var(--text-sm);
     padding: var(--space-xs) var(--space-sm);
-    background: rgba(var(--splunk-blue-rgb), 0.15);
-    color: var(--splunk-blue);
+    background: rgba(var(--splunk-orange-rgb), 0.15);
+    color: var(--splunk-orange-light);
     border-radius: var(--radius-sm);
 }
 
@@ -8964,9 +9358,9 @@ kbd {
 }
 
 .modal-meta-value.data-source {
-    color: #63b3ed;
-    background: rgba(99, 179, 237, 0.1);
-    border: 1px solid rgba(99, 179, 237, 0.2);
+    color: var(--splunk-orange-light);
+    background: rgba(var(--splunk-orange-rgb), 0.1);
+    border: 1px solid rgba(var(--splunk-orange-rgb), 0.2);
 }
 
 .modal-meta-value.mitre {
@@ -8976,9 +9370,9 @@ kbd {
 }
 
 .modal-meta-value.use-case {
-    color: #9f7aea;
-    background: rgba(159, 122, 234, 0.1);
-    border: 1px solid rgba(159, 122, 234, 0.2);
+    color: var(--splunk-amber);
+    background: rgba(var(--splunk-amber-rgb), 0.12);
+    border: 1px solid rgba(var(--splunk-amber-rgb), 0.22);
 }
 
 .query-tags-full {
@@ -9887,12 +10281,12 @@ body:has(.spl-sidebar.open) .spl-sidebar-trigger {
 
 .spl-section-example .spl-sidebar-section-title,
 .spl-section-examples .spl-sidebar-section-title {
-    color: var(--splunk-blue);
+    color: var(--splunk-amber);
 }
 
 .spl-section-example .spl-sidebar-section-title::before,
 .spl-section-examples .spl-sidebar-section-title::before {
-    background: var(--splunk-blue);
+    background: var(--splunk-amber);
 }
 
 .spl-section-gotchas .spl-sidebar-section-title {
@@ -10085,5 +10479,317 @@ body:has(.spl-sidebar.open) .spl-sidebar-trigger {
 
     .spl-sidebar {
         width: 100%;
+    }
+}
+
+/* ============================================
+   SPLUNKed Unified Component Styles (BEM)
+   Provides consistent patterns for shared components
+   ============================================ */
+
+/* --------------------------------------------
+   SPLUNKED-CARD - Base card component
+   Variants: glossary, query, training, guide, pipeline
+   -------------------------------------------- */
+
+/* Base card (extends existing .glossary-card styles) */
+.splunked-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.splunked-card:hover {
+    border-color: var(--splunk-orange);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Card icon (top-right positioned) */
+.splunked-card__icon {
+    position: absolute;
+    top: var(--space-sm);
+    right: var(--space-sm);
+    font-size: var(--text-lg);
+    opacity: 0.6;
+    transition: opacity var(--transition-fast);
+}
+
+.splunked-card:hover .splunked-card__icon {
+    opacity: 1;
+}
+
+/* Card header */
+.splunked-card__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+/* Card title */
+.splunked-card__title {
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* Card description/takeaway */
+.splunked-card__description {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Card footer */
+.splunked-card__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--space-md);
+}
+
+/* Card badges */
+.splunked-card__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    background: rgba(var(--splunk-orange-rgb), 0.15);
+    color: var(--splunk-orange);
+}
+
+/* Card tags */
+.splunked-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+}
+
+.splunked-card__tag {
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--bg-hover);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+/* Variant: Glossary card */
+.splunked-card--glossary .splunked-card__title {
+    color: var(--splunk-orange);
+}
+
+/* Variant: Query card */
+.splunked-card--query {
+    padding-bottom: var(--space-sm);
+}
+
+.splunked-card--query .splunked-card__preview {
+    margin-top: var(--space-sm);
+    padding: var(--space-sm);
+    background: var(--bg-dark);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.splunked-card--query .splunked-card__preview pre {
+    margin: 0;
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Variant: Training card */
+.splunked-card--training .splunked-card__type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.splunked-card--training .splunked-card__type-badge.tutorial {
+    background: rgba(var(--splunk-teal-rgb), 0.15);
+    color: var(--splunk-teal);
+}
+
+.splunked-card--training .splunked-card__type-badge.scenario {
+    background: rgba(var(--splunk-amber-rgb), 0.15);
+    color: var(--splunk-amber);
+}
+
+.splunked-card--training .splunked-card__type-badge.challenge {
+    background: rgba(var(--splunk-pink-rgb), 0.15);
+    color: var(--splunk-pink);
+}
+
+/* Variant: Pipeline card */
+.splunked-card--pipeline .splunked-card__objectives {
+    margin-top: var(--space-sm);
+}
+
+.splunked-card--pipeline .splunked-card__objectives ul {
+    margin: 0;
+    padding-left: var(--space-lg);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.splunked-card--pipeline .splunked-card__objectives li {
+    margin-bottom: var(--space-xs);
+}
+
+/* Variant: Guide card */
+.splunked-card--guide .splunked-card__cta {
+    color: var(--splunk-orange);
+    font-size: var(--text-sm);
+    font-weight: 500;
+}
+
+/* --------------------------------------------
+   SPLUNKED-MODAL - Enhanced modal system
+   -------------------------------------------- */
+
+.splunked-modal__back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.splunked-modal__back-btn:hover {
+    background: var(--bg-elevated);
+    color: var(--text-main);
+}
+
+.splunked-modal__back-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --------------------------------------------
+   SPLUNKED-SEARCH - Unified search component
+   -------------------------------------------- */
+
+.splunked-search {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: var(--bg-mid);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    transition: border-color var(--transition-fast);
+}
+
+.splunked-search:focus-within {
+    border-color: var(--splunk-orange);
+}
+
+.splunked-search__input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: var(--text-base);
+    outline: none;
+}
+
+.splunked-search__input::placeholder {
+    color: var(--text-dim);
+}
+
+.splunked-search__clear {
+    padding: var(--space-xs);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.splunked-search__input:not(:placeholder-shown) + .splunked-search__clear {
+    opacity: 1;
+}
+
+.splunked-search__clear:hover {
+    color: var(--text-main);
+}
+
+/* --------------------------------------------
+   SPLUNKED-FILTER - Icon filter buttons
+   -------------------------------------------- */
+
+.splunked-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+}
+
+.splunked-filter__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--bg-mid);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: var(--text-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.splunked-filter__btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-default);
+    color: var(--text-main);
+}
+
+.splunked-filter__btn.active {
+    background: rgba(var(--splunk-orange-rgb), 0.15);
+    border-color: var(--splunk-orange);
+    color: var(--splunk-orange);
+}
+
+/* --------------------------------------------
+   SPLUNKED-TIMING - CSS animation helpers
+   -------------------------------------------- */
+
+.splunked-fade-in {
+    animation: splunkedFadeIn var(--transition-base) ease-out;
+}
+
+@keyframes splunkedFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }

@@ -1,0 +1,92 @@
+{
+  "id": "dash-tokens-filtering",
+  "type": "tutorial",
+  "title": "Tokens and Input Controls for Investigation",
+  "description": "Add interactivity to dashboards with time pickers, dropdowns, text inputs, and cascading token patterns for dynamic filtering.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["dashboards", "tokens", "inputs", "interactivity"],
+  "objectives": [
+    "Implement token-based filtering in dashboard searches",
+    "Configure time picker, dropdown, and text input controls",
+    "Build cascading tokens for dependent filters",
+    "Handle 'all values' selections properly"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Tokens Matter",
+        "body": "<p>Static dashboards show fixed data. Investigation dashboards need <strong>dynamic filtering</strong> so analysts can:</p><ul><li>Change time ranges to focus on incident windows</li><li>Filter to specific users, hosts, or IP addresses</li><li>Switch between data views without editing searches</li></ul><p>Tokens are variables that pass user selections into searches. When an analyst selects \"jsmith\" from a dropdown, the token <code>$user$</code> becomes \"jsmith\" in all searches that use it.</p>"
+      },
+      {
+        "title": "Token Syntax Basics",
+        "body": "<p>Tokens appear in searches wrapped in dollar signs:</p>",
+        "spl": "index=security sourcetype=auth user=$user_token$\n| timechart count by action",
+        "explanation": "When the dashboard loads, $user_token$ is replaced with the selected value. If the user selects 'admin' from a dropdown, the search becomes: index=security sourcetype=auth user=admin"
+      },
+      {
+        "title": "Time Picker Configuration",
+        "body": "<p>The time picker is the most common input. It sets <code>earliest</code> and <code>latest</code> tokens:</p><p><strong>Input Configuration (Simple XML):</strong></p><pre>&lt;input type=\"time\" token=\"time_range\" searchWhenChanged=\"true\"&gt;\n  &lt;label&gt;Time Range&lt;/label&gt;\n  &lt;default&gt;\n    &lt;earliest&gt;-24h@h&lt;/earliest&gt;\n    &lt;latest&gt;now&lt;/latest&gt;\n  &lt;/default&gt;\n&lt;/input&gt;</pre>",
+        "spl": "index=security sourcetype=auth earliest=$time_range.earliest$ latest=$time_range.latest$\n| timechart count",
+        "explanation": "The time picker creates two sub-tokens: $time_range.earliest$ and $time_range.latest$. Using these instead of hardcoded times makes the dashboard responsive to analyst time selection."
+      },
+      {
+        "title": "Dropdown with Static Choices",
+        "body": "<p>For known categories, use static dropdown choices:</p><p><strong>Input Configuration:</strong></p><pre>&lt;input type=\"dropdown\" token=\"severity\" searchWhenChanged=\"true\"&gt;\n  &lt;label&gt;Severity&lt;/label&gt;\n  &lt;choice value=\"*\"&gt;All&lt;/choice&gt;\n  &lt;choice value=\"critical\"&gt;Critical&lt;/choice&gt;\n  &lt;choice value=\"high\"&gt;High&lt;/choice&gt;\n  &lt;choice value=\"medium\"&gt;Medium&lt;/choice&gt;\n  &lt;choice value=\"low\"&gt;Low&lt;/choice&gt;\n  &lt;default&gt;*&lt;/default&gt;\n&lt;/input&gt;</pre>",
+        "spl": "index=alerts severity=$severity$\n| table _time, severity, alert_name, user",
+        "explanation": "The '*' value acts as a wildcard, matching all severities. This pattern lets analysts filter to a specific level or see everything."
+      },
+      {
+        "title": "Dynamic Dropdown from Search",
+        "body": "<p>Populate dropdown choices from actual data:</p><p><strong>Input Configuration:</strong></p><pre>&lt;input type=\"dropdown\" token=\"user\" searchWhenChanged=\"true\"&gt;\n  &lt;label&gt;User&lt;/label&gt;\n  &lt;search&gt;\n    &lt;query&gt;index=security sourcetype=auth earliest=-7d | stats count by user | sort - count | fields user&lt;/query&gt;\n  &lt;/search&gt;\n  &lt;fieldForLabel&gt;user&lt;/fieldForLabel&gt;\n  &lt;fieldForValue&gt;user&lt;/fieldForValue&gt;\n  &lt;choice value=\"*\"&gt;All Users&lt;/choice&gt;\n  &lt;default&gt;*&lt;/default&gt;\n&lt;/input&gt;</pre>",
+        "spl": "index=security sourcetype=auth user=$user$\n| stats count by action, src_ip",
+        "explanation": "The search populates the dropdown with users seen in the last 7 days, sorted by activity. This ensures the dropdown only shows relevant choices. The static 'All Users' choice is added at the top."
+      },
+      {
+        "title": "Text Input for Free-Form Search",
+        "body": "<p>Allow analysts to type specific values:</p><p><strong>Input Configuration:</strong></p><pre>&lt;input type=\"text\" token=\"ip_search\" searchWhenChanged=\"true\"&gt;\n  &lt;label&gt;IP Address&lt;/label&gt;\n  &lt;default&gt;*&lt;/default&gt;\n  &lt;prefix&gt;src_ip=&lt;/prefix&gt;\n&lt;/input&gt;</pre>",
+        "spl": "index=network $ip_search$\n| stats sum(bytes_in) as inbound, sum(bytes_out) as outbound by dest_ip",
+        "explanation": "The prefix option prepends 'src_ip=' to whatever the user types. If they enter '10.0.0.1', the token becomes 'src_ip=10.0.0.1'. With the default '*', it becomes 'src_ip=*' which matches all."
+      },
+      {
+        "title": "Handling 'All' Selections Properly",
+        "body": "<p>The wildcard approach works but can be inefficient. For large datasets, use conditional logic:</p>",
+        "spl": "index=security sourcetype=auth\n| where (\"$user$\" = \"*\" OR user=\"$user$\")\n| stats count by action",
+        "explanation": "This where clause checks if the token is '*' (all users) or matches a specific user. While more verbose, it can be more efficient than wildcard matching on large indexes."
+      },
+      {
+        "title": "Better 'All' Handling with Token Prefix/Suffix",
+        "body": "<p>A cleaner pattern uses token prefix and suffix to control the entire search clause:</p><p><strong>Input Configuration:</strong></p><pre>&lt;input type=\"dropdown\" token=\"user_filter\" searchWhenChanged=\"true\"&gt;\n  &lt;label&gt;User&lt;/label&gt;\n  &lt;choice value=\"\"&gt;All Users&lt;/choice&gt;\n  &lt;choice value=\"admin\"&gt;admin&lt;/choice&gt;\n  &lt;choice value=\"jsmith\"&gt;jsmith&lt;/choice&gt;\n  &lt;default&gt;&lt;/default&gt;\n  &lt;prefix&gt;user=&lt;/prefix&gt;\n&lt;/input&gt;</pre>",
+        "spl": "index=security sourcetype=auth $user_filter$\n| stats count by action",
+        "explanation": "When 'All Users' is selected (empty value), $user_filter$ is empty and the search runs without a user filter. When a specific user is selected, $user_filter$ becomes 'user=admin'. This avoids wildcards entirely."
+      },
+      {
+        "title": "Cascading Tokens",
+        "body": "<p>Make one dropdown depend on another's selection:</p><p><strong>First Input (Host Group):</strong></p><pre>&lt;input type=\"dropdown\" token=\"host_group\"&gt;\n  &lt;label&gt;Host Group&lt;/label&gt;\n  &lt;choice value=\"web_servers\"&gt;Web Servers&lt;/choice&gt;\n  &lt;choice value=\"db_servers\"&gt;Database Servers&lt;/choice&gt;\n  &lt;choice value=\"workstations\"&gt;Workstations&lt;/choice&gt;\n&lt;/input&gt;</pre><p><strong>Second Input (Specific Host):</strong></p><pre>&lt;input type=\"dropdown\" token=\"host\" depends=\"$host_group$\"&gt;\n  &lt;label&gt;Host&lt;/label&gt;\n  &lt;search&gt;\n    &lt;query&gt;| inputlookup host_inventory | search group=$host_group$ | fields host&lt;/query&gt;\n  &lt;/search&gt;\n  &lt;fieldForLabel&gt;host&lt;/fieldForLabel&gt;\n  &lt;fieldForValue&gt;host&lt;/fieldForValue&gt;\n&lt;/input&gt;</pre>",
+        "spl": "index=security host=$host$\n| stats count by sourcetype",
+        "explanation": "The second dropdown only shows hosts matching the selected group. The 'depends' attribute means it won't populate until the first selection is made. This prevents overwhelming dropdowns with thousands of hosts."
+      },
+      {
+        "title": "Token Defaults and Persistence",
+        "body": "<p>Configure how tokens behave on page load and refresh:</p><p><strong>Default Value:</strong></p><pre>&lt;default&gt;admin&lt;/default&gt;</pre><p>Sets the initial value when the dashboard loads.</p><p><strong>Initial Value (with submit button):</strong></p><pre>&lt;initialValue&gt;admin&lt;/initialValue&gt;</pre><p>Sets the value in the input but doesn't trigger searches until submit.</p><p><strong>Persistence:</strong></p><pre>&lt;input type=\"dropdown\" token=\"user\"&gt;\n  &lt;change&gt;\n    &lt;set token=\"form.user\"&gt;$value$&lt;/set&gt;\n  &lt;/change&gt;\n&lt;/input&gt;</pre><p>Using form.* tokens preserves selections across dashboard navigation in some configurations.</p>"
+      },
+      {
+        "title": "Multi-Select Inputs",
+        "body": "<p>Allow selection of multiple values:</p><p><strong>Input Configuration:</strong></p><pre>&lt;input type=\"multiselect\" token=\"users\" searchWhenChanged=\"true\"&gt;\n  &lt;label&gt;Users&lt;/label&gt;\n  &lt;search&gt;\n    &lt;query&gt;index=security | stats count by user | fields user&lt;/query&gt;\n  &lt;/search&gt;\n  &lt;fieldForLabel&gt;user&lt;/fieldForLabel&gt;\n  &lt;fieldForValue&gt;user&lt;/fieldForValue&gt;\n  &lt;delimiter&gt; OR user=&lt;/delimiter&gt;\n  &lt;prefix&gt;(&lt;/prefix&gt;\n  &lt;suffix&gt;)&lt;/suffix&gt;\n  &lt;valuePrefix&gt;user=&lt;/valuePrefix&gt;\n&lt;/input&gt;</pre>",
+        "spl": "index=security sourcetype=auth $users$\n| stats count by user, action",
+        "explanation": "If the analyst selects 'admin' and 'jsmith', the token becomes '(user=admin OR user=jsmith)'. The delimiter, prefix, suffix, and valuePrefix combine to build a valid OR clause."
+      },
+      {
+        "title": "Debugging Token Values",
+        "body": "<p>When tokens don't work as expected, debug by displaying their values:</p>",
+        "spl": "| makeresults\n| eval user_token = \"$user$\"\n| eval time_earliest = \"$time_range.earliest$\"\n| eval time_latest = \"$time_range.latest$\"\n| table user_token, time_earliest, time_latest",
+        "explanation": "This diagnostic search shows exactly what values the tokens contain. Add it as a hidden panel during development, then remove it for production."
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Effective token usage enables powerful investigation dashboards:</p><ul><li><strong>Time pickers</strong> with .earliest and .latest sub-tokens</li><li><strong>Dropdowns</strong> with static choices or search-populated options</li><li><strong>Text inputs</strong> for free-form filtering</li><li><strong>Cascading tokens</strong> for dependent filters</li><li><strong>Proper 'All' handling</strong> using empty values or conditionals</li><li><strong>Multi-select</strong> with delimiter/prefix/suffix for OR clauses</li></ul><p>The next tutorial covers drilldowns—making dashboard elements clickable for deeper investigation.</p>"
+      }
+    ]
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "id": "dash-drilldowns-investigation",
+  "type": "tutorial",
+  "title": "Drilldowns for Security Investigation",
+  "description": "Enable click-through investigation from dashboards to detailed views, raw events, and external tools like VirusTotal and WHOIS.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["dashboards", "drilldowns", "investigation", "workflow"],
+  "objectives": [
+    "Configure chart drilldowns that pass clicked values",
+    "Build table row drilldowns for detailed investigation",
+    "Link to external security tools with dynamic URLs",
+    "Pass tokens between dashboards for workflow continuity"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "The Role of Drilldowns",
+        "body": "<p>Drilldowns transform dashboards from passive displays into <strong>investigation launchpads</strong>. Instead of copying values and opening new searches, analysts click to:</p><ul><li>See raw events behind an aggregation</li><li>Filter the dashboard to a specific entity</li><li>Open a detailed investigation view</li><li>Query external threat intelligence</li></ul><p>Good drilldowns accelerate the path from \"that looks suspicious\" to \"here's what happened.\"</p>"
+      },
+      {
+        "title": "Drilldown Variables",
+        "body": "<p>When a user clicks a visualization element, Splunk provides variables capturing what was clicked:</p><table><tr><th>Variable</th><th>Description</th><th>Example</th></tr><tr><td><code>$click.value$</code></td><td>The clicked value</td><td>\"10.0.0.1\"</td></tr><tr><td><code>$click.name$</code></td><td>The field name</td><td>\"src_ip\"</td></tr><tr><td><code>$click.value2$</code></td><td>Second dimension value</td><td>\"failure\"</td></tr><tr><td><code>$click.name2$</code></td><td>Second dimension field</td><td>\"action\"</td></tr><tr><td><code>$row.fieldname$</code></td><td>Any field from clicked table row</td><td>Row's user value</td></tr><tr><td><code>$earliest$</code></td><td>Time range start</td><td>\"-24h\"</td></tr><tr><td><code>$latest$</code></td><td>Time range end</td><td>\"now\"</td></tr></table>"
+      },
+      {
+        "title": "Chart Click to Search",
+        "body": "<p>The most common drilldown: clicking a chart element opens a search for those events.</p><p><strong>Original Panel Search:</strong></p>",
+        "spl": "index=security sourcetype=auth action=failure\n| timechart span=1h count by src_ip limit=5",
+        "explanation": "This timechart shows auth failures over time, split by source IP. Clicking a point should show the underlying events for that time and IP."
+      },
+      {
+        "title": "Drilldown to Raw Events",
+        "body": "<p><strong>Drilldown Configuration (Simple XML):</strong></p><pre>&lt;drilldown&gt;\n  &lt;link target=\"_blank\"&gt;\n    /app/search/search?q=index=security sourcetype=auth action=failure src_ip=$click.value2$ earliest=$click.value$ latest=$click.value$%2B1h\n  &lt;/link&gt;\n&lt;/drilldown&gt;</pre><p>When the analyst clicks a data point:</p><ul><li><code>$click.value$</code> = the time bucket (e.g., \"2024-01-15T14:00:00\")</li><li><code>$click.value2$</code> = the series name (e.g., \"10.0.0.1\")</li></ul><p>The drilldown opens a new search tab showing auth failures from that IP during that hour.</p>"
+      },
+      {
+        "title": "Table Row Drilldown",
+        "body": "<p>For tables, access any field from the clicked row:</p><p><strong>Panel Search:</strong></p>",
+        "spl": "index=alerts status=open\n| stats count as alert_count, latest(_time) as last_seen, values(alert_name) as alerts by user\n| sort - alert_count\n| table user, alert_count, last_seen, alerts",
+        "explanation": "This table shows users with open alerts. Clicking a row should open a detailed user investigation."
+      },
+      {
+        "title": "Drilldown to Another Dashboard",
+        "body": "<p><strong>Drilldown Configuration:</strong></p><pre>&lt;drilldown&gt;\n  &lt;link target=\"_blank\"&gt;\n    /app/security/user_investigation?form.user=$row.user$&amp;form.time.earliest=-7d&amp;form.time.latest=now\n  &lt;/link&gt;\n&lt;/drilldown&gt;</pre><p>This opens the \"user_investigation\" dashboard with the clicked user pre-populated in its filter. The <code>$row.user$</code> variable extracts the user field from the clicked row.</p>"
+      },
+      {
+        "title": "Setting Tokens Instead of Linking",
+        "body": "<p>Instead of opening a new page, drilldowns can update the current dashboard:</p><pre>&lt;drilldown&gt;\n  &lt;set token=\"selected_user\"&gt;$row.user$&lt;/set&gt;\n  &lt;set token=\"show_details\"&gt;true&lt;/set&gt;\n&lt;/drilldown&gt;</pre><p>This pattern:</p><ol><li>Sets a token with the clicked user</li><li>Shows a details panel that depends on the token</li></ol><p>The dashboard updates in place, keeping context while showing more detail.</p>"
+      },
+      {
+        "title": "External Link: VirusTotal",
+        "body": "<p>Link to external threat intelligence for IP or hash lookups:</p><p><strong>For IP Addresses:</strong></p><pre>&lt;drilldown&gt;\n  &lt;link target=\"_blank\"&gt;https://www.virustotal.com/gui/ip-address/$row.src_ip$&lt;/link&gt;\n&lt;/drilldown&gt;</pre><p><strong>For File Hashes:</strong></p><pre>&lt;drilldown&gt;\n  &lt;link target=\"_blank\"&gt;https://www.virustotal.com/gui/file/$row.file_hash$&lt;/link&gt;\n&lt;/drilldown&gt;</pre><p>Clicking a row opens VirusTotal in a new tab with the entity pre-loaded.</p>"
+      },
+      {
+        "title": "External Link: WHOIS Lookup",
+        "body": "<p>For domain or IP ownership information:</p><pre>&lt;drilldown&gt;\n  &lt;link target=\"_blank\"&gt;https://who.is/whois-ip/ip-address/$row.dest_ip$&lt;/link&gt;\n&lt;/drilldown&gt;</pre><p>This helps analysts quickly determine IP ownership during investigation.</p>"
+      },
+      {
+        "title": "External Link: URLhaus",
+        "body": "<p>For URL reputation checks:</p><pre>&lt;drilldown&gt;\n  &lt;link target=\"_blank\"&gt;https://urlhaus.abuse.ch/browse.php?search=$row.url|u$&lt;/link&gt;\n&lt;/drilldown&gt;</pre><p>The <code>|u</code> modifier URL-encodes the value, handling special characters in URLs.</p>"
+      },
+      {
+        "title": "Conditional Drilldowns",
+        "body": "<p>Different actions based on the clicked column:</p><pre>&lt;drilldown&gt;\n  &lt;condition field=\"src_ip\"&gt;\n    &lt;link target=\"_blank\"&gt;https://www.virustotal.com/gui/ip-address/$click.value$&lt;/link&gt;\n  &lt;/condition&gt;\n  &lt;condition field=\"user\"&gt;\n    &lt;link target=\"_blank\"&gt;/app/security/user_investigation?form.user=$click.value$&lt;/link&gt;\n  &lt;/condition&gt;\n  &lt;condition&gt;\n    &lt;set token=\"selected_row\"&gt;$click.value$&lt;/set&gt;\n  &lt;/condition&gt;\n&lt;/drilldown&gt;</pre><p>Click the IP column → VirusTotal. Click the user column → User investigation dashboard. Click anything else → Set a token.</p>"
+      },
+      {
+        "title": "Adding Visual Drilldown Cues",
+        "body": "<p>Make it obvious that elements are clickable. In your table search, add a column indicating action:</p>",
+        "spl": "index=alerts status=open\n| stats count as alert_count by user, src_ip\n| eval investigate = \">>>\"\n| table user, src_ip, alert_count, investigate",
+        "explanation": "The '>>>' column serves as a visual affordance that the row is clickable. Configure this column's drilldown to open the investigation view. This pattern is clearer than making the entire row clickable with no indication."
+      },
+      {
+        "title": "Drilldown with Time Context",
+        "body": "<p>Preserve time context when drilling down to related searches:</p><pre>&lt;drilldown&gt;\n  &lt;link target=\"_blank\"&gt;\n    /app/search/search?q=index=security src_ip=$row.src_ip$&amp;earliest=$earliest$&amp;latest=$latest$\n  &lt;/link&gt;\n&lt;/drilldown&gt;</pre><p>The <code>$earliest$</code> and <code>$latest$</code> tokens capture the current dashboard's time range, ensuring the drilldown search covers the same period.</p>"
+      },
+      {
+        "title": "Building an Investigation Workflow",
+        "body": "<p>Chain drilldowns to create a complete investigation path:</p><ol><li><strong>Alert Queue Dashboard</strong><br/>Table of open alerts → Click row to go to...</li><li><strong>Alert Detail Dashboard</strong><br/>Single alert context → Click user to go to...</li><li><strong>User Investigation Dashboard</strong><br/>User's recent activity → Click IP to go to...</li><li><strong>Host Investigation Dashboard</strong><br/>Host's complete timeline → Click to raw search</li></ol><p>Each dashboard passes context to the next via URL parameters and tokens.</p>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Effective drilldowns accelerate investigation:</p><ul><li><strong>Use click variables</strong>: $click.value$, $row.fieldname$ to capture context</li><li><strong>Link to raw events</strong> for chart aggregations</li><li><strong>Connect dashboards</strong> with URL parameters</li><li><strong>Integrate external tools</strong>: VirusTotal, WHOIS, URLhaus</li><li><strong>Add visual cues</strong> to indicate clickability</li><li><strong>Preserve time context</strong> with earliest/latest parameters</li></ul><p>In the next scenario, you'll apply these patterns to build a complete investigation workflow.</p>"
+      }
+    ]
+  }
+}

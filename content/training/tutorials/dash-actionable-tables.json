@@ -1,0 +1,94 @@
+{
+  "id": "dash-actionable-tables",
+  "type": "tutorial",
+  "title": "Building Investigation-Ready Tables",
+  "description": "Create table visualizations optimized for security triage, with proper field ordering, conditional formatting, and performance considerations.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["dashboards", "tables", "triage", "visualization"],
+  "objectives": [
+    "Design tables that support efficient security triage",
+    "Apply conditional formatting with icons and colors",
+    "Optimize table performance for large result sets",
+    "Configure appropriate drilldown actions"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Tables in Security Dashboards",
+        "body": "<p>Tables are the workhorses of investigation dashboards. Unlike charts that show patterns, tables show <strong>actionable details</strong>—the specific alerts, events, or entities an analyst needs to work.</p><p>A well-designed table answers: \"What do I need to look at right now, and what do I need to know to decide?\"</p>"
+      },
+      {
+        "title": "Field Ordering for Triage",
+        "body": "<p>Field order determines scan efficiency. Analysts read left-to-right, so place fields strategically:</p><table><tr><th>Position</th><th>Field Type</th><th>Purpose</th></tr><tr><td>1st</td><td>Decision field</td><td>Severity, status, or score</td></tr><tr><td>2nd</td><td>Time</td><td>When it happened</td></tr><tr><td>3rd-4th</td><td>Primary identifiers</td><td>User, host, or IP</td></tr><tr><td>5th+</td><td>Context fields</td><td>Supporting details</td></tr><tr><td>Last</td><td>Action indicators</td><td>Links, IDs for drilldown</td></tr></table>",
+        "spl": "index=alerts status=open\n| table severity, _time, user, src_ip, alert_name, alert_id\n| sort - severity, - _time",
+        "explanation": "Severity first lets analysts immediately identify critical items. Time second shows recency. Primary identifiers (user, src_ip) come next for quick context. The alert_id at the end enables drilldown without cluttering the view."
+      },
+      {
+        "title": "Renaming Fields for Clarity",
+        "body": "<p>Technical field names slow down interpretation. Rename for human readability:</p>",
+        "spl": "index=alerts status=open\n| table severity, _time, user, src_ip, dest_ip, alert_name\n| rename severity as \"Priority\",\n         _time as \"Time\",\n         user as \"User\",\n         src_ip as \"Source IP\",\n         dest_ip as \"Destination\",\n         alert_name as \"Alert\"",
+        "explanation": "Clear column headers eliminate the mental translation from 'src_ip' to 'Source IP'. This small change reduces cognitive load over hundreds of table rows."
+      },
+      {
+        "title": "Formatting Timestamps",
+        "body": "<p>Raw timestamps are hard to read quickly. Format them appropriately:</p>",
+        "spl": "index=alerts status=open\n| eval display_time = strftime(_time, \"%m/%d %H:%M\")\n| table severity, display_time, user, src_ip, alert_name\n| rename display_time as \"Time\"",
+        "explanation": "The strftime function creates readable timestamps. For shift dashboards, showing just month/day and hour:minute is usually sufficient. The full timestamp is available on drilldown."
+      },
+      {
+        "title": "Adding Severity Icons",
+        "body": "<p>Visual indicators speed up triage. Add icons for severity levels:</p>",
+        "spl": "index=alerts status=open\n| eval severity_icon = case(\n    severity=\"critical\", \"!!!\",\n    severity=\"high\", \"!!\",\n    severity=\"medium\", \"!\",\n    severity=\"low\", \"-\",\n    true(), \"?\")\n| eval Priority = severity_icon . \" \" . severity\n| table Priority, _time, user, src_ip, alert_name",
+        "explanation": "Concatenating icons with severity text creates a visual hierarchy. Critical items with '!!!' stand out immediately. In Splunk dashboards, you can also use HTML entities or configure icon sets in the visualization settings."
+      },
+      {
+        "title": "Conditional Row Coloring with Rangemap",
+        "body": "<p>Color-code rows based on severity or score:</p>",
+        "spl": "index=alerts status=open\n| eval risk_score = random() % 100\n| eval range = case(\n    risk_score >= 80, \"severe\",\n    risk_score >= 60, \"elevated\",\n    risk_score >= 40, \"guarded\",\n    true(), \"low\")\n| table range, _time, user, src_ip, risk_score, alert_name",
+        "explanation": "The 'range' field can be used by the table visualization's 'Color by Value' feature to apply row-level coloring. This is configured in the visualization format settings, not in SPL."
+      },
+      {
+        "title": "Truncating Long Values",
+        "body": "<p>Long field values (URLs, file paths) break table layout. Truncate with drilldown to full value:</p>",
+        "spl": "index=web_proxy\n| eval short_url = if(len(url) > 50, substr(url, 1, 47) . \"...\", url)\n| table _time, user, short_url, bytes, status\n| rename short_url as \"URL (truncated)\"",
+        "explanation": "Truncating to 50 characters keeps columns scannable. The full URL is available via drilldown to the raw event. The '...' suffix indicates truncation occurred."
+      },
+      {
+        "title": "Formatting Numeric Values",
+        "body": "<p>Raw numbers are hard to compare. Add formatting for clarity:</p>",
+        "spl": "index=network\n| stats sum(bytes_out) as total_bytes by src_ip\n| eval formatted_bytes = case(\n    total_bytes >= 1073741824, round(total_bytes/1073741824, 2) . \" GB\",\n    total_bytes >= 1048576, round(total_bytes/1048576, 2) . \" MB\",\n    total_bytes >= 1024, round(total_bytes/1024, 2) . \" KB\",\n    true(), total_bytes . \" B\")\n| table src_ip, formatted_bytes, total_bytes\n| sort - total_bytes\n| fields - total_bytes\n| rename formatted_bytes as \"Data Transferred\"",
+        "explanation": "Human-readable byte formatting (GB, MB, KB) makes large numbers instantly understandable. We sort by the raw value then remove it, keeping just the formatted display."
+      },
+      {
+        "title": "Using fieldformat for Clean Display",
+        "body": "<p>The fieldformat command formats values for display while preserving the original for sorting:</p>",
+        "spl": "index=alerts status=open\n| stats count as alert_count, latest(_time) as last_seen by user\n| sort - alert_count\n| fieldformat last_seen = strftime(last_seen, \"%m/%d %H:%M\")\n| fieldformat alert_count = tostring(alert_count, \"commas\")\n| rename alert_count as \"Alert Count\", last_seen as \"Last Activity\", user as \"User\"",
+        "explanation": "fieldformat changes display without affecting underlying values. This means sorting still works correctly on raw numbers, but users see formatted output. It's cleaner than creating separate display fields."
+      },
+      {
+        "title": "Limiting Results for Performance",
+        "body": "<p>Tables with thousands of rows slow down dashboards and overwhelm analysts. Always limit:</p>",
+        "spl": "index=alerts status=open\n| table severity, _time, user, src_ip, alert_name\n| sort - severity, - _time\n| head 100",
+        "explanation": "The head command limits to 100 rows. For triage tables, 50-100 rows is typically sufficient. If analysts need more, they should be filtering, not scrolling. Pair with \"Showing top 100 results\" messaging."
+      },
+      {
+        "title": "Adding Click-to-Copy Fields",
+        "body": "<p>Analysts often need to copy values for investigation. Include full, copyable values:</p>",
+        "spl": "index=alerts status=open\n| eval ip_for_copy = src_ip\n| table severity, _time, user, src_ip, ip_for_copy, alert_name\n| rename ip_for_copy as \"Copy IP\"",
+        "explanation": "Having a dedicated column for copying prevents selection issues with formatted or linked columns. This is especially useful for IP addresses that need to be pasted into threat intel lookups."
+      },
+      {
+        "title": "Table Performance Considerations",
+        "body": "<p>Tables can be expensive. Optimize with these practices:</p><h4>Use Fields Early</h4><p>Limit fields before aggregation:</p>",
+        "spl": "index=alerts status=open\n| fields _time, severity, user, src_ip, alert_name, alert_id\n| stats latest(_time) as _time, values(alert_name) as alerts by user, src_ip, severity\n| table severity, _time, user, src_ip, alerts",
+        "explanation": "Using fields early reduces data transfer. Aggregating with stats before table further reduces row count. Only materialize the columns you'll actually display."
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Investigation-ready tables follow these principles:</p><ul><li><strong>Order fields strategically</strong>: Decision field first, identifiers next, details last</li><li><strong>Format for readability</strong>: Rename fields, format timestamps and numbers</li><li><strong>Add visual indicators</strong>: Icons and colors for quick severity recognition</li><li><strong>Limit row count</strong>: 50-100 rows maximum for interactive tables</li><li><strong>Optimize performance</strong>: Use fields early, aggregate when possible</li><li><strong>Enable action</strong>: Include values needed for drilldown and copy</li></ul><p>The next tutorial covers adding interactivity with tokens and drilldowns.</p>"
+      }
+    ]
+  }
+}

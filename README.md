@@ -126,6 +126,14 @@ Glossary terms link to guides. Guides link to training scenarios. Training scena
 
 No Splunk installation required. SPLUNKed is an offline learning tool.
 
+## Offline-First Deployment
+
+SPLUNKed is designed for airgapped environments. All UI assets (including fonts) are bundled locally in `static/`, and content is served from local JSON files. No external network access is required at runtime.
+
+### Persistence
+
+Prompt Builder mappings are stored in a local SQLite database at `data/splunked.db`. The database is created automatically on first run and seeded from `data/prompt-builder-mappings.json`. No additional services or setup steps are required.
+
 ## Related Projects
 
 - **[SIFTed](https://github.com/timgrady92/SIFTed)**: Guided interface for SANS SIFT forensic tools

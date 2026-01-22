@@ -1,0 +1,116 @@
+{
+  "id": "dash-monitoring-scenario",
+  "type": "scenario",
+  "title": "Building Your First SOC Monitoring Dashboard",
+  "description": "Build an authentication monitoring dashboard from scratch, then use it to detect and investigate a spike in failed logins.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "30 min",
+  "tags": ["dashboards", "scenario", "monitoring", "authentication"],
+  "objectives": [
+    "Build a multi-panel monitoring dashboard",
+    "Apply appropriate visualizations for different data types",
+    "Investigate an anomaly using dashboard drilldowns",
+    "Identify the root cause of a security event"
+  ],
+  "content": {
+    "situation": {
+      "title": "Scenario Setup",
+      "description": "You're a SOC analyst at MegaCorp tasked with building an authentication monitoring dashboard. The security team currently has no visibility into login patterns and has been relying on ad-hoc searches when incidents occur. Your goal is to build a dashboard that provides continuous visibility into authentication activity and enables quick investigation when anomalies appear.",
+      "environment": "Your Splunk environment contains authentication logs in index=security with sourcetype=auth. Key fields include: user, src_ip, dest (destination system), action (success/failure), and app (application name)."
+    },
+    "steps": [
+      {
+        "id": 1,
+        "title": "Design the Dashboard Layout",
+        "question": "Before writing any SPL, plan your dashboard. Based on the SOC design principles, what panels should a monitoring dashboard include?",
+        "guidance": "Think about the three-second glance rule. What does a SOC analyst need to see immediately when checking authentication health?",
+        "expected_answer": "A monitoring dashboard should include: 1) KPI header row with current metrics (total failures, failure rate, queue depth), 2) Timechart showing failure trends over time, 3) Top offenders table (by source IP or user), 4) Breakdown by failure reason. The most critical metric (likely failure count or rate) should be largest and top-left."
+      },
+      {
+        "id": 2,
+        "title": "Build the Failure Count KPI",
+        "question": "Write a search for a single-value panel showing current authentication failures in the last hour with threshold coloring.",
+        "spl": "index=security sourcetype=auth action=failure earliest=-1h\n| stats count as failures\n| eval status = case(\n    failures < 100, \"low\",\n    failures < 500, \"elevated\", \n    failures < 1000, \"high\",\n    true(), \"critical\")",
+        "explanation": "This search counts failures in the last hour and categorizes them by severity. Configure the single-value visualization to use the 'status' field for color coding. Low (<100) = green, Elevated (100-499) = yellow, High (500-999) = orange, Critical (1000+) = red.",
+        "validation": "With normal activity, expect 50-200 failures per hour. The panel should show green or yellow status."
+      },
+      {
+        "id": 3,
+        "title": "Add the Failure Rate KPI",
+        "question": "A raw failure count lacks context. Build a panel showing failure rate as a percentage of all auth attempts.",
+        "spl": "index=security sourcetype=auth earliest=-1h\n| stats count(eval(action=\"failure\")) as failures, count as total\n| eval failure_rate = round((failures/total)*100, 2)\n| eval status = case(\n    failure_rate < 5, \"normal\",\n    failure_rate < 15, \"elevated\",\n    failure_rate < 30, \"high\",\n    true(), \"critical\")",
+        "explanation": "Failure rate normalizes for activity volume. 500 failures during 50,000 logins (1%) is different from 500 failures during 1,000 logins (50%). A 5% failure rate is typically normal; anything above 15% warrants attention.",
+        "validation": "Normal operations show 2-5% failure rate. Higher rates indicate either an attack or a system problem."
+      },
+      {
+        "id": 4,
+        "title": "Build the Trend Timechart",
+        "question": "Create a timechart showing failure trends over 24 hours, split by success vs failure. Choose an appropriate span.",
+        "spl": "index=security sourcetype=auth earliest=-24h\n| eval outcome = if(action=\"success\", \"Success\", \"Failure\")\n| timechart span=15m count by outcome",
+        "explanation": "The 15-minute span gives 96 data points over 24 hours - detailed enough to spot anomalies without visual noise. Showing both success and failure provides context: a spike in failures alongside steady success suggests an attack; spikes in both suggest a system event.",
+        "validation": "Expect a roughly steady pattern with minor variations. Look for unusual spikes or sustained elevations in the failure line."
+      },
+      {
+        "id": 5,
+        "title": "Create the Top Offenders Table",
+        "question": "Build a table showing the top 10 source IPs by failure count, with columns for triage.",
+        "spl": "index=security sourcetype=auth action=failure earliest=-24h\n| stats count as failures, dc(user) as users_targeted, latest(_time) as last_seen, values(dest) as destinations by src_ip\n| sort - failures\n| head 10\n| eval last_seen = strftime(last_seen, \"%m/%d %H:%M\")\n| table src_ip, failures, users_targeted, destinations, last_seen",
+        "explanation": "This table helps analysts quickly identify: which IPs are causing failures, whether they're targeting many users (credential stuffing) or few (targeted attack), which systems are targeted, and how recent the activity is. Field order puts the most important triage info first.",
+        "validation": "Internal IPs with a few failures against one user are likely typos. External IPs with hundreds of failures against many users indicate attacks."
+      },
+      {
+        "id": 6,
+        "title": "Investigate the Anomaly",
+        "question": "Your dashboard is live and shows a sudden spike in failures starting 30 minutes ago. The failure rate jumped from 3% to 28%. Which panel do you check first, and what do you look for?",
+        "pivot_step": true,
+        "guidance": "This is a pivot step. Think about which panel will most quickly identify the source of the anomaly.",
+        "expected_answer": "Check the Top Offenders table first. A spike in failure rate typically has a concentrated source. Look for: 1) A single IP with a massive failure count (brute force), 2) Multiple IPs targeting the same user (coordinated attack), or 3) Many IPs with similar failure counts (botnet)."
+      },
+      {
+        "id": 7,
+        "title": "Drill Down on the Source",
+        "question": "The table shows IP 203.0.113.45 with 2,847 failures in the last hour, targeting 412 different users. What's your next SPL search to understand this activity?",
+        "spl": "index=security sourcetype=auth src_ip=203.0.113.45 earliest=-1h\n| stats count as attempts, count(eval(action=\"failure\")) as failures, count(eval(action=\"success\")) as successes, dc(user) as unique_users, values(user) as sample_users by dest\n| sort - failures",
+        "explanation": "This search reveals: which systems are targeted (dest), whether any attempts succeeded, how many users are being targeted, and sample usernames being tried. The pattern of targeting many users with all failures is classic credential stuffing.",
+        "validation": "Expect to see failures spread across many users with zero or very few successes. If there are successes, those accounts may be compromised."
+      },
+      {
+        "id": 8,
+        "title": "Reasoning Checkpoint: Attack Classification",
+        "question": "Based on your findings (single IP, 2,847 failures, 412 users, 0 successes), what type of attack is this? Why do failures from this source matter if none succeeded?",
+        "reasoning_checkpoint": true,
+        "expected_answer": "This is credential stuffing - an automated attack trying leaked username/password combinations. Even with 0 successes, it matters because: 1) The attacker may have a larger list and could succeed later, 2) Account lockouts may cause denial of service for legitimate users, 3) The IP should be blocked to prevent future attempts, 4) Targeted usernames may be from a breach - those users should reset passwords."
+      },
+      {
+        "id": 9,
+        "title": "Check for Successful Compromises",
+        "question": "Before closing this investigation, verify no accounts were compromised. Write a search to find any successes from this IP.",
+        "spl": "index=security sourcetype=auth src_ip=203.0.113.45 action=success earliest=-24h\n| table _time, user, dest, app\n| sort - _time",
+        "explanation": "Even one success from an attacking IP indicates a compromised account. This search extends to 24 hours in case the attacker probed earlier before the bulk attempt.",
+        "validation": "Ideally, this returns zero results. Any successes require immediate password reset and session termination for those accounts."
+      },
+      {
+        "id": 10,
+        "title": "Document and Respond",
+        "question": "The attack had no successful authentications. List your recommended response actions.",
+        "expected_answer": "Recommended actions: 1) Block IP 203.0.113.45 at perimeter firewall, 2) Add IP to threat intelligence blocklist, 3) Check if 203.0.113.45 appears in threat feeds (could indicate known attacker infrastructure), 4) Review the 412 targeted usernames - if they match a known breach list, notify those users to change passwords, 5) Consider implementing rate limiting for authentication failures, 6) Document incident for metrics and pattern analysis."
+      }
+    ],
+    "conclusion": {
+      "title": "Scenario Complete",
+      "summary": "You built an authentication monitoring dashboard and used it to detect and investigate a credential stuffing attack. The dashboard's combination of KPIs, trend visualization, and detail tables enabled quick anomaly detection and efficient investigation.",
+      "key_takeaways": [
+        "Monitoring dashboards need multiple perspectives: KPIs for status, trends for patterns, tables for details",
+        "Failure rate is more informative than raw failure count",
+        "Top offenders tables enable rapid source identification during incidents",
+        "Even unsuccessful attacks require response: blocking, threat intel updates, and user notification"
+      ],
+      "next_steps": [
+        "Add token-based filtering to your dashboard for dynamic investigation",
+        "Configure alerts to notify when failure rate exceeds thresholds",
+        "Build drilldown links to external threat intelligence"
+      ]
+    }
+  }
+}

@@ -5,83 +5,16 @@ A web application for Splunk analysts to learn SPL (Search Processing Language).
 Mirrors SIFTed's scaffolding for learning philosophy with Splunk-inspired aesthetics.
 """
 
-import json
-import os
-import uuid
+import re
+
+import storage
+import training_storage
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 
 app = Flask(__name__)
 
-# Path to the mappings JSON file
-MAPPINGS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'prompt-builder-mappings.json')
-
-DEFAULT_MAPPINGS = {
-    "dataSources": [],
-    "fieldValues": [],
-    "patterns": [],
-    "outputShapes": [],
-    "timeRangePresets": []
-}
-
-TYPE_KEY_MAP = {
-    'dataSource': 'dataSources',
-    'dataSources': 'dataSources',
-    'fieldValue': 'fieldValues',
-    'fieldValues': 'fieldValues',
-    'pattern': 'patterns',
-    'patterns': 'patterns',
-    'outputShape': 'outputShapes',
-    'outputShapes': 'outputShapes',
-    'timeRangePreset': 'timeRangePresets',
-    'timeRangePresets': 'timeRangePresets'
-}
-
-ID_PREFIX_MAP = {
-    'dataSources': 'ds',
-    'fieldValues': 'fv',
-    'patterns': 'pf',
-    'outputShapes': 'os'
-}
-
-
-def load_mappings():
-    """Load mappings from JSON file."""
-    try:
-        with open(MAPPINGS_FILE, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {key: list(value) for key, value in DEFAULT_MAPPINGS.items()}
-
-
-def save_mappings(data):
-    """Save mappings to JSON file."""
-    os.makedirs(os.path.dirname(MAPPINGS_FILE), exist_ok=True)
-    with open(MAPPINGS_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
-
-
-def get_type_key(type_name):
-    """Convert type name to JSON key."""
-    return TYPE_KEY_MAP.get(type_name, type_name)
-
-
-def resolve_type_key(mappings, type_name):
-    """Return a validated mappings key or None if unknown."""
-    type_key = get_type_key(type_name)
-    return type_key if type_key in mappings else None
-
-
-def singularize_type_name(type_name):
-    """Convert plural type names to a singular form for object metadata."""
-    return type_name[:-1] if type_name.endswith('s') else type_name
-
-
-def find_mapping_index(items, obj_id):
-    """Find an object's index by id in a list of mapping objects."""
-    for i, obj in enumerate(items):
-        if obj.get("id") == obj_id:
-            return i
-    return None
+storage.init_db()
+training_storage.init_db()
 
 
 def index_by_id(items):
@@ -116,8 +49,8 @@ def enterprise_security():
 
 @app.route("/guides")
 def guides():
-    """Redirect to training page with guides tab for backwards compatibility."""
-    return redirect(url_for('training') + '?tab=guides')
+    """Redirect to training page with lessons tab for backwards compatibility."""
+    return redirect(url_for('training') + '?tab=lessons')
 
 
 @app.route("/prompt-builder")
@@ -138,29 +71,44 @@ def query_library():
     return render_template("query-library.html")
 
 
+# Training Content API
+@app.route("/api/training/index", methods=["GET"])
+def training_index():
+    """Return lightweight training metadata for search and listings."""
+    return jsonify(training_storage.get_training_index())
+
+
+@app.route("/api/training/items/<item_id>", methods=["GET"])
+def training_item(item_id):
+    """Return full training content for a specific item."""
+    item = training_storage.get_training_item(item_id)
+    if not item:
+        return jsonify({"error": f"Training item not found: {item_id}"}), 404
+    return jsonify(item)
+
+
 # API Routes for Prompt Builder
 @app.route("/api/mappings", methods=['GET'])
 def get_all_mappings():
     """Get all search objects."""
-    mappings = load_mappings()
-    return jsonify(mappings)
+    return jsonify(storage.get_all_mappings())
 
 
 @app.route("/api/mappings/<type_name>", methods=['GET'])
 def get_mappings_by_type(type_name):
     """Get search objects by type."""
-    mappings = load_mappings()
-    type_key = resolve_type_key(mappings, type_name)
-    if type_key:
-        return jsonify(mappings[type_key])
-    return jsonify({"error": f"Unknown type: {type_name}"}), 404
+    type_key = storage.resolve_type_key(type_name)
+    if not type_key:
+        return jsonify({"error": f"Unknown type: {type_name}"}), 404
+
+    records = storage.get_mappings_by_type(type_name)
+    return jsonify(records)
 
 
 @app.route("/api/mappings/<type_name>", methods=['POST'])
 def create_mapping(type_name):
     """Create a new search object."""
-    mappings = load_mappings()
-    type_key = resolve_type_key(mappings, type_name)
+    type_key = storage.resolve_type_key(type_name)
     if not type_key:
         return jsonify({"error": f"Unknown type: {type_name}"}), 404
 
@@ -168,37 +116,14 @@ def create_mapping(type_name):
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
-    # Generate ID and set type
-    prefix = ID_PREFIX_MAP.get(type_key, 'obj')
-    new_id = f"{prefix}_{uuid.uuid4().hex[:8]}"
-
-    new_object = {
-        "id": new_id,
-        "type": singularize_type_name(type_name),
-        "name": data.get("name", ""),
-        "friendlyName": data.get("friendlyName", data.get("name", "").upper()),
-        "spl": data.get("spl", ""),
-        "tags": data.get("tags", []),
-        "description": data.get("description", "")
-    }
-
-    # Add optional fields for output shapes
-    if type_key == 'outputShapes':
-        if data.get("requiresField"):
-            new_object["requiresField"] = True
-            new_object["fieldPlaceholder"] = data.get("fieldPlaceholder", "{field}")
-
-    mappings[type_key].append(new_object)
-    save_mappings(mappings)
-
+    new_object = storage.create_mapping(type_name, data)
     return jsonify(new_object), 201
 
 
 @app.route("/api/mappings/<type_name>/<obj_id>", methods=['PUT'])
 def update_mapping(type_name, obj_id):
     """Update an existing search object."""
-    mappings = load_mappings()
-    type_key = resolve_type_key(mappings, type_name)
+    type_key = storage.resolve_type_key(type_name)
     if not type_key:
         return jsonify({"error": f"Unknown type: {type_name}"}), 404
 
@@ -206,42 +131,22 @@ def update_mapping(type_name, obj_id):
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
-    index = find_mapping_index(mappings[type_key], obj_id)
-    if index is None:
+    obj = storage.update_mapping(type_name, obj_id, data)
+    if not obj:
         return jsonify({"error": f"Object not found: {obj_id}"}), 404
-
-    obj = mappings[type_key][index]
-    # Update fields
-    obj["name"] = data.get("name", obj.get("name"))
-    obj["friendlyName"] = data.get("friendlyName", data.get("name", obj.get("name")).upper())
-    obj["spl"] = data.get("spl", obj.get("spl"))
-    obj["tags"] = data.get("tags", obj.get("tags", []))
-    obj["description"] = data.get("description", obj.get("description"))
-
-    # Handle optional fields for output shapes
-    if type_key == 'outputShapes':
-        obj["requiresField"] = data.get("requiresField", obj.get("requiresField", False))
-        if obj["requiresField"]:
-            obj["fieldPlaceholder"] = data.get("fieldPlaceholder", obj.get("fieldPlaceholder", "{field}"))
-
-    save_mappings(mappings)
     return jsonify(obj)
 
 
 @app.route("/api/mappings/<type_name>/<obj_id>", methods=['DELETE'])
 def delete_mapping(type_name, obj_id):
     """Delete a search object."""
-    mappings = load_mappings()
-    type_key = resolve_type_key(mappings, type_name)
+    type_key = storage.resolve_type_key(type_name)
     if not type_key:
         return jsonify({"error": f"Unknown type: {type_name}"}), 404
 
-    index = find_mapping_index(mappings[type_key], obj_id)
-    if index is None:
+    deleted = storage.delete_mapping(type_name, obj_id)
+    if not deleted:
         return jsonify({"error": f"Object not found: {obj_id}"}), 404
-
-    deleted = mappings[type_key].pop(index)
-    save_mappings(mappings)
     return jsonify({"message": "Deleted", "object": deleted})
 
 
@@ -252,7 +157,38 @@ def generate_spl():
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
-    mappings = load_mappings()
+    def normalize_spl_part(spl):
+        return " ".join(spl.split()) if spl else ""
+
+    def is_generating_spl(spl):
+        return normalize_spl_part(spl).startswith("|")
+
+    def is_wrapped(spl):
+        return spl.startswith("(") and spl.endswith(")")
+
+    def is_negated(spl):
+        return bool(re.match(r"^NOT\b", normalize_spl_part(spl), flags=re.IGNORECASE))
+
+    def wrap_spl(spl):
+        trimmed = normalize_spl_part(spl)
+        if not trimmed:
+            return ""
+        return trimmed if is_wrapped(trimmed) else f"({trimmed})"
+
+    def wrap_if_or(spl):
+        trimmed = normalize_spl_part(spl)
+        if not trimmed:
+            return ""
+        if is_negated(trimmed):
+            remainder = re.sub(r"^NOT\b\s*", "", trimmed, flags=re.IGNORECASE)
+            if not remainder:
+                return trimmed
+            if re.search(r"\bOR\b", remainder, flags=re.IGNORECASE) and not is_wrapped(remainder):
+                return f"NOT {wrap_spl(remainder)}"
+            return trimmed
+        return wrap_spl(trimmed) if re.search(r"\bOR\b", trimmed, flags=re.IGNORECASE) else trimmed
+
+    mappings = storage.get_all_mappings()
     data_sources_by_id = index_by_id(mappings.get("dataSources", []))
     patterns_by_id = index_by_id(mappings.get("patterns", []))
     field_values_by_id = index_by_id(mappings.get("fieldValues", []))
@@ -268,24 +204,36 @@ def generate_spl():
     output_shape = data.get("outputShape", None)
     output_field = data.get("outputField", "")
 
-    spl_parts = []
+    filter_parts = []
     explanation_parts = []
+    base_search = ""
 
     # Build data sources (OR together)
+    data_source_entries = []
     if data_sources:
-        ds_spls = []
-        ds_names = []
         for ds_id in data_sources:
             ds = data_sources_by_id.get(ds_id)
             if ds:
-                ds_spls.append(f"({ds.get('spl')})")
-                ds_names.append(ds.get("name"))
-        if ds_spls:
-            if len(ds_spls) > 1:
-                spl_parts.append(f"({' OR '.join(ds_spls)})")
-            else:
-                spl_parts.append(ds_spls[0])
-            explanation_parts.append(f"Search in: {', '.join(ds_names)}")
+                spl = normalize_spl_part(ds.get("spl", ""))
+                if spl:
+                    data_source_entries.append({
+                        "name": ds.get("name"),
+                        "spl": spl
+                    })
+
+        generating_sources = [e for e in data_source_entries if is_generating_spl(e["spl"])]
+        event_sources = [e for e in data_source_entries if not is_generating_spl(e["spl"])]
+
+        if generating_sources:
+            base_search = generating_sources[0]["spl"]
+            explanation_parts.append(f"Search in: {generating_sources[0]['name']}")
+        elif event_sources:
+            ds_names = [e["name"] for e in event_sources if e["name"]]
+            ds_spls = [e["spl"] for e in event_sources]
+            or_group = " OR ".join(ds_spls)
+            base_search = or_group if len(ds_spls) > 1 else ds_spls[0]
+            if ds_names:
+                explanation_parts.append(f"Search in: {', '.join(ds_names)}")
 
     # Build includes (AND together)
     if includes:
@@ -294,10 +242,13 @@ def generate_spl():
         for inc_id in includes:
             obj = filter_objects_by_id.get(inc_id)
             if obj:
-                include_spls.append(obj.get("spl"))
+                normalized = normalize_spl_part(obj.get("spl", ""))
+                if not normalized:
+                    continue
+                include_spls.append(wrap_if_or(normalized))
                 include_names.append(obj.get("name"))
         if include_spls:
-            spl_parts.extend(include_spls)
+            filter_parts.extend(include_spls)
             explanation_parts.append(f"Filter for: {', '.join(include_names)}")
 
     # Build excludes (NOT each)
@@ -307,10 +258,16 @@ def generate_spl():
         for exc_id in excludes:
             obj = filter_objects_by_id.get(exc_id)
             if obj:
-                exclude_spls.append(f"NOT {obj.get('spl')}")
+                normalized = normalize_spl_part(obj.get("spl", ""))
+                if not normalized:
+                    continue
+                if is_negated(normalized):
+                    exclude_spls.append(wrap_if_or(normalized))
+                else:
+                    exclude_spls.append(f"NOT {wrap_spl(normalized)}")
                 exclude_names.append(obj.get("name"))
         if exclude_spls:
-            spl_parts.extend(exclude_spls)
+            filter_parts.extend(exclude_spls)
             explanation_parts.append(f"Excluding: {', '.join(exclude_names)}")
 
     # Add time range
@@ -319,17 +276,37 @@ def generate_spl():
         # Check if it's a preset ID
         preset = time_presets_by_id.get(time_range)
         if preset:
-            time_spl = preset.get("spl", "")
+            time_spl = normalize_spl_part(preset.get("spl", ""))
             explanation_parts.append(f"Time range: {preset.get('name')}")
         else:
             # Assume it's custom SPL
-            time_spl = time_range
+            time_spl = normalize_spl_part(time_range)
             explanation_parts.append(f"Time range: {time_range}")
 
     # Build base search
-    base_search = " ".join(spl_parts) if spl_parts else "*"
-    if time_spl:
-        base_search = f"{base_search} {time_spl}"
+    if not base_search and not filter_parts:
+        base_search = "*"
+
+    if base_search and not is_generating_spl(base_search):
+        if len([e for e in data_source_entries if not is_generating_spl(e["spl"])]) > 1 and (filter_parts or time_spl):
+            base_search = wrap_spl(base_search)
+        combined = [base_search]
+        if time_spl:
+            combined.append(time_spl)
+        combined.extend(filter_parts)
+        base_search = " ".join([c for c in combined if c])
+    elif base_search:
+        if time_spl:
+            base_search = f"{base_search} {time_spl}"
+        if filter_parts:
+            base_search = f"{base_search} | search {' '.join(filter_parts)}"
+    else:
+        combined = []
+        if filter_parts:
+            combined.append(" ".join(filter_parts))
+        if time_spl:
+            combined.append(time_spl)
+        base_search = " ".join([c for c in combined if c]) or "*"
 
     # Add output shape
     output_spl = ""

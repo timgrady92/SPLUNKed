@@ -1,22 +1,22 @@
 /**
  * Training Center - SPLUNKed
- * Unified learning hub: How-To Guides, Tutorials, Scenarios, Challenges, and Learning Paths
+ * Unified learning hub: Lessons, Tutorials, Scenarios, Challenges, and Learning Paths
  */
 (function() {
 'use strict';
 
 // ============================================
-// Guides Data (merged from guides.js)
+// Lessons Data (merged from guides.js)
 // ============================================
 
-let GUIDES_DATA = {}
+let LESSONS_DATA = {}
 
 
 // ============================================
 // Training Data (tutorials, scenarios, challenges)
 // ============================================
 
-let TRAINING_DATA = []
+let TRAINING_DATA = {}
 
 
 // ============================================
@@ -30,6 +30,36 @@ let TRAINING_DATA = []
 
 let PIPELINES_DATA = []
 
+// Cached full training items (content fetched on demand)
+const TRAINING_ITEM_CACHE = new Map();
+
+function listToText(value) {
+    if (Array.isArray(value)) {
+        return value.join(' ');
+    }
+    return value || '';
+}
+
+async function fetchTrainingItem(itemId) {
+    if (!itemId) return null;
+    if (TRAINING_ITEM_CACHE.has(itemId)) {
+        return TRAINING_ITEM_CACHE.get(itemId);
+    }
+
+    try {
+        const response = await fetch(`/api/training/items/${encodeURIComponent(itemId)}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load training item ${itemId}`);
+        }
+        const data = await response.json();
+        TRAINING_ITEM_CACHE.set(itemId, data);
+        return data;
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
 
 
 
@@ -37,8 +67,32 @@ let PIPELINES_DATA = []
 // State Management
 // ============================================
 
-let currentTab = 'guides';  // Default tab
-let trainingSearch = '';
+// Unified state management - single source of truth
+let state = null;
+
+function initState() {
+    if (state) return state;
+
+    state = window.SPLUNKed?.createFeatureState?.({
+        tab: 'lessons',
+        search: '',
+        bucket: 'all',
+        pipelineTrack: 'all'
+    }, {
+        storageKey: 'training',
+        persistKeys: ['tab']
+    });
+
+    return state;
+}
+
+// State accessors
+const getTab = () => state?.get('tab') || 'lessons';
+const getSearch = () => state?.get('search') || '';
+const getBucket = () => state?.get('bucket') || 'all';
+const getPipelineTrack = () => state?.get('pipelineTrack') || 'all';
+
+// Modal state (not persisted)
 let currentModalData = null;
 let currentScenarioStep = 0;
 let revealedHints = new Set();
@@ -64,15 +118,17 @@ async function initTrainingOnReady() {
     if (initTrainingOnReady.done) return;
     initTrainingOnReady.done = true;
 
+    initState();
+
     if (window.SPLUNKed?.loadTrainingData) {
         const data = await SPLUNKed.loadTrainingData();
-        GUIDES_DATA = data?.guides || {};
-        TRAINING_DATA = data?.training || [];
+        LESSONS_DATA = data?.lessons || {};
+        TRAINING_DATA = data?.training || {};
         PIPELINES_DATA = data?.pipelines || [];
     }
 
     // Export data for global search
-    window.GUIDES_DATA = GUIDES_DATA;
+    window.LESSONS_DATA = LESSONS_DATA;
     window.TRAINING_DATA = TRAINING_DATA;
     window.PIPELINES_DATA = PIPELINES_DATA;
 
@@ -80,7 +136,7 @@ async function initTrainingOnReady() {
     const tabController = SPLUNKed.initTabs('#trainingTabs', {
         storageKey: storageKey,
         onTabChange: (tab) => {
-            currentTab = tab;
+            state?.set('tab', tab);
             renderActiveTab();
 
             // Update URL without reload
@@ -92,32 +148,52 @@ async function initTrainingOnReady() {
 
     SPLUNKed.initSearch('trainingSearch', {
         onSearch: (query) => {
-            trainingSearch = query;
+            state?.set('search', query);
             renderActiveTab();
         }
     });
 
+    const categoryFilter = document.getElementById('trainingCategoryFilter');
+    if (categoryFilter) {
+        categoryFilter.value = getBucket();
+        categoryFilter.addEventListener('change', () => {
+            state?.set('bucket', categoryFilter.value);
+            renderActiveTab();
+        });
+    }
+
+    const pipelineTrackFilter = document.getElementById('pipelineTrackFilter');
+    if (pipelineTrackFilter) {
+        pipelineTrackFilter.value = getPipelineTrack();
+        pipelineTrackFilter.addEventListener('change', () => {
+            state?.set('pipelineTrack', pipelineTrackFilter.value);
+            renderActiveTab();
+        });
+    }
+
     initGuideModal();
     initTrainingModal();
     initPipelineModal();
+    initTrainingModals(); // Centralized escape key handler
 
     // Check URL params for deep linking
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
     const openParam = urlParams.get('open');
 
-    if (tabParam && ['guides', 'tutorials', 'scenarios', 'challenges', 'pipelines'].includes(tabParam)) {
-        currentTab = tabParam;
-        tabController?.activateTab(tabParam, { notify: true, persist: true });
+    const resolvedTab = tabParam === 'guides' ? 'lessons' : tabParam;
+    if (resolvedTab && ['lessons', 'scenarios', 'challenges', 'pipelines'].includes(resolvedTab)) {
+        state?.set('tab', resolvedTab);
+        tabController?.activateTab(resolvedTab, { notify: true, persist: true });
     } else {
         renderActiveTab();
     }
 
     // Open specific guide if requested
     if (openParam) {
-        const guide = findGuideById(openParam);
-        if (guide) {
-            setTimeout(() => openGuideModal(guide), 200);
+        const lesson = findLessonById(openParam);
+        if (lesson) {
+            setTimeout(() => openGuideModal(lesson), 200);
         }
     }
 }
@@ -135,12 +211,10 @@ if (document.readyState === 'loading') {
 }
 
 function renderActiveTab() {
-    switch(currentTab) {
-        case 'guides':
-            renderGuidesGrid();
-            break;
-        case 'tutorials':
-            renderTutorialsGrid();
+    const tab = getTab();
+    switch(tab) {
+        case 'lessons':
+            renderLessonsGrid();
             break;
         case 'scenarios':
             renderScenariosGrid();
@@ -152,95 +226,118 @@ function renderActiveTab() {
             renderPipelinesGrid();
             break;
     }
+    updateFilterVisibility();
     updateEmptyState();
+}
+
+function updateFilterVisibility() {
+    const categoryWrap = document.getElementById('trainingCategoryFilterWrap');
+    if (categoryWrap) {
+        categoryWrap.hidden = getTab() !== 'lessons';
+    }
+    const trackWrap = document.getElementById('pipelineTrackFilterWrap');
+    if (trackWrap) {
+        trackWrap.hidden = getTab() !== 'pipelines';
+    }
 }
 
 // ============================================
 // Search handled via SPLUNKed.initSearch
 
 function updateEmptyState() {
-    const emptyState = document.getElementById('trainingEmptyState');
-    if (!emptyState) return;
-
-    let hasContent = false;
-    switch(currentTab) {
-        case 'guides':
-            hasContent = document.getElementById('guidesGrid')?.children.length > 0;
-            break;
-        case 'tutorials':
-            hasContent = document.getElementById('tutorialsGrid')?.children.length > 0;
-            break;
-        case 'scenarios':
-            hasContent = document.getElementById('scenariosGrid')?.children.length > 0;
-            break;
-        case 'challenges':
-            hasContent = document.getElementById('challengesGrid')?.children.length > 0;
-            break;
-        case 'pipelines':
-            hasContent = document.getElementById('pipelinesGrid')?.children.length > 0;
-            break;
-    }
-
-    emptyState.classList.toggle('hidden', hasContent);
+    const gridIds = {
+        lessons: 'lessonsGrid',
+        scenarios: 'scenariosGrid',
+        challenges: 'challengesGrid',
+        pipelines: 'pipelinesGrid'
+    };
+    SPLUNKed.updateEmptyState(gridIds[getTab()], 'trainingEmptyState');
 }
 
 // ============================================
-// Guides Rendering
+// Lessons Rendering
 // ============================================
 
-function renderGuidesGrid() {
-    const grid = document.getElementById('guidesGrid');
+function renderLessonsGrid() {
+    const grid = document.getElementById('lessonsGrid');
     if (!grid) return;
 
-    // Flatten all guides from all categories
-    let allGuides = [];
-    Object.keys(GUIDES_DATA).forEach(category => {
-        const guides = GUIDES_DATA[category] || [];
-        guides.forEach(guide => {
-            allGuides.push({ ...guide, category });
+    const search = getSearch().toLowerCase();
+
+    // Flatten all lessons from all categories
+    let allLessons = [];
+    Object.keys(LESSONS_DATA).forEach(category => {
+        const lessons = LESSONS_DATA[category] || [];
+        lessons.forEach(lesson => {
+            allLessons.push({ ...lesson, category, contentType: 'lesson' });
         });
+    });
+
+    // Also include tutorials (now merged into lessons view)
+    let tutorials = getModulesByType('tutorial');
+    tutorials.forEach(tutorial => {
+        allLessons.push({ ...tutorial, contentType: 'tutorial' });
     });
 
     // Filter by search
-    if (trainingSearch) {
-        allGuides = allGuides.filter(guide => {
-            const searchText = (guide.title + ' ' + guide.description + ' ' + (guide.keywords || '')).toLowerCase();
-            return searchText.includes(trainingSearch);
+    if (search) {
+        allLessons = allLessons.filter(item => {
+            const keywords = listToText(item.keywords);
+            const objectives = listToText(item.objectives);
+            const tags = listToText(item.tags);
+            const searchText = (
+                item.title + ' ' +
+                item.description + ' ' +
+                keywords + ' ' +
+                tags + ' ' +
+                objectives
+            ).toLowerCase();
+            return searchText.includes(search);
         });
     }
 
-    grid.innerHTML = allGuides.map(guide => renderGuideCard(guide)).join('');
+    const bucket = getBucket();
+    if (bucket && bucket !== 'all') {
+        allLessons = allLessons.filter(item => item.bucket === bucket);
+    }
 
-    // Add click handlers
+    // Render lessons first, then tutorials
+    const lessonsHtml = allLessons
+        .filter(item => item.contentType === 'lesson')
+        .map(lesson => renderLessonCard(lesson))
+        .join('');
+
+    const tutorialsHtml = allLessons
+        .filter(item => item.contentType === 'tutorial')
+        .map(tutorial => renderTrainingCard(tutorial))
+        .join('');
+
+    grid.innerHTML = lessonsHtml + tutorialsHtml;
+
+    // Add click handlers for lessons
     grid.querySelectorAll('.guide-card').forEach(card => {
         card.addEventListener('click', () => {
-            const guideId = card.dataset.id;
-            const guide = findGuideById(guideId);
-            if (guide) openGuideModal(guide);
+            const lessonId = card.dataset.id;
+            const lesson = findLessonById(lessonId);
+            if (lesson) openGuideModal(lesson);
         });
     });
+
+    // Add click handlers for tutorials
+    addTrainingCardHandlers(grid);
 }
 
-function renderGuideCard(guide) {
-    return '<div class="guide-card" data-id="' + guide.id + '">' +
-        '<div class="guide-card-header">' +
-            '<span class="guide-type-badge">' +
-                '<span class="type-icon">📖</span>' +
-                'Guide' +
-            '</span>' +
-        '</div>' +
-        '<h3 class="guide-card-title">' + guide.title + '</h3>' +
-        '<p class="guide-card-description">' + guide.description + '</p>' +
-        '<div class="guide-card-footer">' +
-            '<span class="guide-open-cta">Open Guide →</span>' +
-        '</div>' +
-    '</div>';
+/**
+ * Render lesson card using shared component
+ */
+function renderLessonCard(lesson) {
+    return SPLUNKed.components.createCard(lesson, { variant: 'guide' });
 }
 
-function findGuideById(id) {
-    for (const category of Object.keys(GUIDES_DATA)) {
-        const guide = GUIDES_DATA[category].find(g => g.id === id);
-        if (guide) return { ...guide, category };
+function findLessonById(id) {
+    for (const category of Object.keys(LESSONS_DATA)) {
+        const lesson = LESSONS_DATA[category].find(l => l.id === id);
+        if (lesson) return { ...lesson, category };
     }
     return null;
 }
@@ -250,20 +347,7 @@ function findGuideById(id) {
 // ============================================
 
 function renderTutorialsGrid() {
-    const grid = document.getElementById('tutorialsGrid');
-    if (!grid) return;
-
-    let tutorials = getModulesByType('tutorial');
-
-    if (trainingSearch) {
-        tutorials = tutorials.filter(module => {
-            const searchText = (module.title + ' ' + module.description + ' ' + module.objectives.join(' ') + ' ' + module.tags.join(' ')).toLowerCase();
-            return searchText.includes(trainingSearch);
-        });
-    }
-
-    grid.innerHTML = tutorials.map(module => renderTrainingCard(module)).join('');
-    addTrainingCardHandlers(grid);
+    renderModuleGrid('tutorialsGrid', 'tutorial');
 }
 
 // ============================================
@@ -271,20 +355,7 @@ function renderTutorialsGrid() {
 // ============================================
 
 function renderScenariosGrid() {
-    const grid = document.getElementById('scenariosGrid');
-    if (!grid) return;
-
-    let scenarios = getModulesByType('scenario');
-
-    if (trainingSearch) {
-        scenarios = scenarios.filter(module => {
-            const searchText = (module.title + ' ' + module.description + ' ' + module.objectives.join(' ') + ' ' + module.tags.join(' ')).toLowerCase();
-            return searchText.includes(trainingSearch);
-        });
-    }
-
-    grid.innerHTML = scenarios.map(module => renderTrainingCard(module)).join('');
-    addTrainingCardHandlers(grid);
+    renderModuleGrid('scenariosGrid', 'scenario');
 }
 
 // ============================================
@@ -292,19 +363,29 @@ function renderScenariosGrid() {
 // ============================================
 
 function renderChallengesGrid() {
-    const grid = document.getElementById('challengesGrid');
+    renderModuleGrid('challengesGrid', 'challenge');
+}
+
+/**
+ * Unified module grid renderer
+ */
+function renderModuleGrid(gridId, type) {
+    const grid = document.getElementById(gridId);
     if (!grid) return;
 
-    let challenges = getModulesByType('challenge');
+    const search = getSearch().toLowerCase();
+    let modules = getModulesByType(type);
 
-    if (trainingSearch) {
-        challenges = challenges.filter(module => {
-            const searchText = (module.title + ' ' + module.description + ' ' + module.objectives.join(' ') + ' ' + module.tags.join(' ')).toLowerCase();
-            return searchText.includes(trainingSearch);
+    if (search) {
+        modules = modules.filter(module => {
+            const objectives = listToText(module.objectives);
+            const tags = listToText(module.tags);
+            const searchText = (module.title + ' ' + module.description + ' ' + objectives + ' ' + tags).toLowerCase();
+            return searchText.includes(search);
         });
     }
 
-    grid.innerHTML = challenges.map(module => renderTrainingCard(module)).join('');
+    grid.innerHTML = modules.map(module => renderTrainingCard(module)).join('');
     addTrainingCardHandlers(grid);
 }
 
@@ -328,29 +409,11 @@ function getModulesByType(type) {
     return modules;
 }
 
+/**
+ * Render training card using shared component
+ */
 function renderTrainingCard(module) {
-    const typeIcons = {
-        tutorial: '▷',
-        scenario: '◎',
-        challenge: '★'
-    };
-
-    const tagsHtml = module.tags.slice(0, 3).map(tag => '<span class="training-tag">' + tag + '</span>').join('');
-
-    return '<div class="training-card" data-id="' + module.id + '">' +
-        '<div class="training-card-header">' +
-            '<span class="training-type-badge ' + module.type + '">' +
-                '<span class="type-icon">' + (typeIcons[module.type] || '') + '</span>' +
-                capitalize(module.type) +
-            '</span>' +
-        '</div>' +
-        '<h3 class="training-card-title">' + module.title + '</h3>' +
-        '<p class="training-card-description">' + module.description + '</p>' +
-        '<div class="training-card-meta">' +
-            '<span class="training-duration">' + module.duration + '</span>' +
-        '</div>' +
-        '<div class="training-card-tags">' + tagsHtml + '</div>' +
-    '</div>';
+    return SPLUNKed.components.createCard(module, { variant: 'training' });
 }
 
 function addTrainingCardHandlers(grid) {
@@ -375,34 +438,69 @@ function findModuleWithLevel(moduleId) {
     return null;
 }
 
+async function resolveLesson(lesson) {
+    if (!lesson || lesson.body) {
+        return lesson;
+    }
+
+    const full = await fetchTrainingItem(lesson.id);
+    if (!full) {
+        return lesson;
+    }
+    return { ...lesson, ...full };
+}
+
+async function resolveTrainingModule(moduleId) {
+    const meta = findModuleWithLevel(moduleId);
+    if (meta?.content) {
+        return meta;
+    }
+
+    const full = await fetchTrainingItem(moduleId);
+    if (!full) {
+        return meta;
+    }
+
+    if (meta?.displayLevel && !full.displayLevel) {
+        full.displayLevel = meta.displayLevel;
+    }
+    return { ...meta, ...full };
+}
+
 // ============================================
 // Guide Modal
 // ============================================
 
 function initGuideModal() {
-    const modal = document.getElementById('guideModal');
     const overlay = document.getElementById('guideModalOverlay');
     const closeBtn = document.getElementById('guideModalClose');
 
     if (overlay) overlay.addEventListener('click', closeGuideModal);
     if (closeBtn) closeBtn.addEventListener('click', closeGuideModal);
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal && modal.classList.contains('open')) {
-            closeGuideModal();
-        }
-    });
+    // Escape key handling is now centralized in initTrainingModals()
 }
 
-function openGuideModal(guide) {
+async function openGuideModal(guide) {
     const modal = document.getElementById('guideModal');
     const title = document.getElementById('guideModalTitle');
     const body = document.getElementById('guideModalBody');
 
     if (!modal || !title || !body) return;
 
-    title.textContent = guide.title;
-    body.innerHTML = guide.body;
+    try {
+        const resolved = await resolveLesson(guide);
+        if (!resolved || !resolved.body) {
+            title.textContent = guide?.title || 'Lesson';
+            body.innerHTML = '<p>Lesson content is coming soon.</p>';
+        } else {
+            title.textContent = resolved.title;
+            body.innerHTML = resolved.body;
+        }
+    } catch (error) {
+        console.error('Failed to load lesson:', error);
+        title.textContent = guide?.title || 'Lesson';
+        body.innerHTML = '<p>Lesson content is coming soon.</p>';
+    }
 
     // Transform old .spl-block format to training-spl-block format with syntax highlighting
     body.querySelectorAll('.spl-block').forEach(block => {
@@ -419,7 +517,11 @@ function openGuideModal(guide) {
             nextEl.remove();
         }
 
-        // Create new training-style SPL block
+        // Create new training-style SPL block with shared highlighting
+        const highlightedCode = window.SPLUNKed?.highlightSPL
+            ? window.SPLUNKed.highlightSPL(splCode, { formatPipelines: true })
+            : escapeHtml(splCode);
+
         const newBlock = document.createElement('div');
         newBlock.className = 'training-spl-block';
         newBlock.innerHTML =
@@ -427,7 +529,7 @@ function openGuideModal(guide) {
                 '<span class="training-spl-label">SPL</span>' +
                 '<button class="training-spl-copy">Copy</button>' +
             '</div>' +
-            '<pre class="training-spl-code">' + highlightSpl(splCode) + '</pre>' +
+            '<pre class="training-spl-code">' + highlightedCode + '</pre>' +
             (explanation ? '<div class="training-spl-explanation">' + explanation + '</div>' : '');
 
         // Replace old block with new one
@@ -436,6 +538,9 @@ function openGuideModal(guide) {
 
     // Add copy handlers for transformed SPL blocks
     initSplCopyHandlers(body);
+    if (window.SPLUNKed?.applySPLHighlighting) {
+        window.SPLUNKed.applySPLHighlighting(body, { force: true });
+    }
 
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -484,22 +589,16 @@ function closeGuideModal() {
 // ============================================
 
 function initTrainingModal() {
-    const modal = document.getElementById('trainingModal');
     const overlay = document.getElementById('trainingModalOverlay');
     const closeBtn = document.getElementById('trainingModalClose');
 
     if (overlay) overlay.addEventListener('click', closeTrainingModal);
     if (closeBtn) closeBtn.addEventListener('click', closeTrainingModal);
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
-            closeTrainingModal();
-        }
-    });
+    // Escape key handling is now centralized in initTrainingModals()
 }
 
-function openTrainingModal(moduleId) {
-    const module = findModuleWithLevel(moduleId);
+async function openTrainingModal(moduleId) {
+    const module = await resolveTrainingModule(moduleId);
     if (!module) return;
 
     currentModalData = module;
@@ -514,36 +613,55 @@ function openTrainingModal(moduleId) {
     const body = document.getElementById('trainingModalBody');
     const nav = document.getElementById('trainingModalNav');
 
+    if (!modal || !typeBadge || !duration || !title || !objectives || !body || !nav) {
+        return;
+    }
+
     typeBadge.textContent = module.type;
     typeBadge.className = 'training-type-badge ' + module.type;
-    duration.textContent = module.duration;
-    title.textContent = module.title;
+    duration.textContent = module.duration || '';
+    title.textContent = module.title || '';
 
     // Render objectives
-    objectives.innerHTML = '<h4>Learning Objectives</h4><ul>' +
-        module.objectives.map(obj => '<li>' + obj + '</li>').join('') +
-    '</ul>';
+    if (module.objectives && module.objectives.length) {
+        objectives.innerHTML = '<h4>Learning Objectives</h4><ul>' +
+            module.objectives.map(obj => '<li>' + obj + '</li>').join('') +
+        '</ul>';
+    } else {
+        objectives.innerHTML = '<h4>Learning Objectives</h4><p>Objectives coming soon.</p>';
+    }
 
     // Render content based on type
-    switch (module.type) {
-        case 'tutorial':
-            body.innerHTML = renderTutorialContent(module.content);
-            nav.innerHTML = '';
-            break;
-        case 'scenario':
-            body.innerHTML = renderScenarioContent(module.content);
-            nav.innerHTML = renderScenarioNav(module.content.steps.length);
-            initScenarioInteractivity();
-            break;
-        case 'challenge':
-            body.innerHTML = renderChallengeContent(module.content);
-            nav.innerHTML = '';
-            initChallengeInteractivity();
-            break;
+    if (!module.content) {
+        body.innerHTML = '<p>Training content is coming soon.</p>';
+        nav.innerHTML = '';
+    } else {
+        switch (module.type) {
+            case 'tutorial':
+                body.innerHTML = renderTutorialContent(module.content);
+                nav.innerHTML = '';
+                break;
+            case 'scenario':
+                body.innerHTML = renderScenarioContent(module.content);
+                nav.innerHTML = renderScenarioNav(module.content.steps?.length || 0);
+                initScenarioInteractivity();
+                break;
+            case 'challenge':
+                body.innerHTML = renderChallengeContent(module.content);
+                nav.innerHTML = '';
+                initChallengeInteractivity();
+                break;
+            default:
+                body.innerHTML = '<p>Training content is coming soon.</p>';
+                nav.innerHTML = '';
+        }
     }
 
     // Add copy button handlers for SPL blocks
     initSplCopyHandlers(body);
+    if (window.SPLUNKed?.applySPLHighlighting) {
+        window.SPLUNKed.applySPLHighlighting(body, { force: true });
+    }
 
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -564,12 +682,25 @@ function renderPipelinesGrid() {
     const grid = document.getElementById('pipelinesGrid');
     if (!grid) return;
 
+    const search = getSearch();
     let pipelines = PIPELINES_DATA;
-    if (trainingSearch) {
+
+    if (search) {
         pipelines = pipelines.filter(pipeline => {
-            const searchText = (pipeline.title + ' ' + pipeline.description + ' ' + pipeline.objectives.join(' ')).toLowerCase();
-            return searchText.includes(trainingSearch);
+            const searchText = (
+                pipeline.title + ' ' +
+                pipeline.description + ' ' +
+                (pipeline.objectives || []).join(' ') + ' ' +
+                (pipeline.track || '') + ' ' +
+                (pipeline.level || '')
+            ).toLowerCase();
+            return searchText.includes(search);
         });
+    }
+
+    const trackFilter = getPipelineTrack();
+    if (trackFilter && trackFilter !== 'all') {
+        pipelines = pipelines.filter(pipeline => (pipeline.track || '') === trackFilter);
     }
 
     grid.innerHTML = pipelines.map(pipeline => renderPipelineCard(pipeline)).join('');
@@ -582,32 +713,11 @@ function renderPipelinesGrid() {
     });
 }
 
+/**
+ * Render pipeline card using shared component
+ */
 function renderPipelineCard(pipeline) {
-    const objectivesHtml = pipeline.objectives.slice(0, 3).map(obj =>
-        '<li>' + obj + '</li>'
-    ).join('');
-
-    const levelLabels = {
-        beginner: 'Beginner',
-        intermediate: 'Intermediate',
-        advanced: 'Advanced'
-    };
-
-    return '<div class="pipeline-card" data-id="' + pipeline.id + '">' +
-        '<div class="pipeline-card-icon">' + pipeline.icon + '</div>' +
-        '<div class="pipeline-card-header">' +
-            '<span class="pipeline-level-badge ' + pipeline.level + '">' + (levelLabels[pipeline.level] || pipeline.level) + '</span>' +
-            '<span class="pipeline-duration">' + pipeline.duration + '</span>' +
-        '</div>' +
-        '<h3 class="pipeline-card-title">' + pipeline.title + '</h3>' +
-        '<p class="pipeline-card-description">' + pipeline.description + '</p>' +
-        '<div class="pipeline-card-objectives">' +
-            '<ul>' + objectivesHtml + '</ul>' +
-        '</div>' +
-        '<div class="pipeline-card-footer">' +
-            '<span class="pipeline-step-count">' + pipeline.steps.length + ' steps</span>' +
-            '<span class="pipeline-start-cta">Start Learning →</span>' +
-        '</div>' +
+    return SPLUNKed.components.createCard(pipeline, { variant: 'pipeline' });
     '</div>';
 }
 
@@ -616,15 +726,31 @@ function renderPipelineCard(pipeline) {
 // ============================================
 
 function initPipelineModal() {
-    const modal = document.getElementById('pipelineModal');
     const overlay = document.getElementById('pipelineModalOverlay');
     const closeBtn = document.getElementById('pipelineModalClose');
 
     if (overlay) overlay.addEventListener('click', closePipelineModal);
     if (closeBtn) closeBtn.addEventListener('click', closePipelineModal);
+    // Escape key handling is now centralized in initTrainingModals()
+}
 
+/**
+ * Centralized escape key handler for all training modals
+ * Replaces 3 duplicate handlers with a single listener
+ */
+function initTrainingModals() {
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+        if (e.key !== 'Escape') return;
+
+        const guideModal = document.getElementById('guideModal');
+        const trainingModal = document.getElementById('trainingModal');
+        const pipelineModal = document.getElementById('pipelineModal');
+
+        if (guideModal?.classList.contains('open')) {
+            closeGuideModal();
+        } else if (trainingModal?.classList.contains('active')) {
+            closeTrainingModal();
+        } else if (pipelineModal?.classList.contains('active')) {
             closePipelineModal();
         }
     });
@@ -636,6 +762,7 @@ function openPipelineModal(pipelineId) {
 
     const modal = document.getElementById('pipelineModal');
     const levelBadge = document.getElementById('pipelineLevelBadge');
+    const trackBadge = document.getElementById('pipelineTrackBadge');
     const duration = document.getElementById('pipelineDuration');
     const title = document.getElementById('pipelineModalTitle');
     const description = document.getElementById('pipelineModalDescription');
@@ -649,6 +776,12 @@ function openPipelineModal(pipelineId) {
 
     levelBadge.textContent = levelLabels[pipeline.level] || pipeline.level;
     levelBadge.className = 'pipeline-level-badge ' + pipeline.level;
+    if (trackBadge) {
+        const track = pipeline.track || 'Power User';
+        const trackClass = track.toLowerCase().replace(/\s+/g, '-');
+        trackBadge.textContent = track;
+        trackBadge.className = 'pipeline-track-badge ' + trackClass;
+    }
     duration.textContent = pipeline.duration;
     title.textContent = pipeline.title;
     description.textContent = pipeline.description;
@@ -682,6 +815,7 @@ function closePipelineModal() {
 
 function renderPipelineStep(step, index) {
     const typeIcons = {
+        lesson: '📖',
         guide: '📖',
         tutorial: '▷',
         scenario: '◎',
@@ -690,7 +824,8 @@ function renderPipelineStep(step, index) {
     };
 
     const typeLabels = {
-        guide: 'Guide',
+        lesson: 'Lesson',
+        guide: 'Lesson',
         tutorial: 'Tutorial',
         scenario: 'Scenario',
         reference: 'Reference',
@@ -724,12 +859,12 @@ function handlePipelineStepClick(step) {
                 openTrainingModal(step.sourceId);
             }, 300);
             break;
-        case 'guides':
-            // Open guide modal directly since guides are now in training
+        case 'lessons':
+            // Open lesson modal directly since lessons are now in training
             closePipelineModal();
-            const guide = findGuideById(step.sourceId);
-            if (guide) {
-                setTimeout(() => openGuideModal(guide), 300);
+            const lesson = findLessonById(step.sourceId);
+            if (lesson) {
+                setTimeout(() => openGuideModal(lesson), 300);
             } else if (step.link) {
                 window.location.href = step.link;
             }
@@ -755,6 +890,10 @@ function handlePipelineStepClick(step) {
 // ============================================
 
 function renderTutorialContent(content) {
+    if (!content || !Array.isArray(content.sections) || content.sections.length === 0) {
+        return '<p>Training content is coming soon.</p>';
+    }
+
     return content.sections.map(section =>
         '<div class="tutorial-section">' +
             '<h3 class="tutorial-section-title">' + section.title + '</h3>' +
@@ -769,6 +908,10 @@ function renderTutorialContent(content) {
 // ============================================
 
 function renderScenarioContent(content) {
+    if (!content || !Array.isArray(content.steps) || content.steps.length === 0) {
+        return '<p>Training content is coming soon.</p>';
+    }
+
     const situationHtml = '<div class="scenario-situation">' +
         '<h3>Situation</h3>' +
         '<p>' + content.situation + '</p>' +
@@ -892,6 +1035,10 @@ function formatInlineCode(text) {
 }
 
 function renderChallengeContent(content) {
+    if (!content || !content.problem || !content.solution) {
+        return '<p>Training content is coming soon.</p>';
+    }
+
     const problemHtml = '<div class="challenge-problem">' +
         '<h3>Challenge</h3>' +
         '<div class="challenge-problem-text"><p>' + formatProblemText(content.problem) + '</p></div>' +
@@ -915,7 +1062,10 @@ function renderChallengeContent(content) {
                 '<button class="workspace-btn" id="clearSplBtn" title="Clear">Clear</button>' +
             '</div>' +
         '</div>' +
-        '<textarea class="challenge-spl-input" id="challengeSplInput" placeholder="Write your SPL query here..." spellcheck="false"></textarea>' +
+        '<div class="challenge-spl-editor">' +
+            '<pre class="challenge-spl-highlight" id="challengeSplHighlight"></pre>' +
+            '<textarea class="challenge-spl-input" id="challengeSplInput" placeholder="Write your SPL query here..." spellcheck="false"></textarea>' +
+        '</div>' +
     '</div>';
 
     const solutionHtml = '<div class="challenge-solution">' +
@@ -976,10 +1126,25 @@ function initChallengeInteractivity() {
 
     // SPL Input functionality
     const splInput = document.getElementById('challengeSplInput');
+    const splHighlight = document.getElementById('challengeSplHighlight');
     const formatBtn = document.getElementById('formatSplBtn');
     const clearBtn = document.getElementById('clearSplBtn');
 
+    function updateSplHighlight(value) {
+        if (!splHighlight) return;
+        const content = value || '';
+        const highlighted = window.SPLUNKed?.highlightSPL
+            ? window.SPLUNKed.highlightSPL(content, { formatPipelines: false })
+            : escapeHtml(content);
+        splHighlight.innerHTML = highlighted || '';
+    }
+
     if (splInput) {
+        const editor = splInput.closest('.challenge-spl-editor');
+        if (editor) {
+            editor.classList.add('spl-highlight-ready');
+        }
+
         // Auto-format on pipe: add newline after typing |
         splInput.addEventListener('keydown', function(e) {
             if (e.key === '|') {
@@ -994,6 +1159,7 @@ function initChallengeInteractivity() {
 
                 // Move cursor after the insertion
                 this.selectionStart = this.selectionEnd = start + insertion.length;
+                updateSplHighlight(this.value);
             }
         });
 
@@ -1005,13 +1171,25 @@ function initChallengeInteractivity() {
                 var end = this.selectionEnd;
                 this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
                 this.selectionStart = this.selectionEnd = start + 4;
+                updateSplHighlight(this.value);
             }
+        });
+
+        splInput.addEventListener('input', function() {
+            updateSplHighlight(this.value);
+        });
+
+        splInput.addEventListener('scroll', function() {
+            if (!splHighlight) return;
+            splHighlight.scrollTop = this.scrollTop;
+            splHighlight.scrollLeft = this.scrollLeft;
         });
     }
 
     if (formatBtn && splInput) {
         formatBtn.addEventListener('click', function() {
             splInput.value = formatSplQuery(splInput.value);
+            updateSplHighlight(splInput.value);
         });
     }
 
@@ -1019,7 +1197,12 @@ function initChallengeInteractivity() {
         clearBtn.addEventListener('click', function() {
             splInput.value = '';
             splInput.focus();
+            updateSplHighlight('');
         });
+    }
+
+    if (splInput) {
+        updateSplHighlight(splInput.value);
     }
 }
 
@@ -1028,7 +1211,10 @@ function initChallengeInteractivity() {
 // ============================================
 
 function renderSplBlock(spl, explanation) {
-    const highlightedSpl = highlightSpl(spl);
+    // Use shared SPL highlighting from core
+    const highlightedSpl = window.SPLUNKed?.highlightSPL
+        ? window.SPLUNKed.highlightSPL(spl, { formatPipelines: true })
+        : escapeHtml(spl);
 
     return '<div class="training-spl-block">' +
         '<div class="training-spl-header">' +
@@ -1040,81 +1226,10 @@ function renderSplBlock(spl, explanation) {
     '</div>';
 }
 
-function highlightSpl(spl, formatPipelines) {
-    if (formatPipelines === undefined) formatPipelines = true;
-    if (!spl) return '';
-
-    var highlighted = spl.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    var placeholders = [];
-    function addPlaceholder(text, className) {
-        var id = '__SPL_' + placeholders.length + '__';
-        placeholders.push({ id: id, text: text, className: className });
-        return id;
-    }
-
-    highlighted = highlighted.replace(/"([^"]+)"/g, function(match, content) {
-        return addPlaceholder('"' + content + '"', 'spl-string');
-    });
-    highlighted = highlighted.replace(/'([^']+)'/g, function(match, content) {
-        return addPlaceholder("'" + content + "'", 'spl-string');
-    });
-
-    var keywords = ['index', 'search', 'where', 'stats', 'eval', 'table', 'sort', 'head', 'tail',
-                      'rex', 'rename', 'fields', 'lookup', 'join', 'append', 'appendcols', 'timechart',
-                      'chart', 'transaction', 'eventstats', 'streamstats', 'bin', 'bucket', 'dedup',
-                      'tstats', 'map', 'return', 'format', 'subsearch', 'iplocation', 'inputlookup',
-                      'outputlookup', 'fillnull', 'makemv', 'mvexpand', 'earliest', 'latest', 'span',
-                      'top', 'rare', 'multisearch', 'union', 'datamodel', 'from', 'pivot', 'collect',
-                      'outputcsv', 'inputcsv', 'metadata', 'rest', 'mstats', 'mcatalog', 'spath'];
-
-    keywords.forEach(function(kw) {
-        var regex = new RegExp('\\b(' + kw + ')\\b', 'gi');
-        highlighted = highlighted.replace(regex, function(match) { return addPlaceholder(match, 'spl-keyword'); });
-    });
-
-    var functions = ['count', 'sum', 'avg', 'min', 'max', 'dc', 'values', 'list', 'first', 'last',
-                       'stdev', 'perc\\d+', 'if', 'case', 'match', 'isnull', 'isnotnull', 'coalesce',
-                       'round', 'floor', 'ceil', 'len', 'substr', 'replace', 'split', 'mvcount',
-                       'strftime', 'strptime', 'now', 'relative_time', 'tonumber', 'tostring',
-                       'mvjoin', 'mvindex', 'mvfilter', 'mvappend', 'mvzip', 'cidrmatch', 'like',
-                       'searchmatch', 'typeof', 'nullif', 'true', 'false', 'null', 'earliest', 'latest'];
-
-    functions.forEach(function(fn) {
-        var regex = new RegExp('\\b(' + fn + ')\\(', 'gi');
-        highlighted = highlighted.replace(regex, function(match, fn) { return addPlaceholder(fn, 'spl-function') + '('; });
-    });
-
-    highlighted = highlighted.replace(/\b(AND|OR|NOT|AS|BY|IN)\b/gi, function(match) { return addPlaceholder(match, 'spl-operator'); });
-
-    placeholders.forEach(function(p) {
-        highlighted = highlighted.replace(p.id, '<span class="' + p.className + '">' + p.text + '</span>');
-    });
-
-    if (formatPipelines) {
-        var segments = highlighted.split(/(\|)/);
-        if (segments.length > 1) {
-            var result = '';
-            var isFirst = true;
-            for (var i = 0; i < segments.length; i++) {
-                var segment = segments[i];
-                if (segment === '|') continue;
-                var trimmedSegment = segment.trim();
-                if (!trimmedSegment) continue;
-
-                var hasPipe = i > 0 && segments[i - 1] === '|';
-                if (isFirst) {
-                    result += '<span class="spl-pipe-line">' + trimmedSegment + '</span>';
-                    isFirst = false;
-                } else if (hasPipe) {
-                    result += '<span class="spl-pipe-line"><span class="spl-pipe">|</span> ' + trimmedSegment + '</span>';
-                }
-            }
-            highlighted = result;
-        }
-    }
-
-    return highlighted;
+// Simple HTML escaping for fallback when highlightSPL is unavailable
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ============================================

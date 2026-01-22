@@ -1,0 +1,76 @@
+{
+  "id": "dash-alerting-integration",
+  "type": "tutorial",
+  "title": "Connecting Dashboards and Alerts",
+  "description": "Link dashboard searches to alerts, configure appropriate thresholds and throttling, and build notification workflows that reference dashboards.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["dashboards", "alerts", "notifications", "workflow"],
+  "objectives": [
+    "Promote dashboard searches to scheduled alerts",
+    "Configure appropriate alert thresholds and conditions",
+    "Implement throttling to prevent alert fatigue",
+    "Include dashboard links in alert notifications"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "The Dashboard-Alert Connection",
+        "body": "<p>Dashboards and alerts serve different but complementary purposes:</p><table><tr><th>Dashboards</th><th>Alerts</th></tr><tr><td>Passive monitoring</td><td>Active notification</td></tr><tr><td>Visual pattern recognition</td><td>Automated threshold detection</td></tr><tr><td>Analyst-initiated review</td><td>System-initiated escalation</td></tr><tr><td>Broad situational awareness</td><td>Specific condition response</td></tr></table><p>The best workflows use both: alerts notify analysts of conditions, then dashboards provide context for investigation.</p>"
+      },
+      {
+        "title": "Promoting a Search to an Alert",
+        "body": "<p>When a dashboard search identifies an important pattern, convert it to an alert:</p><p><strong>Original Dashboard Search:</strong></p>",
+        "spl": "index=security sourcetype=auth action=failure\n| stats count as failures by src_ip\n| where failures > 50",
+        "explanation": "This search finds IPs with more than 50 authentication failures. On a dashboard, it shows current offenders. As an alert, it can notify when the condition occurs."
+      },
+      {
+        "title": "Alert Configuration: Scheduled Search",
+        "body": "<p><strong>Steps to create the alert:</strong></p><ol><li>Save the search (Save As → Alert)</li><li>Set schedule: \"Run every 15 minutes\"</li><li>Set trigger condition: \"Number of results is greater than 0\"</li><li>Add actions: Email, webhook, or create notable</li></ol><p><strong>savedsearches.conf equivalent:</strong></p><pre>[Brute Force Detection - High Failure Count]\nsearch = index=security sourcetype=auth action=failure | stats count as failures by src_ip | where failures > 50\ncron_schedule = */15 * * * *\nalert.track = 1\nalert.severity = 4\nalert_condition = search count > 0\nalert_type = number of events\nquantity = 0\nrelation = greater than</pre>"
+      },
+      {
+        "title": "Threshold Types",
+        "body": "<p>Choose the right trigger condition for your use case:</p><h4>Number of Results</h4><p>Trigger when query returns rows.</p><p><em>Use for:</em> Finding specific bad conditions (failures > threshold)</p><h4>Number of Events</h4><p>Trigger based on raw event count.</p><p><em>Use for:</em> Volume-based detection (too many or too few events)</p><h4>Number of Hosts/Sources</h4><p>Trigger based on distinct count.</p><p><em>Use for:</em> Spread detection (attack hitting many systems)</p><h4>Custom Condition</h4><p>Trigger based on a search field value.</p><pre>alert_condition = search failures > 100</pre><p><em>Use for:</em> Complex logic based on calculated fields</p>"
+      },
+      {
+        "title": "Adaptive Thresholds",
+        "body": "<p>Static thresholds miss anomalies in variable environments. Build adaptive thresholds:</p>",
+        "spl": "index=security sourcetype=auth action=failure\n| stats count as current_failures by src_ip\n| join type=left src_ip [\n    search index=security sourcetype=auth action=failure earliest=-7d@d latest=-1d@d\n    | stats avg(count) as baseline_avg, stdev(count) as baseline_stdev by src_ip\n]\n| eval threshold = baseline_avg + (3 * baseline_stdev)\n| where current_failures > threshold\n| table src_ip, current_failures, baseline_avg, threshold",
+        "explanation": "This compares current failures to a statistical baseline. An IP triggering the alert has failures 3+ standard deviations above its normal. This catches anomalies specific to each source rather than using a global threshold."
+      },
+      {
+        "title": "Throttling Configuration",
+        "body": "<p>Without throttling, a sustained condition generates alert storms. Configure appropriate throttling:</p><p><strong>Throttle by Field Value:</strong></p><pre>alert.suppress = 1\nalert.suppress.fields = src_ip\nalert.suppress.period = 1h</pre><p>This means: \"After alerting on an IP, don't alert on that same IP again for 1 hour.\"</p><h4>Throttling Guidelines</h4><table><tr><th>Scenario</th><th>Throttle Period</th><th>Throttle Field</th></tr><tr><td>Brute force from IP</td><td>1 hour</td><td>src_ip</td></tr><tr><td>Malware detection on host</td><td>4 hours</td><td>host</td></tr><tr><td>Policy violation by user</td><td>24 hours</td><td>user</td></tr><tr><td>System health issues</td><td>30 minutes</td><td>host</td></tr></table>"
+      },
+      {
+        "title": "Including Dashboard Links in Alerts",
+        "body": "<p>Alert notifications should link directly to investigation context:</p><p><strong>Email Alert Action Configuration:</strong></p><pre>action.email.message = Brute force activity detected from $result.src_ip$\n\nFailure count: $result.failures$\nTime: $result._time$\n\nInvestigate: https://splunk.company.com/app/security/brute_force_investigation?form.src_ip=$result.src_ip$&form.time.earliest=-4h&form.time.latest=now\n\nRaw search: https://splunk.company.com/app/search/search?q=index%3Dsecurity%20sourcetype%3Dauth%20src_ip%3D$result.src_ip$</pre><p>Include:</p><ul><li>Key fields from the triggering event</li><li>Link to relevant investigation dashboard (pre-filtered)</li><li>Link to raw search for detailed analysis</li></ul>"
+      },
+      {
+        "title": "Webhook Integration",
+        "body": "<p>Send alerts to ticketing systems, chat platforms, or SOAR:</p><p><strong>Webhook Configuration:</strong></p><pre>action.webhook = 1\naction.webhook.param.url = https://api.pagerduty.com/events\naction.webhook.param.payload = {\"routing_key\": \"YOUR_KEY\", \"event_action\": \"trigger\", \"payload\": {\"summary\": \"Brute force from $result.src_ip$\", \"source\": \"Splunk\", \"severity\": \"warning\", \"custom_details\": {\"failures\": \"$result.failures$\", \"dashboard\": \"https://splunk.company.com/app/security/brute_force_investigation?form.src_ip=$result.src_ip$\"}}}</pre><p>The dashboard URL in custom_details lets responders click through from PagerDuty to Splunk.</p>"
+      },
+      {
+        "title": "Alert-to-Ticket Workflow",
+        "body": "<p>A complete workflow from alert to resolution:</p><ol><li><strong>Alert fires</strong> → Splunk detects condition</li><li><strong>Webhook creates ticket</strong> → ServiceNow/Jira ticket with dashboard link</li><li><strong>Analyst receives notification</strong> → Email/Slack with ticket link</li><li><strong>Analyst opens dashboard</strong> → Pre-filtered to the alerting entity</li><li><strong>Investigation proceeds</strong> → Drilldowns to raw events and external tools</li><li><strong>Ticket updated</strong> → Findings documented</li><li><strong>Alert closed</strong> → Ticket resolved, metrics captured</li></ol><p>Each step passes context to the next, eliminating manual copy-paste and context switching.</p>"
+      },
+      {
+        "title": "Dashboard for Alert Management",
+        "body": "<p>Create a dashboard to monitor your alerts' health:</p>",
+        "spl": "index=_audit action=alert_fired\n| stats count as fire_count by savedsearch_name\n| join savedsearch_name [\n    | rest /services/saved/searches\n    | search alert.track=1\n    | table title, alert.suppress.period\n    | rename title as savedsearch_name\n]\n| table savedsearch_name, fire_count, alert.suppress.period\n| sort - fire_count",
+        "explanation": "This shows how often each alert fires. Alerts firing too frequently may need tuning or better throttling. Alerts never firing may be broken or have thresholds too high."
+      },
+      {
+        "title": "Alert Effectiveness Metrics",
+        "body": "<p>Track whether alerts lead to action:</p>",
+        "spl": "index=alerts\n| stats count as total,\n        count(eval(status=\"closed_true_positive\")) as true_positives,\n        count(eval(status=\"closed_false_positive\")) as false_positives\n        by alert_name\n| eval fp_rate = round((false_positives/total)*100, 1)\n| sort - fp_rate\n| table alert_name, total, true_positives, false_positives, fp_rate",
+        "explanation": "Alerts with high false positive rates need tuning. This dashboard helps prioritize detection engineering efforts."
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Integrating dashboards and alerts creates an efficient workflow:</p><ul><li><strong>Promote validated dashboard searches</strong> to scheduled alerts</li><li><strong>Choose appropriate trigger conditions</strong> (results, events, hosts, custom)</li><li><strong>Configure throttling</strong> to prevent alert fatigue</li><li><strong>Include dashboard links</strong> in all alert notifications</li><li><strong>Build complete workflows</strong> from alert to ticket to resolution</li><li><strong>Monitor alert health</strong> with dedicated dashboards</li></ul><p>In the challenge ahead, you'll build a complete SOC operations dashboard with integrated alerting.</p>"
+      }
+    ]
+  }
+}

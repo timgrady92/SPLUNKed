@@ -1,0 +1,1556 @@
+[
+  {
+    "id": "pipeline-new-analyst",
+    "title": "New Analyst Onboarding",
+    "description": "A comprehensive learning path for analysts new to Splunk and security operations. Build foundational skills from search basics to your first investigation.",
+    "level": "beginner",
+    "duration": "4-6 hours",
+    "icon": "\ud83c\udfaf",
+    "objectives": [
+      "Understand SPL fundamentals and search anatomy",
+      "Master filtering, field extraction, and data manipulation",
+      "Learn to aggregate and visualize security data",
+      "Complete your first simulated investigation"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Finding Your Data",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "search-index-sourcetype",
+        "description": "Learn how to search the right data using index and sourcetype.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Anatomy of a Search",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "found-001",
+        "description": "Deep dive into how SPL searches flow through the pipeline.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Filtering Your Results",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "filter-results",
+        "description": "Learn to use where, search, and other filtering commands.",
+        "duration": "10 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Working with Fields",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "choose-fields",
+        "description": "Learn to select and display only the fields you need.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-5",
+        "title": "The Stats Command",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "found-002",
+        "description": "Master the most important aggregation command in SPL.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Counting and Summarizing",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "count-events",
+        "description": "Learn different ways to count and summarize your security events.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Time-Based Analysis",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "count-over-time",
+        "description": "Visualize trends over time with timechart and related commands.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-8",
+        "title": "SPL Reference Review",
+        "type": "reference",
+        "source": "glossary",
+        "sourceId": null,
+        "description": "Explore the SPL command reference to reinforce your learning.",
+        "duration": "20 min",
+        "link": "/glossary"
+      },
+      {
+        "id": "step-9",
+        "title": "Query Library Exploration",
+        "type": "reference",
+        "source": "queries",
+        "sourceId": null,
+        "description": "Browse real-world security queries for inspiration.",
+        "duration": "15 min",
+        "link": "/query-library"
+      },
+      {
+        "id": "step-10",
+        "title": "Your First Investigation",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "scenario-001",
+        "description": "Apply everything you learned in a simulated security investigation.",
+        "duration": "30 min"
+      }
+    ],
+    "track": "Power User"
+  },
+  {
+    "id": "pipeline-threat-hunting",
+    "title": "Threat Hunting Fundamentals",
+    "description": "Move from reactive alerting to proactive threat detection. Learn hypothesis-driven hunting methodology and apply it to real attack patterns.",
+    "level": "intermediate",
+    "duration": "3-4 hours",
+    "icon": "\ud83d\udd0d",
+    "objectives": [
+      "Understand hypothesis-driven threat hunting methodology",
+      "Establish behavioral baselines for anomaly detection",
+      "Hunt for lateral movement, persistence, and evasion techniques",
+      "Build reusable hunt queries from threat intelligence"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Hunting Methodology",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "int-010",
+        "description": "Learn the hypothesis-driven approach to proactive threat hunting.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Baselining Normal Behavior",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "baseline-behavior",
+        "description": "Establish what 'normal' looks like so you can spot anomalies.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Statistical Baselines in SPL",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "adv-001",
+        "description": "Build dynamic statistical baselines with eventstats and streamstats.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Finding Brute Force Attacks",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "find-brute-force",
+        "description": "Detect password guessing and credential stuffing attacks.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Hunt: Lateral Movement",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "int-002",
+        "description": "Track an attacker moving through your network after initial compromise.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Detecting Impossible Travel",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "find-impossible-travel",
+        "description": "Find geographically impossible authentication patterns.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Hunt: Impossible Travel Scenario",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "int-008",
+        "description": "Investigate a user appearing in multiple countries simultaneously.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Hunt: Beaconing Detection",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "adv-002",
+        "description": "Find command-and-control traffic hiding in regular intervals.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Hunt: Persistence Mechanisms",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "adv-003",
+        "description": "Discover how attackers maintain access after system reboots.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-10",
+        "title": "Developing Hunt Hypotheses",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "int-011",
+        "description": "Practice converting threat intel into testable hunt queries.",
+        "duration": "20 min"
+      }
+    ],
+    "track": "Administrator"
+  },
+  {
+    "id": "pipeline-enterprise-security",
+    "title": "Enterprise Security Mastery",
+    "description": "Master Splunk Enterprise Security for SOC operations. Learn to leverage data models, risk-based alerting, and correlation searches for efficient threat detection.",
+    "level": "advanced",
+    "duration": "5-6 hours",
+    "icon": "\ud83d\udee1\ufe0f",
+    "objectives": [
+      "Navigate ES efficiently using data models and tstats",
+      "Implement risk-based alerting to reduce alert fatigue",
+      "Investigate notable events using the ES workflow",
+      "Build custom correlation searches and detection rules"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "ES for Splunk Users",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "es-001",
+        "description": "Understand how ES changes your Splunk workflow and why.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Understanding Data Models",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "es-data-models-intro",
+        "description": "Learn how CIM data models organize and accelerate your data.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-3",
+        "title": "tstats vs stats",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "es-006",
+        "description": "Master the query paradigm shift that makes ES searches fast.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Using tstats with Data Models",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "es-tstats-datamodels",
+        "description": "Write efficient aggregate queries using ES accelerated data.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Notable Events Explained",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "es-002",
+        "description": "Understand your new alert queue and how it differs from traditional alerts.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Your First Notable Investigation",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "es-004",
+        "description": "Walk through the complete investigation workflow for a notable event.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Risk-Based Alerting Philosophy",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "es-003",
+        "description": "Learn why RBA reduces alert fatigue and how it works.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-8",
+        "title": "RBA Fundamentals Guide",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "es-risk-based-alerting",
+        "description": "Deep dive into risk scoring, attribution, and thresholds.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Investigating High-Risk Users",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "es-005",
+        "description": "Analyze a user with elevated risk score and trace contributing events.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-10",
+        "title": "Asset and Identity Enrichment",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "es-007",
+        "description": "Add business context to your events using ES lookups.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-11",
+        "title": "Standard to tstats Translation",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "es-008",
+        "description": "Practice converting traditional SPL queries to efficient ES format.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-12",
+        "title": "Creating Correlation Searches",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "es-correlation-searches",
+        "description": "Build your own detection rules that generate notables and risk.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-13",
+        "title": "Notable Triage Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "es-009",
+        "description": "Test your skills triaging and prioritizing a queue of notables.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-14",
+        "title": "Risk Investigation Query",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "es-010",
+        "description": "Build a comprehensive risk investigation query from scratch.",
+        "duration": "25 min"
+      }
+    ],
+    "track": "Architect"
+  },
+  {
+    "id": "pipeline-spl-mastery",
+    "title": "SPL Mastery Bootcamp",
+    "description": "Level up your search skills from basic to advanced. Master the stats family, eval functions, rex patterns, and query optimization techniques that separate good analysts from great ones.",
+    "level": "intermediate",
+    "duration": "3-4 hours",
+    "icon": "\u26a1",
+    "objectives": [
+      "Master the stats family: stats, eventstats, and streamstats",
+      "Build powerful field transformations with eval functions",
+      "Extract data from unstructured text using rex patterns",
+      "Optimize query performance with efficient search practices"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Where vs Search: Filtering Mastery",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "spl-where-vs-search",
+        "description": "Understand when to use where versus search for optimal filtering.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Stats Command Deep Dive",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "found-002",
+        "description": "Master aggregation functions beyond basic count.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Eventstats: Stats Without Collapse",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "spl-eventstats",
+        "description": "Add aggregated values to events without losing detail.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Streamstats: Running Calculations",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "spl-streamstats",
+        "description": "Calculate running totals, averages, and window functions.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Eval Functions Library",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "spl-eval-functions",
+        "description": "Transform fields with string, numeric, and conditional functions.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Rex Pattern Extraction",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "spl-rex-patterns",
+        "description": "Extract fields from raw text using regular expressions.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Performance Optimization Tips",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "spl-performance",
+        "description": "Write faster searches with efficient command ordering.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-8",
+        "title": "SPL Mastery Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "spl-mastery-challenge",
+        "description": "Test your skills with complex multi-step search challenges.",
+        "duration": "30 min"
+      }
+    ],
+    "track": "Power User"
+  },
+  {
+    "id": "pipeline-security-investigation",
+    "title": "Security Investigation Fundamentals",
+    "description": "Develop structured investigation methodology for SOC analysts. Learn to interpret Windows event logs, correlate authentication events, build timelines, and document findings professionally.",
+    "level": "intermediate",
+    "duration": "3-4 hours",
+    "icon": "\ud83d\udd2c",
+    "objectives": [
+      "Interpret Windows Security event logs for investigation",
+      "Correlate authentication events across multiple sources",
+      "Build comprehensive investigation timelines",
+      "Document and present investigation findings"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Windows Events 101",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "inv-windows-events",
+        "description": "Understand critical Windows Security event codes and their meaning.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Authentication Event Correlation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "inv-auth-correlation",
+        "description": "Connect login events across endpoints, domain controllers, and applications.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Detecting Brute Force Attacks",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "find-brute-force",
+        "description": "Identify password guessing and credential stuffing patterns.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Lateral Movement Detection",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "int-002",
+        "description": "Track attacker movement through your network after initial access.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Building Investigation Timelines",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "inv-timeline-building",
+        "description": "Create chronological event sequences for incident reconstruction.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Multi-Source Correlation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "inv-multi-source",
+        "description": "Combine data from endpoints, network, and identity sources.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Investigation Documentation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "inv-documentation",
+        "description": "Record findings with queries, screenshots, and conclusions.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Full Investigation Scenario",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "inv-full-scenario",
+        "description": "Complete an end-to-end investigation from alert to documentation.",
+        "duration": "30 min"
+      }
+    ],
+    "track": "Power User"
+  },
+  {
+    "id": "pipeline-dashboard-development",
+    "title": "Dashboard Development for Security Operations",
+    "description": "Build operational dashboards that drive SOC action and accelerate investigations. Master visualization selection, real-time monitoring patterns, investigation drilldowns, and dashboard performance optimization to create dashboards your team will actually use every shift.",
+    "level": "intermediate",
+    "duration": "3-4 hours",
+    "icon": "\ud83d\udcca",
+    "track": "Power User",
+    "objectives": [
+      "Select appropriate visualizations for different security data patterns",
+      "Build real-time monitoring dashboards for SOC operations",
+      "Implement investigation-focused drilldowns and context panels",
+      "Optimize dashboard performance for production use",
+      "Configure actionable alerts integrated with dashboard workflows"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "SOC Dashboard Design Principles",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dash-soc-design-principles",
+        "description": "Learn dashboard archetypes, visual hierarchy, and the three-second glance rule.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Visualization Selection for Security Data",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "dash-viz-selection-guide",
+        "description": "Choose the right visualization type for different security data patterns.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Timechart Mastery for Security Monitoring",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dash-timechart-security",
+        "description": "Build time-series visualizations with proper span selection and baseline overlays.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Building Effective SOC KPIs",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "dash-single-value-kpi",
+        "description": "Create single-value panels with sparklines, thresholds, and trend indicators.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Building Investigation-Ready Tables",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dash-actionable-tables",
+        "description": "Design tables optimized for security triage with conditional formatting.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Building Your First SOC Monitoring Dashboard",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "dash-monitoring-scenario",
+        "description": "Build an authentication monitoring dashboard and investigate a detected spike.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Tokens and Input Controls for Investigation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dash-tokens-filtering",
+        "description": "Add interactivity with time pickers, dropdowns, and cascading filters.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Drilldowns for Security Investigation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dash-drilldowns-investigation",
+        "description": "Enable click-through investigation to raw events and external tools.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Alert to Resolution: Dashboard Investigation Workflow",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "dash-alert-investigation-scenario",
+        "description": "Complete an investigation from alert notification to root cause identification.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-10",
+        "title": "Dashboard Performance for Production",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "dash-performance-optimization",
+        "description": "Optimize dashboards with base searches, tstats, and report acceleration.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-11",
+        "title": "Connecting Dashboards and Alerts",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dash-alerting-integration",
+        "description": "Promote searches to alerts with proper thresholds and dashboard links.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-12",
+        "title": "Build a Complete SOC Operations Dashboard",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "dash-soc-dashboard-challenge",
+        "description": "Build a privileged account monitoring dashboard meeting specific constraints.",
+        "duration": "35 min"
+      }
+    ]
+  },
+  {
+    "id": "pipeline-threat-intel",
+    "title": "Threat Intelligence Integration",
+    "description": "Enhance your detections with external intelligence. Learn to integrate threat feeds, perform IOC matching with lookups, manage false positives, and enrich events with contextual data.",
+    "level": "advanced",
+    "duration": "3-4 hours",
+    "icon": "\ud83c\udfaf",
+    "objectives": [
+      "Understand threat intelligence fundamentals and feed types",
+      "Integrate IOC lookups for automated enrichment",
+      "Use subsearches for correlation and matching",
+      "Implement GeoIP and context enrichment"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Threat Intelligence Fundamentals",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ti-fundamentals",
+        "description": "Understand TI types, sources, and operational use cases.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Lookup Tables for IOC Matching",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ti-lookup-matching",
+        "description": "Create and maintain IOC lookup tables for detection.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Automatic Lookup Enrichment",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ti-auto-enrichment",
+        "description": "Configure automatic field lookups for seamless enrichment.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Subsearch Correlation Techniques",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ti-subsearch",
+        "description": "Use subsearches to correlate events with threat intelligence.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-5",
+        "title": "GeoIP Enrichment",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "viz-geographic",
+        "description": "Add geographic context to IP addresses for analysis.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Managing False Positives",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ti-false-positives",
+        "description": "Build allowlists and tune detections to reduce noise.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Custom Threat Feeds",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ti-custom-feeds",
+        "description": "Integrate custom and third-party threat intelligence feeds.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-8",
+        "title": "TI Integration Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "ti-integration-challenge",
+        "description": "Build a complete threat intelligence workflow from feed to alert.",
+        "duration": "30 min"
+      }
+    ],
+    "track": "Power User"
+  },
+  {
+    "id": "pipeline-data-onboarding",
+    "title": "Data Onboarding Mastery",
+    "description": "Master the art of ingesting new data sources into Splunk. Learn input configuration, field extraction, data normalization, and quality validation for reliable, searchable data.",
+    "level": "intermediate",
+    "duration": "3-4 hours",
+    "icon": "\ud83d\udce5",
+    "objectives": [
+      "Configure data inputs using inputs.conf",
+      "Create custom field extractions with props.conf and transforms.conf",
+      "Normalize data with field aliasing and CIM compliance",
+      "Troubleshoot parsing issues and validate data quality"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Data Ingestion Architecture",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "onb-architecture",
+        "description": "Understand how data flows from source to searchable index.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Configuring Data Inputs",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "onb-inputs-conf",
+        "description": "Set up file monitors, network inputs, and scripted inputs.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Event Breaking and Timestamps",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "onb-event-breaking",
+        "description": "Configure props.conf for proper event boundaries and time extraction.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Field Extraction Methods",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "onb-field-extraction",
+        "description": "Create search-time and index-time field extractions.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Transforms and Lookups",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "onb-transforms",
+        "description": "Use transforms.conf for complex extractions and enrichment.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Field Aliasing and CIM",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "onb-field-aliasing",
+        "description": "Normalize fields to Common Information Model standards.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Parsing Troubleshooting",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "onb-troubleshooting",
+        "description": "Diagnose and fix common data parsing issues.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Data Quality Validation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "onb-validation",
+        "description": "Verify ingested data meets quality and completeness standards.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Onboarding Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "onb-challenge",
+        "description": "Onboard a new data source from raw logs to normalized fields.",
+        "duration": "30 min"
+      }
+    ],
+    "track": "Administrator"
+  },
+  {
+    "id": "pipeline-search-optimization",
+    "title": "Search Optimization and Performance",
+    "description": "Optimize your Splunk deployment for speed and efficiency. Master Job Inspector analysis, search optimization techniques, summary indexing, and resource management.",
+    "level": "advanced",
+    "duration": "4-5 hours",
+    "icon": "\ud83d\ude80",
+    "objectives": [
+      "Analyze search performance with Job Inspector",
+      "Apply search optimization techniques for faster results",
+      "Implement report acceleration and summary indexing",
+      "Manage search quotas and resource allocation"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Search Architecture Deep Dive",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "perf-search-architecture",
+        "description": "Understand how searches execute across indexers and search heads.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Job Inspector Mastery",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "perf-job-inspector",
+        "description": "Read and interpret Job Inspector metrics for optimization.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Search Optimization Techniques",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "perf-optimization",
+        "description": "Apply best practices for faster, more efficient searches.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Command Order and Efficiency",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "perf-command-order",
+        "description": "Structure searches to minimize data processing.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Report Acceleration",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "perf-report-acceleration",
+        "description": "Speed up dashboards with pre-computed report results.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Summary Indexing",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "perf-summary-indexing",
+        "description": "Create summary indexes for long-term trend analysis.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Search Quotas and Limits",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "perf-quotas",
+        "description": "Configure and manage search resource allocation.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Performance Monitoring",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "perf-monitoring",
+        "description": "Monitor search performance across your deployment.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Optimization Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "perf-challenge",
+        "description": "Diagnose and fix performance issues in slow searches.",
+        "duration": "30 min"
+      }
+    ],
+    "track": "Administrator"
+  },
+  {
+    "id": "pipeline-detection-engineering",
+    "title": "Detection Engineering",
+    "description": "Build robust detection content for your security program. Learn detection design principles, correlation search development, statistical baselines, and detection lifecycle management.",
+    "level": "advanced",
+    "duration": "4-5 hours",
+    "icon": "\ud83d\udd14",
+    "objectives": [
+      "Apply detection engineering design principles",
+      "Build correlation searches with appropriate logic",
+      "Implement statistical baselines for anomaly detection",
+      "Manage detection lifecycle from creation to retirement"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Detection Engineering Principles",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "det-principles",
+        "description": "Learn the foundations of effective detection design.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-2",
+        "title": "MITRE ATT&CK Mapping",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "det-mitre-mapping",
+        "description": "Align detections with the MITRE ATT&CK framework.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Correlation Search Development",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "det-correlation",
+        "description": "Build searches that identify security-relevant patterns.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Statistical Baselines",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "adv-001",
+        "description": "Create dynamic thresholds using historical behavior.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Throttling and Suppression",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "det-throttling",
+        "description": "Control alert volume without missing true positives.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Detection Testing Methodology",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "det-testing",
+        "description": "Validate detections with atomic tests and purple team exercises.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Detection Documentation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "det-documentation",
+        "description": "Document detections for maintenance and knowledge transfer.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Detection Lifecycle Management",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "det-lifecycle",
+        "description": "Maintain detections from creation through retirement.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Detection Engineering Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "det-challenge",
+        "description": "Build a complete detection from threat intel to production.",
+        "duration": "35 min"
+      }
+    ],
+    "track": "Administrator"
+  },
+  {
+    "id": "pipeline-incident-response",
+    "title": "Incident Response Automation",
+    "description": "Build automated response capabilities to accelerate incident handling. Learn alert actions, SOAR integration, adaptive response configuration, and response auditing.",
+    "level": "advanced",
+    "duration": "4-5 hours",
+    "icon": "\u2699\ufe0f",
+    "objectives": [
+      "Configure alert actions for automated response",
+      "Integrate with SOAR platforms via webhooks and REST",
+      "Design response playbooks for common scenarios",
+      "Audit and monitor automated actions"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Alert Action Architecture",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ir-alert-architecture",
+        "description": "Understand how alert actions execute and chain together.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Built-in Alert Actions",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ir-builtin-actions",
+        "description": "Configure email, script, and webhook alert actions.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Webhook Integration",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ir-webhooks",
+        "description": "Send alerts to external systems via HTTP webhooks.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-4",
+        "title": "REST API Integration",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ir-rest-api",
+        "description": "Trigger external actions through REST API calls.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-5",
+        "title": "SOAR Platform Integration",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ir-soar-integration",
+        "description": "Connect Splunk alerts to SOAR playbook automation.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Playbook Design Principles",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ir-playbook-design",
+        "description": "Design effective automated response playbooks.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Adaptive Response Actions",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ir-adaptive-response",
+        "description": "Configure ES adaptive response for automated remediation.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Action Monitoring and Audit",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ir-action-audit",
+        "description": "Track and audit automated actions for compliance.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Automation Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "ir-automation-challenge",
+        "description": "Build an end-to-end automated response workflow.",
+        "duration": "30 min"
+      }
+    ],
+    "track": "Administrator"
+  },
+  {
+    "id": "pipeline-data-model-architecture",
+    "title": "Data Model Architecture",
+    "description": "Design scalable data infrastructure with custom data models. Master CIM alignment, acceleration optimization, and advanced tstats patterns for enterprise-scale analytics.",
+    "level": "advanced",
+    "duration": "4-5 hours",
+    "icon": "\ud83c\udfd7\ufe0f",
+    "objectives": [
+      "Understand CIM data model structure and purpose",
+      "Design and build custom data models",
+      "Optimize data model acceleration for performance",
+      "Master advanced tstats patterns for complex queries"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "CIM Deep Dive",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dm-cim-deep-dive",
+        "description": "Understand the Common Information Model architecture.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Data Model Structure",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dm-structure",
+        "description": "Learn object hierarchies, constraints, and inheritance.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Custom Data Model Design",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dm-custom-design",
+        "description": "Build data models for your unique data sources.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Data Model Acceleration",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dm-acceleration",
+        "description": "Configure and optimize TSIDX acceleration.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Acceleration Strategy",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dm-acceleration-strategy",
+        "description": "Plan acceleration coverage and retention policies.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Basic tstats Patterns",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "es-tstats-datamodels",
+        "description": "Write efficient queries using accelerated data models.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Advanced tstats Techniques",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dm-advanced-tstats",
+        "description": "Master complex tstats patterns with prestats and append.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Data Model Maintenance",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "dm-maintenance",
+        "description": "Monitor health and troubleshoot acceleration issues.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Data Model Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "dm-challenge",
+        "description": "Design and implement a custom accelerated data model.",
+        "duration": "35 min"
+      }
+    ],
+    "track": "Architect"
+  },
+  {
+    "id": "pipeline-rba-mastery",
+    "title": "Risk-Based Alerting Mastery",
+    "description": "Implement a comprehensive RBA strategy to reduce alert fatigue. Learn risk framework design, modifier configuration, entity attribution, and threshold optimization.",
+    "level": "advanced",
+    "duration": "4-5 hours",
+    "icon": "\u2696\ufe0f",
+    "objectives": [
+      "Design a risk-based alerting framework",
+      "Configure risk modifiers and scoring rules",
+      "Implement entity-based risk attribution",
+      "Tune thresholds and optimize risk notables"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "RBA Philosophy and Benefits",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "es-003",
+        "description": "Understand why RBA reduces alert fatigue effectively.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-2",
+        "title": "RBA Architecture Deep Dive",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "rba-architecture",
+        "description": "Understand risk index structure and event flow.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Risk Factor Design",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "rba-factor-design",
+        "description": "Design risk factors aligned with your threat model.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Risk Modifier Configuration",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "rba-modifiers",
+        "description": "Configure context-aware risk score adjustments.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Entity Attribution Strategies",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "rba-entity-attribution",
+        "description": "Attribute risk accurately to users and systems.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Risk Notable Configuration",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "rba-notable-config",
+        "description": "Set up risk notables with appropriate thresholds.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Threshold Tuning",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "rba-threshold-tuning",
+        "description": "Optimize thresholds using statistical analysis.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Risk Investigation Workflow",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "es-005",
+        "description": "Investigate high-risk entities end-to-end.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-9",
+        "title": "RBA Implementation Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "rba-challenge",
+        "description": "Design and implement RBA for a new detection use case.",
+        "duration": "35 min"
+      }
+    ],
+    "track": "Architect"
+  },
+  {
+    "id": "pipeline-advanced-analytics",
+    "title": "Advanced Analytics and Machine Learning",
+    "description": "Implement advanced detection capabilities using MLTK algorithms. Learn anomaly detection, behavioral baselines, multi-factor scoring, and user behavior analytics.",
+    "level": "expert",
+    "duration": "5-6 hours",
+    "icon": "\ud83e\udde0",
+    "objectives": [
+      "Select appropriate ML algorithms for security use cases",
+      "Implement anomaly detection for threat hunting",
+      "Build multi-factor scoring models",
+      "Create user behavior analytics baselines"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "ML for Security Overview",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-security-overview",
+        "description": "Understand where ML adds value in security operations.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-2",
+        "title": "MLTK Fundamentals",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-mltk-fundamentals",
+        "description": "Learn MLTK architecture and workflow basics.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Algorithm Selection Guide",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-algorithm-selection",
+        "description": "Choose the right algorithm for your detection goal.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Anomaly Detection Implementation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-anomaly-detection",
+        "description": "Build anomaly detectors with clustering and density algorithms.",
+        "duration": "35 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Behavioral Baselines",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-behavioral-baselines",
+        "description": "Create per-entity behavioral baselines for deviation detection.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Multi-Factor Scoring Models",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-scoring-models",
+        "description": "Combine multiple signals into composite risk scores.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-7",
+        "title": "User Behavior Analytics",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-uba",
+        "description": "Implement UBA patterns for insider threat detection.",
+        "duration": "35 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Model Tuning and Validation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-model-tuning",
+        "description": "Optimize model parameters and validate effectiveness.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-9",
+        "title": "ML Operationalization",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ml-operationalization",
+        "description": "Deploy models to production with proper monitoring.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-10",
+        "title": "ML Analytics Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "ml-challenge",
+        "description": "Build an ML-based detection from data to production.",
+        "duration": "40 min"
+      }
+    ],
+    "track": "Architect"
+  },
+  {
+    "id": "pipeline-enterprise-architecture",
+    "title": "Enterprise Architecture and Scale",
+    "description": "Design and manage large-scale Splunk deployments. Master distributed architecture, clustering, disaster recovery, capacity planning, and growth modeling.",
+    "level": "expert",
+    "duration": "5-6 hours",
+    "icon": "\ud83c\udf10",
+    "objectives": [
+      "Design distributed Splunk architectures",
+      "Configure indexer and search head clustering",
+      "Plan disaster recovery and multi-site replication",
+      "Model capacity requirements and plan for growth"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Distributed Architecture Fundamentals",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-distributed-fundamentals",
+        "description": "Understand Splunk distributed deployment patterns.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Indexer Clustering",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-indexer-clustering",
+        "description": "Configure indexer clusters for data availability.",
+        "duration": "35 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Search Head Clustering",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-sh-clustering",
+        "description": "Deploy search head clusters for high availability.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Multi-Site Replication",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-multi-site",
+        "description": "Configure site awareness and cross-site replication.",
+        "duration": "35 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Disaster Recovery Planning",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-dr-planning",
+        "description": "Design DR strategies for data and configuration.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-6",
+        "title": "License Management",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-license-management",
+        "description": "Manage license pools and monitor consumption.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Capacity Planning",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-capacity-planning",
+        "description": "Size infrastructure for current and future needs.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Growth Modeling",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-growth-modeling",
+        "description": "Project data volume growth and plan expansions.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Performance Monitoring at Scale",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "arch-performance-monitoring",
+        "description": "Monitor and optimize large-scale deployments.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-10",
+        "title": "Architecture Design Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "arch-challenge",
+        "description": "Design a complete enterprise Splunk architecture.",
+        "duration": "40 min"
+      }
+    ],
+    "track": "Architect"
+  }
+]

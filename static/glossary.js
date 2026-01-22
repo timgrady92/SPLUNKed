@@ -69,11 +69,8 @@ Object.entries(TAB_CATEGORY_MAP).forEach(([tab, categories]) => {
     categories.forEach(cat => CATEGORY_TO_TAB[cat] = tab);
 });
 
-// Subcategory labels for merged tabs
-const SUBCATEGORY_LABELS = {
-    functions: 'Eval Function',
-    statsFunctions: 'Stats Function'
-};
+// Subcategory labels - use centralized definitions
+const getSubcategoryLabel = (cat) => window.SPLUNKed?.SUBCATEGORY_LABELS?.[cat] || cat;
 
 // ============================================
 // Glossary Data
@@ -85,11 +82,34 @@ let GLOSSARY_DATA = {};
 // Glossary Logic
 // ============================================
 
-let currentCategory = 'commands';
-let currentSearch = '';
-let currentView = 'categorized';
+// Unified state management - single source of truth
+let state = null;
 
-// Multi-select filter states (empty Set = show all)
+function initState() {
+    if (state) return state;
+
+    state = window.SPLUNKed?.createFeatureState?.({
+        category: 'commands',
+        search: '',
+        view: 'categorized',
+        commandFilters: [],
+        functionFilters: []
+    }, {
+        storageKey: 'glossary',
+        persistKeys: ['category', 'view']
+    });
+
+    return state;
+}
+
+// State accessors
+const getCategory = () => state?.get('category') || 'commands';
+const getSearch = () => state?.get('search') || '';
+const getView = () => state?.get('view') || 'categorized';
+const getCommandFilters = () => new Set(state?.get('commandFilters') || []);
+const getFunctionFilters = () => new Set(state?.get('functionFilters') || []);
+
+// Mutable filter sets for initIconFilter compatibility (synced with state)
 let commandFilters = new Set();
 let functionFilters = new Set();
 
@@ -103,6 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initGlossary() {
+    initState();
+
+    // Restore filter sets from state
+    const savedCommands = state?.get('commandFilters') || [];
+    const savedFunctions = state?.get('functionFilters') || [];
+    savedCommands.forEach(f => commandFilters.add(f));
+    savedFunctions.forEach(f => functionFilters.add(f));
+
     if (window.SPLUNKed?.loadGlossaryData) {
         const data = await SPLUNKed.loadGlossaryData();
         GLOSSARY_DATA = data || {};
@@ -124,7 +152,7 @@ async function initGlossary() {
     const tabController = SPLUNKed.initTabs('#glossaryTabs', {
         storageKey: storageKey,
         onTabChange: (category) => {
-            currentCategory = category;
+            state?.set('category', category);
             renderGlossary();
         }
     });
@@ -135,22 +163,16 @@ async function initGlossary() {
     const openId = params.get('open');
 
     if (urlTab && TAB_CATEGORY_MAP[urlTab]) {
-        currentCategory = urlTab;
+        state?.set('category', urlTab);
         if (tabController) {
             tabController.activateTab(urlTab);
-        }
-    } else {
-        // Sync currentCategory with restored tab from localStorage
-        const savedTab = localStorage.getItem(storageKey);
-        if (savedTab && TAB_CATEGORY_MAP[savedTab]) {
-            currentCategory = savedTab;
         }
     }
 
     // Initialize search
     SPLUNKed.initSearch('glossarySearch', {
         onSearch: (query) => {
-            currentSearch = query;
+            state?.set('search', query);
             renderGlossary();
         }
     });
@@ -159,20 +181,34 @@ async function initGlossary() {
     SPLUNKed.initViewToggle('glossaryView', {
         storageKey: 'splunked-glossary-view',
         onViewChange: (view) => {
-            currentView = view;
+            state?.set('view', view);
             renderGlossary();
         }
     });
 
     // Initialize icon filters for each tab
-    SPLUNKed.initIconFilter('commandsFilter', {
+    const commandsFilterController = SPLUNKed.initIconFilter('commandsFilter', {
         filterSet: commandFilters,
-        onChange: () => renderGlossary()
+        onChange: () => {
+            state?.set('commandFilters', Array.from(commandFilters));
+            renderGlossary();
+        }
     });
-    SPLUNKed.initIconFilter('functionsFilter', {
+    const functionsFilterController = SPLUNKed.initIconFilter('functionsFilter', {
         filterSet: functionFilters,
-        onChange: () => renderGlossary()
+        onChange: () => {
+            state?.set('functionFilters', Array.from(functionFilters));
+            renderGlossary();
+        }
     });
+
+    if (commandsFilterController && savedCommands.length > 0) {
+        commandsFilterController.setValue(savedCommands[0]);
+    }
+
+    if (functionsFilterController && savedFunctions.length > 0) {
+        functionsFilterController.setValue(savedFunctions[0]);
+    }
 
     // Initialize modal
     SPLUNKed.initModal('glossaryModal');
@@ -210,7 +246,7 @@ function renderAllCategories() {
 }
 
 function renderGlossary() {
-    renderCategoryGrid(currentCategory);
+    renderCategoryGrid(getCategory());
     updateEmptyState();
 }
 
@@ -243,7 +279,7 @@ function renderCategoryGrid(tab) {
     const filtered = filterEntries(entries);
 
     // Sort alphabetically if requested
-    if (currentView === 'alphabetical') {
+    if (getView() === 'alphabetical') {
         filtered.sort((a, b) => a.name.localeCompare(b.name));
     }
 
@@ -264,31 +300,35 @@ function createCategoryInfoHTML(tab) {
 }
 
 function filterEntries(entries) {
+    const category = getCategory();
+    const search = getSearch();
+    const cmdFilters = getCommandFilters();
+    const fnFilters = getFunctionFilters();
+
     return entries.filter(entry => {
         // Multi-select filtering based on current tab
         // Empty filter set = show all
 
         // Commands tab: filter by pipeline stage (purpose)
-        if (currentCategory === 'commands' && commandFilters.size > 0) {
-            if (!entry.purpose || !commandFilters.has(entry.purpose)) {
+        if (category === 'commands' && cmdFilters.size > 0) {
+            if (!entry.purpose || !cmdFilters.has(entry.purpose)) {
                 return false;
             }
         }
 
         // Functions tab: filter by function type (eval/stats)
-        if (currentCategory === 'functions' && functionFilters.size > 0) {
+        if (category === 'functions' && fnFilters.size > 0) {
             const entryCategory = entry._sourceCategory || entry.category;
-            // Map filter values to source categories
             const filterMatches =
-                (functionFilters.has('eval') && entryCategory === 'functions') ||
-                (functionFilters.has('stats') && entryCategory === 'statsFunctions');
+                (fnFilters.has('eval') && entryCategory === 'functions') ||
+                (fnFilters.has('stats') && entryCategory === 'statsFunctions');
             if (!filterMatches) {
                 return false;
             }
         }
 
         // Filter by search
-        if (currentSearch) {
+        if (search) {
             const purposeLabel = entry.purpose
                 ? (PURPOSE_LABELS[entry.purpose] || FUNCTION_PURPOSE_LABELS[entry.purpose] || '')
                 : '';
@@ -301,85 +341,22 @@ function filterEntries(entries) {
                 purposeLabel
             ].join(' ').toLowerCase();
 
-            return searchable.includes(currentSearch);
+            return searchable.includes(search);
         }
 
         return true;
     });
 }
 
-// Unified icon mapping for all card categories
-const CARD_ICONS = {
-    // Command pipeline stages
-    get: { icon: '↓', label: 'Get data' },
-    filter: { icon: '⧩', label: 'Filter' },
-    transform: { icon: '⟳', label: 'Transform' },
-    aggregate: { icon: 'Σ', label: 'Aggregate' },
-    combine: { icon: '⊕', label: 'Combine' },
-    output: { icon: '▤', label: 'Output' },
-    // Function types
-    functions: { icon: 'ƒ', label: 'Eval Function' },
-    statsFunctions: { icon: '∑', label: 'Stats Function' },
-    // Reference categories
-    fields: { icon: '⬚', label: 'Field' },
-    concepts: { icon: '◆', label: 'Concept' },
-    cim: { icon: '⧉', label: 'CIM' },
-    extractions: { icon: '⋔', label: 'Extraction' },
-    macros: { icon: '{ }', label: 'Macro' },
-    engineering: { icon: '⚙', label: 'Engineering' },
-    // Antipatterns
-    antipatterns: { icon: '⚠', label: 'Pitfall' },
-    // Enterprise Security subcategories
-    rba: { icon: '⚡', label: 'Risk-Based Alerting' },
-    notable: { icon: '◉', label: 'Notable Events' },
-    assetIdentity: { icon: '◎', label: 'Asset/Identity' },
-    threatIntel: { icon: '⊛', label: 'Threat Intel' },
-    datamodels: { icon: '◈', label: 'Data Models' },
-    correlation: { icon: '⬔', label: 'Correlation' },
-    investigation: { icon: '◇', label: 'Investigation' },
-    mitre: { icon: '⬡', label: 'MITRE ATT&CK' },
-    content: { icon: '▧', label: 'Content' },
-    enterpriseSecurity: { icon: '⛨', label: 'Enterprise Security' }
-};
-
+/**
+ * Create card HTML using shared component
+ */
 function createCardHTML(entry, showSubcategory = false) {
-    const experimentalBadge = entry.experimental
-        ? '<span class="experimental-badge">Test</span>'
-        : '';
-
-    // Determine the icon key based on entry type
-    const entryCategory = entry._sourceCategory || entry.category;
-    let iconKey = null;
-    let iconClass = '';
-
-    // Commands use purpose (pipeline stage)
-    if (entry.purpose && CARD_ICONS[entry.purpose]) {
-        iconKey = entry.purpose;
-        iconClass = entry.purpose;
-    }
-    // Other categories use source category
-    else if (CARD_ICONS[entryCategory]) {
-        iconKey = entryCategory;
-        iconClass = entryCategory;
-    }
-
-    // Build the card icon (positioned absolutely in top-right)
-    let cardIcon = '';
-    if (iconKey && CARD_ICONS[iconKey]) {
-        const { icon, label } = CARD_ICONS[iconKey];
-        cardIcon = `<span class="card-icon ${iconClass}" title="${label}">${icon}</span>`;
-    }
-
-    return `
-        <div class="glossary-card" data-id="${entry.id}" data-category="${entry.category}">
-            ${cardIcon}
-            <div class="glossary-card-header">
-                <code class="glossary-name">${SPLUNKed.escapeHtml(entry.name)}</code>
-                ${experimentalBadge}
-            </div>
-            <p class="glossary-takeaway">${SPLUNKed.escapeHtml(entry.takeaway)}</p>
-        </div>
-    `;
+    return SPLUNKed.components.createCard(entry, {
+        variant: 'glossary',
+        showSubcategory,
+        showIcon: true
+    });
 }
 
 // Card navigation history
@@ -1698,13 +1675,7 @@ function createDetailHTML(entry) {
 }
 
 function updateEmptyState() {
-    const grid = document.getElementById(`${currentCategory}Grid`);
-    const emptyState = document.getElementById('emptyState');
-
-    if (!grid || !emptyState) return;
-
-    const hasResults = grid.children.length > 0;
-    emptyState.classList.toggle('hidden', hasResults);
+    SPLUNKed.updateEmptyState(`${getCategory()}Grid`, 'emptyState');
 }
 
 

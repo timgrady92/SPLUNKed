@@ -407,7 +407,7 @@ function initDisclosure(containerSelector) {
 /**
  * SPL Syntax Highlighting
  */
-const SPL_SYNTAX = {
+const SPL_SYNTAX = window.SPL_SYNTAX || {
     keywords: [
         'AND', 'OR', 'NOT', 'BY', 'AS', 'WHERE', 'IN', 'OVER', 'OUTPUT',
         'OUTPUTNEW', 'TRUE', 'FALSE', 'NULL'
@@ -462,6 +462,8 @@ const SPL_SYNTAX = {
         'bytes', 'duration', 'EventCode', 'EventID', 'Computer', 'Message'
     ]
 };
+
+window.SPL_SYNTAX = SPL_SYNTAX;
 
 function highlightSPL(code, options = {}) {
     if (!code) return code;
@@ -593,7 +595,9 @@ function applySPLHighlighting(container = document, options = {}) {
         '.spl-code code',
         '.spl-example',
         'pre.spl-example',
-        '.spl-block code'
+        '.spl-block code',
+        '.spl-code-display',
+        '.quick-action-spl'
     ];
 
     const codeBlocks = container.querySelectorAll(selectors.join(', '));
@@ -696,49 +700,21 @@ function loadJsonOnce(cacheKey, url) {
     return DATA_PROMISES[cacheKey];
 }
 
+// Data loaders are now in core/data.js - these delegate for backward compatibility
 function loadGlossaryData() {
-    return loadJsonOnce('glossary', '/static/data/glossary.json')
-        .then((data) => {
-            if (data) {
-                window.GLOSSARY_DATA = data;
-                syncSPLSyntax(data);
-                applySPLHighlighting(document, { force: true });
-            }
-            return data;
-        });
+    return window.SPLUNKed?.data?.loadGlossaryData?.() || Promise.resolve(null);
 }
 
 function loadReferencesData() {
-    return loadJsonOnce('references', '/static/data/references.json')
-        .then((data) => {
-            if (data) {
-                window.REFERENCE_DATA = data;
-            }
-            return data;
-        });
+    return window.SPLUNKed?.data?.loadReferencesData?.() || Promise.resolve(null);
 }
 
 function loadTrainingData() {
-    return loadJsonOnce('training', '/static/data/training.json')
-        .then((data) => {
-            if (data) {
-                window.GUIDES_DATA = data.guides || {};
-                window.TRAINING_DATA = data.training || [];
-                window.PIPELINES_DATA = data.pipelines || [];
-            }
-            return data;
-        });
+    return window.SPLUNKed?.data?.loadTrainingData?.() || Promise.resolve(null);
 }
 
 function loadQueryData() {
-    return loadJsonOnce('queries', '/static/data/queries.json')
-        .then((data) => {
-            if (data) {
-                window.QUERY_CATEGORIES = data.categories || {};
-                window.QUERY_LIBRARY = data.library || [];
-            }
-            return data;
-        });
+    return window.SPLUNKed?.data?.loadQueryData?.() || Promise.resolve(null);
 }
 
 function syncSPLSyntax(glossaryData) {
@@ -846,13 +822,14 @@ function initGlobalSearch() {
             commands: [],
             functions: [],
             reference: [],
-            guides: []
+            lessons: [],
+            training: []
         };
 
         const [glossaryData, referenceData, trainingData] = await Promise.all([
             window.GLOSSARY_DATA ? Promise.resolve(window.GLOSSARY_DATA) : loadGlossaryData(),
             window.REFERENCE_DATA ? Promise.resolve(window.REFERENCE_DATA) : loadReferencesData(),
-            window.TRAINING_DATA ? Promise.resolve({ guides: window.GUIDES_DATA }) : loadTrainingData()
+            window.TRAINING_DATA ? Promise.resolve({ lessons: window.LESSONS_DATA }) : loadTrainingData()
         ]);
 
         // Search glossary data if available
@@ -888,13 +865,25 @@ function initGlobalSearch() {
             });
         }
 
-        // Search guides data if available
-        if (trainingData && trainingData.guides) {
-            Object.keys(trainingData.guides).forEach(category => {
-                const guides = trainingData.guides[category] || [];
-                guides.forEach(guide => {
-                    if (matchesGuide(guide, query)) {
-                        results.guides.push({ ...guide, _category: category });
+        // Search lessons data if available
+        if (trainingData && trainingData.lessons) {
+            Object.keys(trainingData.lessons).forEach(category => {
+                const lessons = trainingData.lessons[category] || [];
+                lessons.forEach(lesson => {
+                    if (matchesGuide(lesson, query)) {
+                        results.lessons.push({ ...lesson, _category: category });
+                    }
+                });
+            });
+        }
+
+        // Search training modules (tutorials, scenarios, challenges)
+        if (trainingData && trainingData.training) {
+            Object.keys(trainingData.training).forEach(category => {
+                const modules = trainingData.training[category] || [];
+                modules.forEach(module => {
+                    if (matchesTraining(module, query)) {
+                        results.training.push({ ...module, _category: category });
                     }
                 });
             });
@@ -905,7 +894,8 @@ function initGlobalSearch() {
         results.commands = results.commands.slice(0, maxPerCategory);
         results.functions = results.functions.slice(0, maxPerCategory);
         results.reference = results.reference.slice(0, maxPerCategory);
-        results.guides = results.guides.slice(0, maxPerCategory);
+        results.lessons = results.lessons.slice(0, maxPerCategory);
+        results.training = results.training.slice(0, maxPerCategory);
 
         return results;
     }
@@ -920,17 +910,35 @@ function initGlobalSearch() {
     }
 
     function matchesGuide(guide, query) {
+        const keywords = Array.isArray(guide.keywords) ? guide.keywords.join(' ') : (guide.keywords || '');
+        const tags = Array.isArray(guide.tags) ? guide.tags.join(' ') : (guide.tags || '');
         const searchable = [
             guide.title || '',
             guide.description || '',
-            guide.keywords || ''
+            keywords,
+            tags
+        ].join(' ').toLowerCase();
+        return searchable.includes(query);
+    }
+
+    function matchesTraining(module, query) {
+        const keywords = Array.isArray(module.keywords) ? module.keywords.join(' ') : (module.keywords || '');
+        const tags = Array.isArray(module.tags) ? module.tags.join(' ') : (module.tags || '');
+        const objectives = Array.isArray(module.objectives) ? module.objectives.join(' ') : (module.objectives || '');
+        const searchable = [
+            module.title || '',
+            module.description || '',
+            keywords,
+            tags,
+            objectives
         ].join(' ').toLowerCase();
         return searchable.includes(query);
     }
 
     function renderSearchResults(results, query) {
         const hasResults = results.commands.length || results.functions.length ||
-                          results.reference.length || results.guides.length;
+                          results.reference.length || results.lessons.length ||
+                          results.training.length;
 
         if (!hasResults) {
             resultsContainer.innerHTML = '<div class="search-no-results">No results found</div>';
@@ -950,11 +958,15 @@ function initGlobalSearch() {
         }
 
         if (results.reference.length) {
-            html += renderResultGroup('Reference', results.reference, 'reference');
+            html += renderReferenceGroup('Reference', results.reference);
         }
 
-        if (results.guides.length) {
-            html += renderGuideGroup('Guides', results.guides);
+        if (results.lessons.length) {
+            html += renderLessonGroup('Lessons', results.lessons);
+        }
+
+        if (results.training.length) {
+            html += renderTrainingGroup('Training', results.training);
         }
 
         resultsContainer.innerHTML = html;
@@ -987,16 +999,64 @@ function initGlobalSearch() {
         return html;
     }
 
-    function renderGuideGroup(title, guides) {
+    function renderReferenceGroup(title, entries) {
+        const tabMap = window.REF_CATEGORY_TO_TAB || {
+            concepts: 'fundamentals',
+            fields: 'fundamentals',
+            extractions: 'fundamentals',
+            macros: 'fundamentals',
+            engineering: 'fundamentals',
+            enterpriseSecurity: 'enterpriseSecurity',
+            cim: 'cim',
+            antipatterns: 'antipatterns'
+        };
+
         let html = `<div class="search-results-group">
             <div class="search-results-header">${title}</div>`;
 
-        guides.forEach(guide => {
-            const url = `/guides?tab=${guide._category}&open=${guide.id}`;
+        entries.forEach(entry => {
+            const category = entry.category || entry._sourceCategory || 'fundamentals';
+            const tab = tabMap[category] || 'fundamentals';
+            const url = `/references?tab=${tab}&open=${entry.id}`;
             html += `
                 <a href="${url}" class="search-result-item" data-url="${url}">
-                    <code class="result-name">${escapeHtml(guide.title)}</code>
-                    <span class="result-desc">${escapeHtml(guide.description || '')}</span>
+                    <code class="result-name">${escapeHtml(entry.name)}</code>
+                    <span class="result-desc">${escapeHtml(entry.takeaway || '')}</span>
+                </a>`;
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    function renderLessonGroup(title, lessons) {
+        let html = `<div class="search-results-group">
+            <div class="search-results-header">${title}</div>`;
+
+        lessons.forEach(lesson => {
+            const url = `/training?tab=lessons&open=${lesson.id}`;
+            html += `
+                <a href="${url}" class="search-result-item" data-url="${url}">
+                    <code class="result-name">${escapeHtml(lesson.title)}</code>
+                    <span class="result-desc">${escapeHtml(lesson.description || '')}</span>
+                </a>`;
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    function renderTrainingGroup(title, modules) {
+        let html = `<div class="search-results-group">
+            <div class="search-results-header">${title}</div>`;
+
+        modules.forEach(module => {
+            const tab = module.type === 'tutorial' ? 'lessons' : module.type + 's';
+            const url = `/training?tab=${tab}&open=${module.id}`;
+            html += `
+                <a href="${url}" class="search-result-item" data-url="${url}">
+                    <code class="result-name">${escapeHtml(module.title)}</code>
+                    <span class="result-desc">${escapeHtml(module.description || '')}</span>
                 </a>`;
         });
 
@@ -1015,26 +1075,37 @@ function initGlobalSearch() {
 
 /**
  * Export utilities for use in other modules
+ * Merge with existing SPLUNKed namespace from core modules
  */
+const existingSPLUNKed = window.SPLUNKed || {};
 window.SPLUNKed = {
-    initTabs,
-    initSearch,
-    initFilter,
-    initIconFilter,
-    initViewToggle,
-    initModal,
-    initDisclosure,
-    openModal,
-    closeModal,
-    highlightSPL,
-    applySPLHighlighting,
-    copyToClipboard,
-    loadGlossaryData,
-    loadReferencesData,
-    loadTrainingData,
-    loadQueryData,
-    syncSPLSyntax,
-    escapeHtml,
-    storage,
-    debounce
+    ...existingSPLUNKed,
+    // Tab management (also in core/render.js)
+    initTabs: existingSPLUNKed.initTabs || initTabs,
+    // Search functionality (also in core/render.js)
+    initSearch: existingSPLUNKed.initSearch || initSearch,
+    initFilter: existingSPLUNKed.initFilter || initFilter,
+    initIconFilter: existingSPLUNKed.initIconFilter || initIconFilter,
+    initViewToggle: existingSPLUNKed.initViewToggle || initViewToggle,
+    // Modal management (also in core/components.js)
+    initModal: existingSPLUNKed.initModal || initModal,
+    openModal: existingSPLUNKed.openModal || openModal,
+    closeModal: existingSPLUNKed.closeModal || closeModal,
+    // Progressive disclosure
+    initDisclosure: existingSPLUNKed.initDisclosure || initDisclosure,
+    // SPL highlighting (unique to app.js)
+    highlightSPL: existingSPLUNKed.highlightSPL || highlightSPL,
+    applySPLHighlighting: existingSPLUNKed.applySPLHighlighting || applySPLHighlighting,
+    // Clipboard (also in core/render.js)
+    copyToClipboard: existingSPLUNKed.copyToClipboard || copyToClipboard,
+    // Data loaders (also in core/data.js - backward compatible)
+    loadGlossaryData: existingSPLUNKed.loadGlossaryData || loadGlossaryData,
+    loadReferencesData: existingSPLUNKed.loadReferencesData || loadReferencesData,
+    loadTrainingData: existingSPLUNKed.loadTrainingData || loadTrainingData,
+    loadQueryData: existingSPLUNKed.loadQueryData || loadQueryData,
+    syncSPLSyntax: existingSPLUNKed.syncSPLSyntax || syncSPLSyntax,
+    // Utilities
+    escapeHtml: existingSPLUNKed.escapeHtml || escapeHtml,
+    storage: existingSPLUNKed.storage || storage,
+    debounce: existingSPLUNKed.debounce || debounce
 };

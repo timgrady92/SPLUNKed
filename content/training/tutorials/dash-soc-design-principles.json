@@ -1,0 +1,52 @@
+{
+  "id": "dash-soc-design-principles",
+  "type": "tutorial",
+  "title": "SOC Dashboard Design Principles",
+  "description": "Learn the foundational principles for designing dashboards that security analysts will actually use during their shifts.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["dashboards", "design", "soc", "best-practices"],
+  "objectives": [
+    "Distinguish between monitoring, investigation, and reporting dashboard archetypes",
+    "Apply the three-second glance rule to dashboard design",
+    "Implement progressive disclosure for complex data",
+    "Avoid common dashboard anti-patterns"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Dashboard Design Matters",
+        "body": "<p>A well-designed dashboard saves analysts time and reduces cognitive load. A poorly designed dashboard becomes shelfware that nobody trusts. The difference isn't about making things pretty—it's about making information <strong>actionable</strong>.</p><p>Consider the difference between a dashboard that answers \"What's happening?\" in 3 seconds versus one that requires 30 seconds of interpretation. Over a 12-hour shift, that difference translates to hours of lost productivity.</p>"
+      },
+      {
+        "title": "The Three Dashboard Archetypes",
+        "body": "<p>Every SOC dashboard falls into one of three categories, each with distinct design requirements:</p><h4>1. Monitoring Dashboards</h4><p><strong>Purpose:</strong> Continuous situational awareness during shifts</p><p><strong>Design priorities:</strong></p><ul><li>Real-time or near-real-time data (< 5 minute refresh)</li><li>Large, visible panels for wall-mounted displays</li><li>Clear visual indicators (green/yellow/red)</li><li>Minimal interaction required</li></ul><p><strong>Examples:</strong> Alert queue status, system health, active incident counts</p><h4>2. Investigation Dashboards</h4><p><strong>Purpose:</strong> Support active incident analysis and triage</p><p><strong>Design priorities:</strong></p><ul><li>Rich filtering and time selection</li><li>Drilldown capabilities to raw events</li><li>Multiple data perspectives (timeline, table, summary)</li><li>Quick pivot between related data</li></ul><p><strong>Examples:</strong> User activity investigator, host forensics, network flow analyzer</p><h4>3. Reporting Dashboards</h4><p><strong>Purpose:</strong> Communicate metrics to stakeholders and leadership</p><p><strong>Design priorities:</strong></p><ul><li>Longer time ranges (weekly, monthly, quarterly)</li><li>Trend comparisons and change indicators</li><li>Clean, presentation-ready layouts</li><li>Export and scheduling capabilities</li></ul><p><strong>Examples:</strong> Weekly SOC metrics, compliance reports, executive summaries</p>"
+      },
+      {
+        "title": "The Three-Second Glance Rule",
+        "body": "<p>An analyst should understand the dashboard's key message within three seconds of looking at it. This rule forces you to prioritize:</p><h4>Apply the Rule</h4><ol><li><strong>Identify the single most important metric</strong> - Make it the largest, most prominent element</li><li><strong>Use visual hierarchy</strong> - Size, position, and color should guide the eye</li><li><strong>Eliminate noise</strong> - Remove anything that doesn't support quick understanding</li></ol><h4>Visual Hierarchy Principles</h4><ul><li><strong>Top-left position</strong> gets read first (in left-to-right cultures)</li><li><strong>Larger panels</strong> communicate higher importance</li><li><strong>Color should mean something</strong> - Red for bad, green for good, consistently</li><li><strong>White space</strong> separates logical groups and reduces visual clutter</li></ul>"
+      },
+      {
+        "title": "Progressive Disclosure",
+        "body": "<p>Don't overwhelm analysts with all information at once. Layer information so users can drill deeper when needed:</p><h4>Level 1: Summary</h4><p>Single values and status indicators</p><p><em>\"47 alerts in queue\"</em></p><h4>Level 2: Breakdown</h4><p>Click the summary to see categories</p><p><em>\"12 high, 25 medium, 10 low severity\"</em></p><h4>Level 3: Details</h4><p>Click a category to see individual items</p><p><em>Table of 12 high-severity alerts with details</em></p><h4>Level 4: Raw Data</h4><p>Click a row to see the source events</p><p><em>The original log entries that triggered the alert</em></p><p>This pattern keeps the default view clean while enabling deep investigation when needed.</p>"
+      },
+      {
+        "title": "Designing for 12-Hour Shifts",
+        "body": "<p>SOC analysts work long shifts, often monitoring dashboards for hours. Design with fatigue in mind:</p><h4>Reduce Eye Strain</h4><ul><li>Avoid pure white backgrounds for NOC displays (use dark mode)</li><li>Don't use flashing or animated elements</li><li>Ensure sufficient contrast for readability</li><li>Consider colorblind-friendly palettes</li></ul><h4>Minimize Cognitive Load</h4><ul><li>Group related panels logically</li><li>Use consistent layouts across similar dashboards</li><li>Label clearly—never assume context</li><li>Show units (\"45 alerts\" not just \"45\")</li></ul><h4>Support Task Switching</h4><ul><li>Make time ranges obvious and easily changeable</li><li>Include \"reset to default\" options</li><li>Preserve state when switching between dashboards</li></ul>"
+      },
+      {
+        "title": "Common Anti-Patterns",
+        "body": "<p>Avoid these mistakes that plague security dashboards:</p><h4>The \"Everything Dashboard\"</h4><p><strong>Symptom:</strong> 20+ panels showing every possible metric</p><p><strong>Problem:</strong> Analysis paralysis—nothing stands out</p><p><strong>Fix:</strong> Create focused dashboards by purpose; link between them</p><h4>The \"Pie Chart Collection\"</h4><p><strong>Symptom:</strong> Multiple pie charts showing category breakdowns</p><p><strong>Problem:</strong> Pie charts are poor for comparison and change over time</p><p><strong>Fix:</strong> Use bar charts or tables with percentages</p><h4>The \"Wall of Tables\"</h4><p><strong>Symptom:</strong> Dashboard is just multiple tables stacked vertically</p><p><strong>Problem:</strong> No visual summary; requires reading every row</p><p><strong>Fix:</strong> Add summary KPIs and charts; tables are for details, not overview</p><h4>The \"Rainbow Chart\"</h4><p><strong>Symptom:</strong> Timechart with 15 different colored lines</p><p><strong>Problem:</strong> Impossible to distinguish series or identify trends</p><p><strong>Fix:</strong> Limit to 5 series; use \"Other\" for remainder; consider faceted views</p><h4>The \"Mystery Panel\"</h4><p><strong>Symptom:</strong> Panels without titles or with cryptic technical names</p><p><strong>Problem:</strong> Analysts waste time figuring out what they're looking at</p><p><strong>Fix:</strong> Titles should answer \"What question does this panel answer?\"</p>"
+      },
+      {
+        "title": "Dashboard Layout Patterns",
+        "body": "<p>Use proven layouts that work for security operations:</p><h4>The KPI Header</h4><p>Top row: 4-5 single-value panels showing critical metrics</p><p>Below: Detail charts and tables</p><p>Best for: Monitoring dashboards</p><h4>The Investigation Canvas</h4><p>Left sidebar: Filters and inputs</p><p>Main area: Primary visualization (timeline or table)</p><p>Right sidebar: Context and related data</p><p>Best for: Investigation dashboards</p><h4>The Drill-Down Stack</h4><p>Top: High-level summary chart</p><p>Middle: Breakdown by category</p><p>Bottom: Detailed table</p><p>Best for: Single-topic deep-dive dashboards</p>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Effective SOC dashboard design follows these principles:</p><ul><li><strong>Know your archetype</strong>: Monitoring, investigation, or reporting</li><li><strong>Apply the three-second rule</strong>: Key message visible immediately</li><li><strong>Use progressive disclosure</strong>: Summary → Breakdown → Details → Raw</li><li><strong>Design for long shifts</strong>: Reduce strain and cognitive load</li><li><strong>Avoid anti-patterns</strong>: No everything-dashboards, pie chart collections, or mystery panels</li></ul><p>In the next tutorials, you'll apply these principles by building specific dashboard components.</p>"
+      }
+    ]
+  }
+}

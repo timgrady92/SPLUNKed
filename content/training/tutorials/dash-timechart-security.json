@@ -1,0 +1,92 @@
+{
+  "id": "dash-timechart-security",
+  "type": "tutorial",
+  "title": "Timechart Mastery for Security Monitoring",
+  "description": "Build effective time-series visualizations for security data, from basic event trends to multi-series comparisons with proper span selection.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["dashboards", "timechart", "visualization", "monitoring"],
+  "objectives": [
+    "Build timecharts that reveal security-relevant patterns",
+    "Select appropriate span values for different monitoring needs",
+    "Handle high-cardinality data with limit and useother",
+    "Add baseline overlays for anomaly detection"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Timechart for Security",
+        "body": "<p>Security is fundamentally about <strong>change over time</strong>. Attackers create anomalies—spikes in failed logins, unusual network connections, off-hours activity. The <code>timechart</code> command visualizes these patterns.</p><p>A well-built timechart can reveal:</p><ul><li>Brute force attacks (spike in auth failures)</li><li>Data exfiltration (unusual outbound transfer volumes)</li><li>Malware beaconing (regular interval patterns)</li><li>Insider threats (after-hours activity deviations)</li></ul>"
+      },
+      {
+        "title": "Basic Authentication Failure Timechart",
+        "body": "<p>Start with a simple question: \"How many authentication failures are we seeing over time?\"</p>",
+        "spl": "index=security sourcetype=auth action=failure\n| timechart count",
+        "explanation": "This basic query shows total failure volume over time. Splunk automatically selects a span based on your time range. The visualization will use the Statistics tab's time column for the x-axis and count for the y-axis."
+      },
+      {
+        "title": "Explicit Span Selection",
+        "body": "<p>Don't let Splunk auto-select your span. Choose based on your detection needs:</p><table><tr><th>Use Case</th><th>Recommended Span</th><th>Why</th></tr><tr><td>Real-time monitoring</td><td>1m or 5m</td><td>Detect active attacks quickly</td></tr><tr><td>Shift dashboard (8h view)</td><td>15m or 30m</td><td>Balance detail vs. noise</td></tr><tr><td>Daily trends</td><td>1h</td><td>Smooth out normal variation</td></tr><tr><td>Weekly patterns</td><td>1d</td><td>See day-of-week effects</td></tr></table>",
+        "spl": "index=security sourcetype=auth action=failure\n| timechart span=15m count",
+        "explanation": "The span=15m parameter creates 15-minute buckets. For an 8-hour shift view, this gives 32 data points—enough detail to spot trends without visual noise."
+      },
+      {
+        "title": "Multi-Series by Source IP",
+        "body": "<p>Break down failures by source to identify attacking IPs:</p>",
+        "spl": "index=security sourcetype=auth action=failure\n| timechart span=15m count by src_ip",
+        "explanation": "The 'by' clause creates a separate series for each unique source IP. Each IP gets its own colored line in the visualization."
+      },
+      {
+        "title": "Handling High-Cardinality Data",
+        "body": "<p>When splitting by a field with many values (like IP addresses), limit the series count:</p>",
+        "spl": "index=security sourcetype=auth action=failure\n| timechart span=15m count by src_ip limit=5 useother=true",
+        "explanation": "<strong>limit=5</strong> shows only the top 5 source IPs by total count. <strong>useother=true</strong> aggregates remaining IPs into an 'OTHER' series, so you don't lose visibility into total volume. Without these options, a timechart with hundreds of IPs becomes unreadable."
+      },
+      {
+        "title": "Handling Null Values",
+        "body": "<p>When some time buckets have no events for a series, control how they display:</p>",
+        "spl": "index=security sourcetype=auth action=failure\n| timechart span=15m count by src_ip limit=5 useother=true usenull=false",
+        "explanation": "<strong>usenull=false</strong> excludes events where src_ip is null from creating their own series. This keeps your chart focused on identifiable sources. The default is usenull=true, which creates a 'NULL' series."
+      },
+      {
+        "title": "Split by Category Instead of Raw Values",
+        "body": "<p>Instead of splitting by high-cardinality fields, categorize first:</p>",
+        "spl": "index=security sourcetype=auth action=failure\n| eval failure_type = case(\n    status=\"invalid_user\", \"Unknown User\",\n    status=\"bad_password\", \"Wrong Password\",\n    status=\"account_locked\", \"Locked Account\",\n    status=\"expired\", \"Expired Credential\",\n    true(), \"Other\")\n| timechart span=15m count by failure_type",
+        "explanation": "Categorizing with eval before timechart gives you meaningful series names and limits the number of lines. This is more actionable than seeing individual usernames or IPs."
+      },
+      {
+        "title": "Comparing Success vs. Failure",
+        "body": "<p>Context matters. High failure counts during high login volume may be normal:</p>",
+        "spl": "index=security sourcetype=auth\n| eval outcome = if(action=\"success\", \"Success\", \"Failure\")\n| timechart span=15m count by outcome",
+        "explanation": "This shows both successes and failures on the same chart. A spike in failures accompanied by a spike in successes suggests increased activity. A spike in failures with flat successes suggests an attack."
+      },
+      {
+        "title": "Calculating Failure Rate",
+        "body": "<p>For a cleaner view, calculate the failure percentage:</p>",
+        "spl": "index=security sourcetype=auth\n| timechart span=15m count(eval(action=\"failure\")) as failures, count as total\n| eval failure_rate = round((failures/total)*100, 2)\n| fields _time, failure_rate",
+        "explanation": "This calculates failure rate as a percentage. A failure rate of 5% might be normal; 50% indicates a problem. Percentages normalize for varying activity levels."
+      },
+      {
+        "title": "Adding a Baseline Overlay",
+        "body": "<p>Compare current activity to a historical baseline to spot anomalies:</p>",
+        "spl": "index=security sourcetype=auth action=failure earliest=-24h\n| timechart span=1h count as current_failures\n| appendcols [\n    search index=security sourcetype=auth action=failure earliest=-8d latest=-7d\n    | timechart span=1h count as baseline_failures\n    | eval _time = _time + 604800\n]\n| fillnull value=0",
+        "explanation": "This overlays last week's same-day failures on today's data. The appendcols adds the baseline series, and we shift timestamps by 7 days (604800 seconds) to align them. Now you can visually compare current activity to 'normal.'"
+      },
+      {
+        "title": "Statistical Baseline with Bands",
+        "body": "<p>For a more sophisticated baseline, show standard deviation bands:</p>",
+        "spl": "index=security sourcetype=auth action=failure earliest=-7d\n| timechart span=1h count as failures\n| eventstats avg(failures) as avg_failures, stdev(failures) as stdev_failures\n| eval upper_band = avg_failures + (2 * stdev_failures)\n| eval lower_band = avg_failures - (2 * stdev_failures)\n| eval lower_band = if(lower_band < 0, 0, lower_band)\n| where _time >= relative_time(now(), \"-24h\")\n| fields _time, failures, avg_failures, upper_band, lower_band",
+        "explanation": "This shows the current failure count with average and +/- 2 standard deviation bands. Points outside the bands warrant investigation. The eventstats calculates statistics across all time while preserving individual rows."
+      },
+      {
+        "title": "Visualization Best Practices",
+        "body": "<p>Configure your timechart visualization for maximum effectiveness:</p><h4>Chart Type Selection</h4><ul><li><strong>Line chart</strong>: Best for trend analysis and comparisons</li><li><strong>Area chart</strong>: Good for showing volume when stacked</li><li><strong>Column chart</strong>: Better for discrete time periods (daily counts)</li></ul><h4>Color Choices</h4><ul><li>Use consistent colors across dashboards (red always = bad)</li><li>Limit to 5 colors maximum</li><li>Ensure colorblind accessibility</li></ul><h4>Axis Configuration</h4><ul><li>Always start y-axis at zero (non-zero starts exaggerate changes)</li><li>Consider logarithmic scale for data with wide ranges</li><li>Label axes clearly with units</li></ul>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Effective security timecharts:</p><ul><li><strong>Use explicit spans</strong> matched to monitoring needs</li><li><strong>Limit series count</strong> with limit and useother</li><li><strong>Provide context</strong> by comparing success vs. failure or current vs. baseline</li><li><strong>Calculate rates</strong> to normalize for activity volume</li><li><strong>Add baselines</strong> to highlight anomalies</li></ul><p>In the next tutorial, you'll build timecharts into a complete monitoring dashboard.</p>"
+      }
+    ]
+  }
+}

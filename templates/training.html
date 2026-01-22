@@ -10,15 +10,14 @@
     <header class="page-header">
         <h1 class="page-title">Training Center</h1>
         <p class="page-subtitle">
-            Practical guides, tutorials, and realistic SOC scenarios.
+            Practical lessons, tutorials, and realistic SOC scenarios.
             Build your analytical instincts through hands-on practice.
         </p>
     </header>
 
     <!-- Tab Navigation -->
     <div class="training-tabs" id="trainingTabs">
-        <button class="training-tab active" data-category="guides">How-To Guides</button>
-        <button class="training-tab" data-category="tutorials">Tutorials</button>
+        <button class="training-tab active" data-category="lessons">Lessons</button>
         <button class="training-tab" data-category="scenarios">Scenarios</button>
         <button class="training-tab" data-category="challenges">Challenges</button>
         <button class="training-tab" data-category="pipelines">Learning Paths</button>
@@ -27,17 +26,30 @@
     <!-- Controls Bar -->
     <div class="controls-bar">
         {{ search_input(placeholder='Search training content...', id='trainingSearch') }}
-    </div>
-
-    <!-- Tab Panels -->
-    <div id="guidesPanel" class="tab-panel active" role="tabpanel">
-        <div class="guides-grid" id="guidesGrid">
-            <!-- Populated by JavaScript -->
+        <div class="filter-group" id="trainingCategoryFilterWrap">
+            <select class="filter-select" id="trainingCategoryFilter" aria-label="Filter training by category">
+                <option value="all">All Categories</option>
+                <option value="Foundations &amp; Search Literacy">Foundations &amp; Search Literacy</option>
+                <option value="Query Craft &amp; Summaries">Query Craft &amp; Summaries</option>
+                <option value="Investigation &amp; Detection">Investigation &amp; Detection</option>
+                <option value="Data Integration &amp; Enrichment">Data Integration &amp; Enrichment</option>
+                <option value="Visualization &amp; Dashboards">Visualization &amp; Dashboards</option>
+                <option value="Enterprise Security">Enterprise Security</option>
+            </select>
+        </div>
+        <div class="filter-group" id="pipelineTrackFilterWrap">
+            <select class="filter-select" id="pipelineTrackFilter" aria-label="Filter learning paths by track">
+                <option value="all">All Tracks</option>
+                <option value="Power User">Power User</option>
+                <option value="Administrator">Administrator</option>
+                <option value="Architect">Architect</option>
+            </select>
         </div>
     </div>
 
-    <div id="tutorialsPanel" class="tab-panel" role="tabpanel" hidden>
-        <div class="training-grid" id="tutorialsGrid">
+    <!-- Tab Panels -->
+    <div id="lessonsPanel" class="tab-panel active" role="tabpanel">
+        <div class="lessons-grid" id="lessonsGrid">
             <!-- Populated by JavaScript -->
         </div>
     </div>
@@ -69,13 +81,13 @@
     ) }}
 </div>
 
-<!-- Guide Modal (for How-To Guides) -->
+<!-- Lesson Modal (for How-To Lessons) -->
 <div class="guide-modal" id="guideModal">
     <div class="guide-modal-overlay" id="guideModalOverlay"></div>
     <div class="guide-modal-content">
         <div class="guide-modal-header">
             <div class="guide-modal-meta">
-                <span class="guide-modal-badge">📖 Guide</span>
+                <span class="guide-modal-badge">📖 Lesson</span>
             </div>
             <button class="guide-modal-close" id="guideModalClose" aria-label="Close modal">&times;</button>
         </div>
@@ -117,6 +129,7 @@
         <div class="pipeline-modal-header">
             <div class="pipeline-modal-meta">
                 <span class="pipeline-level-badge" id="pipelineLevelBadge"></span>
+                <span class="pipeline-track-badge" id="pipelineTrackBadge"></span>
                 <span class="pipeline-duration" id="pipelineDuration"></span>
             </div>
             <button class="pipeline-modal-close" id="pipelineModalClose" aria-label="Close modal">&times;</button>

@@ -1,0 +1,110 @@
+{
+  "id": "dash-alert-investigation-scenario",
+  "type": "scenario",
+  "title": "Alert to Resolution: Dashboard Investigation Workflow",
+  "description": "Follow a complete investigation from alert notification through dashboard analysis to root cause identification and resolution.",
+  "category": "dashboards",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["dashboards", "scenario", "investigation", "workflow", "alerts"],
+  "objectives": [
+    "Navigate from alert notification to dashboard investigation",
+    "Use dashboard drilldowns to pivot between data views",
+    "Correlate data across multiple dashboard panels",
+    "Determine root cause and document findings"
+  ],
+  "content": {
+    "situation": {
+      "title": "Scenario Setup",
+      "description": "You receive an automated alert at 14:23: 'Proxy Violation - Excessive Blocked Requests' for host WS-MKTG-042 (Marketing workstation). The alert fired because this host had 847 blocked proxy requests in the last hour, far exceeding the threshold of 100. Your task is to use the network monitoring dashboard to investigate whether this is malicious activity, misconfiguration, or a false positive.",
+      "environment": "The alert email includes a link to the Network Activity Dashboard pre-filtered to the alerting host. You have proxy logs (index=proxy) with fields: src_ip, user, dest_host, dest_port, action (allowed/blocked), category, and bytes."
+    },
+    "steps": [
+      {
+        "id": 1,
+        "title": "Review Alert Context",
+        "question": "Before clicking through to the dashboard, what information from the alert should inform your investigation approach?",
+        "guidance": "Think about what the alert tells you and what questions it raises.",
+        "expected_answer": "Key information: 1) Host identity (WS-MKTG-042 = Marketing workstation, likely a regular user), 2) Volume (847 blocked requests - significantly above normal), 3) Timeframe (last hour - recent/ongoing), 4) Action (blocked - the proxy stopped the traffic). Key questions: What's being blocked? Is it one destination or many? Is it one user or the machine itself? Is it malware beaconing or just a misconfigured application?"
+      },
+      {
+        "id": 2,
+        "title": "Open the Dashboard",
+        "question": "You click the dashboard link and see four panels: (1) Blocked requests over time timechart, (2) Top blocked destinations table, (3) Category breakdown pie chart, (4) Recent blocked events table. The timechart shows a sudden spike at 13:45. What do you examine first?",
+        "expected_answer": "Examine the Top Blocked Destinations table first. The spike timing (13:45) tells you when it started, but you need to know WHAT is being blocked to classify the activity. A table showing destination hosts/IPs will immediately reveal if it's one destination (application issue) or many destinations (potential malware or user behavior)."
+      },
+      {
+        "id": 3,
+        "title": "Analyze Blocked Destinations",
+        "question": "The Top Blocked Destinations table shows: software-update.company-xyz.com (823 requests, 97%), and a few other random sites (24 requests, 3%). What does this pattern suggest?",
+        "spl": "index=proxy src_ip=10.1.50.42 action=blocked earliest=-2h\n| stats count by dest_host\n| sort - count\n| head 10",
+        "explanation": "This search confirms the destination breakdown. A single destination accounting for 97% of blocked requests strongly suggests an application repeatedly trying to reach a blocked site, not malware or malicious user activity.",
+        "expected_answer": "This pattern suggests a legitimate application trying to update but being blocked by proxy policy. The domain 'software-update.company-xyz.com' appears to be a vendor update server. The application is likely retrying automatically, generating many blocked requests."
+      },
+      {
+        "id": 4,
+        "title": "Pivot to Identify the Application",
+        "question": "You need to identify which application is generating these requests. Click through to the detailed events for software-update.company-xyz.com. What field would help identify the application?",
+        "pivot_step": true,
+        "guidance": "This is a pivot step. Think about what proxy logs typically capture that could identify the source application.",
+        "spl": "index=proxy src_ip=10.1.50.42 dest_host=\"software-update.company-xyz.com\" earliest=-2h\n| table _time, user, dest_host, dest_port, user_agent, category, action",
+        "explanation": "The user_agent field often reveals the application making the request. Additionally, dest_port might indicate the type of connection (443 for HTTPS updates is normal).",
+        "expected_answer": "The user_agent field would identify the application. Additionally, checking which user is logged in (user field) helps confirm if this is user-initiated or system-level activity. The proxy category field might also indicate why it's being blocked."
+      },
+      {
+        "id": 5,
+        "title": "Review the Evidence",
+        "question": "The event details show: user_agent='CompanyXYZ-Updater/3.2.1', user='SYSTEM', category='Uncategorized', dest_port=443. What's your assessment now?",
+        "expected_answer": "Assessment: This is a legitimate software updater (CompanyXYZ-Updater version 3.2.1) running as SYSTEM (not a user process). It's being blocked because the proxy categorizes the destination as 'Uncategorized' - likely a new or uncommon domain that hasn't been classified yet. This is NOT malicious activity; it's a false positive caused by proxy policy blocking uncategorized sites."
+      },
+      {
+        "id": 6,
+        "title": "Reasoning Checkpoint: Confirming Legitimacy",
+        "question": "Before closing this as a false positive, what additional verification would confirm this is legitimate software and not malware disguised as an updater?",
+        "reasoning_checkpoint": true,
+        "expected_answer": "Verification steps: 1) Confirm Company XYZ software is approved and installed on marketing workstations (check with IT asset management), 2) Verify the update domain is legitimate - check Company XYZ's official documentation or website, 3) Review when the software was installed - if recent, this spike makes sense, 4) Check if other workstations with the same software show similar patterns, 5) Optionally, check VirusTotal for the domain reputation."
+      },
+      {
+        "id": 7,
+        "title": "Verify Across the Environment",
+        "question": "Write a search to check if other hosts are also blocked from this domain.",
+        "spl": "index=proxy dest_host=\"software-update.company-xyz.com\" action=blocked earliest=-24h\n| stats count, dc(src_ip) as unique_hosts, values(src_ip) as hosts by category\n| table category, count, unique_hosts, hosts",
+        "explanation": "If multiple hosts with the same approved software are being blocked, it confirms this is a policy issue, not a security issue. The category field shows why the proxy is blocking it.",
+        "validation": "Expect to see multiple hosts from departments where this software is deployed. If only one host is affected, investigate that specific machine further."
+      },
+      {
+        "id": 8,
+        "title": "Document the Finding",
+        "question": "Your search shows 12 hosts across Marketing and Sales are blocked from this domain. Summarize your findings and recommended actions.",
+        "expected_answer": "Finding: The 'Proxy Violation - Excessive Blocked Requests' alert for WS-MKTG-042 is a FALSE POSITIVE. The blocked traffic is from CompanyXYZ-Updater attempting to reach its legitimate update server. The domain is blocked because it's categorized as 'Uncategorized' in the proxy policy.\n\nRecommended actions: 1) Request proxy team add software-update.company-xyz.com to the allowed list (after security review of the domain), 2) Update the alert to exclude known update servers or adjust threshold, 3) Consider creating a 'Software Updates' category exception for approved vendors, 4) Close this incident as false positive with documentation."
+      },
+      {
+        "id": 9,
+        "title": "Follow-Up: Policy Request",
+        "question": "Before requesting the proxy allow-list change, what information should you include in the ticket to the proxy team?",
+        "expected_answer": "Information for proxy team: 1) Domain to allow: software-update.company-xyz.com, 2) Business justification: Required for CompanyXYZ software updates on Marketing and Sales workstations, 3) Software ownership: Identify the business owner who approved this software, 4) Security review: Note that the domain was verified against vendor documentation, 5) Scope: Suggest allowing only for specific user groups or hosts where software is deployed (principle of least privilege), 6) Monitoring: Request alerting remain active for unusual volumes even after allowing."
+      },
+      {
+        "id": 10,
+        "title": "Update Alert Configuration",
+        "question": "To prevent future false positives for legitimate update traffic, how would you modify the alert?",
+        "expected_answer": "Alert modifications: 1) Add exclusion filter: NOT dest_host IN (\"software-update.company-xyz.com\", other approved update domains), 2) Alternatively, create a lookup table of approved update domains and exclude matches, 3) Consider separate alert for 'blocked update traffic' with different handling (auto-ticket to proxy team vs. SOC investigation), 4) Adjust threshold if current level is too sensitive for the environment, 5) Add throttling to prevent repeat alerts for the same host/destination combination."
+      }
+    ],
+    "conclusion": {
+      "title": "Scenario Complete",
+      "summary": "You successfully investigated a proxy violation alert from initial notification through root cause identification. The alert was a false positive caused by legitimate software being blocked due to proxy categorization. You documented findings, recommended policy changes, and identified alert improvements.",
+      "key_takeaways": [
+        "Dashboard-linked alerts accelerate investigation by providing immediate context",
+        "Pattern analysis (97% to one destination) quickly narrows investigation focus",
+        "False positives still require action: policy updates, alert tuning, documentation",
+        "Verification steps (checking other hosts, reviewing software inventory) confirm findings"
+      ],
+      "next_steps": [
+        "Build a dashboard for tracking proxy policy exceptions",
+        "Create a lookup table of approved software update domains",
+        "Implement alert suppression for known false positive patterns"
+      ]
+    }
+  }
+}
