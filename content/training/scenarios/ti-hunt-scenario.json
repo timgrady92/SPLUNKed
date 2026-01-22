@@ -1,0 +1,94 @@
+{
+  "id": "ti-hunt-scenario",
+  "type": "scenario",
+  "title": "TI-Driven Threat Hunt: C2 Beacon Detection",
+  "description": "Use threat intelligence to drive a proactive threat hunt. Move beyond simple IOC matching to detect behaviors associated with command and control communications.",
+  "category": "threat-intel",
+  "difficulty": "advanced",
+  "duration": "30 min",
+  "tags": ["threat-intel", "hunting", "c2", "behavioral", "advanced"],
+  "objectives": [
+    "Translate threat intelligence into behavioral detection hypotheses",
+    "Hunt for C2 beaconing patterns in network data",
+    "Identify suspicious communications without exact IOC matches",
+    "Prioritize findings using TI context and behavioral indicators"
+  ],
+  "content": {
+    "background": "<p>Your threat intelligence team has published a profile on a malware family called <strong>SHADOWBEACON</strong>. Unlike simple IOC lists, this intelligence includes behavioral characteristics:</p><h4>SHADOWBEACON Behavioral Profile</h4><table><tr><th>Attribute</th><th>Description</th></tr><tr><td>Beacon Interval</td><td>60 seconds (±5 seconds jitter)</td></tr><tr><td>Protocol</td><td>HTTPS on port 443</td></tr><tr><td>User Agent</td><td>Mimics Chrome but with subtle anomalies</td></tr><tr><td>URL Pattern</td><td>/api/v[1-3]/status or /cdn/check</td></tr><tr><td>Response Size</td><td>Small (< 1KB) unless receiving commands</td></tr><tr><td>Data Exfil</td><td>Large POST requests to /api/upload</td></tr><tr><td>Timing</td><td>Beacons during business hours only</td></tr></table><h4>Known Infrastructure Patterns</h4><ul><li>Uses cloud providers (AWS, Azure, GCP) for C2</li><li>Domains registered within 30 days of use</li><li>SSL certificates from Let's Encrypt</li><li>Geographically distributed infrastructure</li></ul><h4>Your Hunt Objective</h4><p>Use this behavioral intelligence to hunt for SHADOWBEACON or similar malware in your environment, even if you don't have exact IOC matches.</p>",
+    "steps": [
+      {
+        "title": "Step 1: Establish Baseline Communication Patterns",
+        "type": "pivot",
+        "content": "<p>Before hunting for anomalies, understand what normal looks like in your environment.</p><h4>Task</h4><p>Analyze proxy logs to establish baseline patterns for connection frequency and data volumes.</p><h4>Key Metrics</h4><ul><li>Average connections per hour per host</li><li>Typical request/response sizes</li><li>Common destination domains</li><li>Normal user agent distribution</li></ul>",
+        "hint": "Use timechart or bin with stats to calculate connections per hour. Group by src_ip to see per-host patterns. Calculate percentiles to understand distribution.",
+        "solution": "index=proxy earliest=-7d\n| bin _time span=1h\n| stats count as requests, sum(bytes_in) as bytes_in, sum(bytes_out) as bytes_out, dc(dest) as unique_destinations by _time, src_ip\n| stats avg(requests) as avg_requests_per_hour, perc95(requests) as p95_requests, avg(unique_destinations) as avg_destinations, stdev(requests) as stdev_requests by src_ip\n| eval baseline_threshold = avg_requests_per_hour + (2 * stdev_requests)\n| sort - avg_requests_per_hour"
+      },
+      {
+        "title": "Step 2: Hunt for Beaconing Behavior",
+        "type": "pivot",
+        "content": "<p>SHADOWBEACON beacons every ~60 seconds. This regularity creates a detectable pattern.</p><h4>Task</h4><p>Search for hosts making highly regular connections to the same destination. Calculate the standard deviation of time between requests - low deviation = regular beaconing.</p><h4>Hunt Logic</h4><ul><li>Group connections by source and destination</li><li>Calculate time delta between consecutive requests</li><li>Low standard deviation of deltas = suspicious regularity</li></ul>",
+        "hint": "Use streamstats to calculate time between requests for each src/dest pair. Then use stats to calculate the standard deviation of those deltas. Filter for low stdev (high regularity) and intervals near 60 seconds.",
+        "solution": "index=proxy dest_port=443 earliest=-24h\n| sort 0 src_ip, dest, _time\n| streamstats current=f last(_time) as prev_time by src_ip, dest\n| eval delta_seconds = _time - prev_time\n| where isnotnull(delta_seconds) AND delta_seconds > 10 AND delta_seconds < 300\n| stats count as beacon_count, avg(delta_seconds) as avg_interval, stdev(delta_seconds) as interval_stdev, min(_time) as first_seen, max(_time) as last_seen by src_ip, dest\n| where beacon_count >= 20 AND interval_stdev < 10\n| eval regularity_score = round(100 - (interval_stdev * 10), 1)\n| eval beacon_interval = round(avg_interval, 0)\n| where beacon_interval >= 55 AND beacon_interval <= 65\n| sort - regularity_score\n| table src_ip, dest, beacon_count, beacon_interval, regularity_score, first_seen, last_seen"
+      },
+      {
+        "title": "Reasoning Checkpoint: Evaluate Beacon Candidates",
+        "type": "reasoning",
+        "content": "<p>You've identified hosts with regular connection patterns. Before investigating further, consider false positives.</p><h4>Common False Positives for Beaconing</h4><table><tr><th>Pattern</th><th>Legitimate Cause</th><th>Distinguishing Factor</th></tr><tr><td>60-second intervals</td><td>Monitoring agents, health checks</td><td>Known internal destinations, documented systems</td></tr><tr><td>Regular HTTPS</td><td>Cloud sync (OneDrive, Dropbox)</td><td>Well-known domains, expected user agents</td></tr><tr><td>API polling</td><td>Business applications</td><td>Documented application traffic</td></tr></table><h4>SHADOWBEACON Distinguishers</h4><ul><li>Connections to recently registered domains</li><li>Unusual cloud provider IPs (not your corporate tenant)</li><li>User agent anomalies</li><li>Business hours only (infected user workstation)</li></ul>",
+        "question": "What additional analysis would most effectively separate true C2 from legitimate regular traffic?",
+        "options": [
+          "Check if destinations are in allowlists of known-good services",
+          "Analyze user agent strings for anomalies",
+          "Look up domain registration dates (recent = suspicious)",
+          "All of the above, combined with timing analysis"
+        ]
+      },
+      {
+        "title": "Step 3: Enrich with Domain Intelligence",
+        "type": "pivot",
+        "content": "<p>SHADOWBEACON uses recently registered domains. Enrich your beacon candidates with domain age information.</p><h4>Task</h4><p>For the suspicious destinations identified, lookup domain registration information and flag recently registered domains.</p><h4>Enrichment Sources</h4><ul><li>WHOIS lookups (domain age)</li><li>Passive DNS (resolution history)</li><li>Domain reputation feeds</li></ul>",
+        "hint": "Use lookup against a domain intel table. If domain_age is less than 30 days, flag as suspicious. Combine with the beaconing results from the previous step.",
+        "solution": "index=proxy dest_port=443 earliest=-24h\n| sort 0 src_ip, dest, _time\n| streamstats current=f last(_time) as prev_time by src_ip, dest\n| eval delta_seconds = _time - prev_time\n| where isnotnull(delta_seconds) AND delta_seconds > 10 AND delta_seconds < 300\n| stats count as beacon_count, avg(delta_seconds) as avg_interval, stdev(delta_seconds) as interval_stdev by src_ip, dest\n| where beacon_count >= 20 AND interval_stdev < 10 AND avg_interval >= 55 AND avg_interval <= 65\n| lookup domain_whois domain as dest OUTPUT creation_date, registrar\n| eval domain_age_days = if(isnotnull(creation_date), (now() - strptime(creation_date, \"%Y-%m-%d\")) / 86400, null())\n| eval age_risk = case(\n    domain_age_days < 7, \"critical\",\n    domain_age_days < 30, \"high\",\n    domain_age_days < 90, \"medium\",\n    true(), \"low\")\n| lookup domain_reputation domain as dest OUTPUT reputation_score, category\n| eval combined_risk = case(\n    age_risk=\"critical\" AND (isnull(reputation_score) OR reputation_score < 50), \"critical\",\n    age_risk IN (\"critical\", \"high\"), \"high\",\n    true(), \"medium\")\n| sort - combined_risk\n| table src_ip, dest, beacon_count, avg_interval, domain_age_days, age_risk, reputation_score, combined_risk"
+      },
+      {
+        "title": "Step 4: User Agent Analysis",
+        "type": "pivot",
+        "content": "<p>SHADOWBEACON mimics Chrome but with subtle anomalies in its user agent string.</p><h4>Task</h4><p>For your beacon candidates, analyze user agent strings for anomalies.</p><h4>What to Look For</h4><ul><li>Outdated Chrome versions</li><li>Mismatched OS in user agent</li><li>Missing or unusual components</li><li>Exact user agent reuse (real browsers have slight variations)</li></ul>",
+        "hint": "Extract Chrome version from user agent. Compare to known current versions. Look for user agents that appear on beaconing connections but never for normal browsing.",
+        "solution": "index=proxy dest IN (\"suspicious-domain1.com\", \"suspicious-domain2.com\") earliest=-24h\n| rex field=user_agent \"Chrome/(?<chrome_version>\\d+)\"\n| rex field=user_agent \"\\((?<os_string>[^)]+)\\)\"\n| stats count as requests, dc(url) as unique_urls, values(user_agent) as user_agents, values(chrome_version) as chrome_versions, values(os_string) as os_strings by src_ip, dest\n| eval ua_anomalies = mvappend(\n    if(chrome_version < 100, \"outdated_chrome\", null()),\n    if(match(os_string, \"Windows\") AND match(user_agent, \"Mac OS\"), \"os_mismatch\", null()),\n    if(mvcount(user_agents) = 1 AND requests > 50, \"static_ua\", null())\n)\n| where isnotnull(ua_anomalies)\n| table src_ip, dest, requests, user_agents, ua_anomalies"
+      },
+      {
+        "title": "Step 5: Business Hours Analysis",
+        "type": "pivot",
+        "content": "<p>SHADOWBEACON only beacons during business hours because it runs on user workstations that may be powered off at night.</p><h4>Task</h4><p>Analyze the timing distribution of beacon candidates. True malware on workstations will show business hours patterns.</p><h4>Interpretation</h4><ul><li><strong>24/7 traffic</strong>: More likely server/infrastructure</li><li><strong>Business hours only</strong>: User workstation - matches SHADOWBEACON profile</li><li><strong>Off-hours spikes</strong>: Possibly scheduled tasks or different malware</li></ul>",
+        "hint": "Extract hour from _time. Calculate percentage of connections during business hours (8am-6pm). High percentage on beacon candidates supports the hypothesis.",
+        "solution": "index=proxy dest IN (\"suspicious-domain1.com\", \"suspicious-domain2.com\") earliest=-7d\n| eval hour = strftime(_time, \"%H\")\n| eval day = strftime(_time, \"%A\")\n| eval is_business_hours = if(hour >= 8 AND hour <= 18 AND NOT day IN (\"Saturday\", \"Sunday\"), 1, 0)\n| stats count as total_requests, sum(is_business_hours) as business_hour_requests by src_ip, dest\n| eval business_hour_pct = round(business_hour_requests / total_requests * 100, 1)\n| eval timing_profile = case(\n    business_hour_pct >= 90, \"strong_business_hours\",\n    business_hour_pct >= 70, \"mostly_business_hours\",\n    business_hour_pct <= 30, \"mostly_off_hours\",\n    true(), \"mixed_timing\")\n| where timing_profile IN (\"strong_business_hours\", \"mostly_business_hours\")\n| table src_ip, dest, total_requests, business_hour_pct, timing_profile"
+      },
+      {
+        "title": "Step 6: Data Exfiltration Indicators",
+        "type": "pivot",
+        "content": "<p>SHADOWBEACON exfiltrates data via large POST requests to <code>/api/upload</code>.</p><h4>Task</h4><p>For hosts showing beacon behavior, look for large outbound data transfers that might indicate exfiltration.</p><h4>Exfil Indicators</h4><ul><li>POST requests with large request bodies</li><li>URL paths matching /api/upload or similar</li><li>Sudden spikes in outbound data</li><li>Data transfer patterns following beacon establishment</li></ul>",
+        "hint": "Filter for POST method, large bytes_out, and look for upload-related URL paths. Compare normal outbound volume to recent transfers for beacon candidate hosts.",
+        "solution": "index=proxy src_ip IN (\"10.1.2.50\", \"10.1.3.25\") http_method=POST earliest=-7d\n| where bytes_out > 10000\n| eval is_upload_path = if(match(url, \"(?i)(upload|export|send|post|submit)\"), 1, 0)\n| stats sum(bytes_out) as total_bytes_out, count as post_requests, sum(is_upload_path) as upload_path_matches, values(dest) as destinations, values(url) as upload_urls by src_ip, _time\n| bin _time span=1h\n| stats sum(total_bytes_out) as hourly_bytes_out, sum(post_requests) as hourly_posts, sum(upload_path_matches) as hourly_uploads by src_ip, _time\n| eventstats avg(hourly_bytes_out) as avg_bytes, stdev(hourly_bytes_out) as stdev_bytes by src_ip\n| eval deviation = (hourly_bytes_out - avg_bytes) / stdev_bytes\n| where deviation > 3 OR hourly_uploads > 0\n| eval bytes_mb = round(hourly_bytes_out / 1024 / 1024, 2)\n| sort - deviation\n| table _time, src_ip, bytes_mb, hourly_posts, hourly_uploads, deviation"
+      },
+      {
+        "title": "Step 7: Build Detection Rule",
+        "type": "pivot",
+        "content": "<p>Translate your hunt findings into a scheduled detection rule that can catch future SHADOWBEACON infections.</p><h4>Task</h4><p>Create a correlation search that combines multiple behavioral indicators to detect C2 beaconing.</p><h4>Detection Logic</h4><ol><li>Identify regular connection intervals (~60 seconds)</li><li>Enrich with domain age (< 30 days)</li><li>Check for business hours timing pattern</li><li>Score based on combined indicators</li></ol>",
+        "hint": "Combine the techniques from previous steps into a single search. Use eval to create a composite risk score based on multiple factors. Filter to only alert on high-confidence detections.",
+        "solution": "index=proxy dest_port=443 earliest=-4h\n| sort 0 src_ip, dest, _time\n| streamstats current=f last(_time) as prev_time by src_ip, dest\n| eval delta = _time - prev_time\n| where isnotnull(delta) AND delta > 10 AND delta < 300\n| stats count as conn_count, avg(delta) as avg_delta, stdev(delta) as stdev_delta, values(user_agent) as user_agents by src_ip, dest\n| where conn_count >= 10\n| eval beacon_score = case(\n    stdev_delta < 5 AND avg_delta >= 55 AND avg_delta <= 65, 40,\n    stdev_delta < 10 AND avg_delta >= 50 AND avg_delta <= 70, 25,\n    stdev_delta < 15, 10,\n    true(), 0)\n| lookup domain_whois domain as dest OUTPUT creation_date\n| eval domain_age = (now() - strptime(creation_date, \"%Y-%m-%d\")) / 86400\n| eval age_score = case(\n    domain_age < 7, 30,\n    domain_age < 30, 20,\n    domain_age < 90, 10,\n    true(), 0)\n| eval ua_count = mvcount(user_agents)\n| eval ua_score = if(ua_count = 1 AND conn_count > 20, 15, 0)\n| eval total_score = beacon_score + age_score + ua_score\n| where total_score >= 50\n| eval risk_level = case(\n    total_score >= 70, \"critical\",\n    total_score >= 50, \"high\",\n    true(), \"medium\")\n| table src_ip, dest, conn_count, avg_delta, stdev_delta, domain_age, total_score, risk_level"
+      },
+      {
+        "title": "Final Assessment: Hunt Summary",
+        "type": "reasoning",
+        "content": "<p>Document your threat hunt findings and recommendations.</p><h4>Hunt Report Template</h4><pre><code>SHADOWBEACON Threat Hunt Report\n================================\nHunt Hypothesis: SHADOWBEACON C2 behavior present in environment\nTime Period: [dates analyzed]\nData Sources: proxy, dns, firewall\n\nMethodology:\n1. Identified beaconing patterns (~60 second intervals)\n2. Enriched with domain age intelligence\n3. Analyzed timing patterns (business hours)\n4. Checked for data exfiltration indicators\n\nFindings:\n- Hosts with beacon-like behavior: [count]\n- High-confidence detections: [count]\n- Confirmed compromises: [count]\n\nRecommendations:\n1. Deploy detection rule (search provided)\n2. Investigate high-confidence hosts\n3. Block identified malicious domains\n4. Update TI with discovered indicators\n</code></pre><h4>Intelligence Feedback</h4><p>Any new IOCs discovered should be fed back to your TI platform to improve future detection.</p>",
+        "question": "What is the most valuable outcome of this TI-driven hunt?",
+        "options": [
+          "Specific IOCs that can be blocked",
+          "Behavioral detection rule that catches variants without known IOCs",
+          "Confirmed compromised hosts requiring incident response",
+          "All outcomes contribute to improved security posture"
+        ]
+      }
+    ]
+  }
+}

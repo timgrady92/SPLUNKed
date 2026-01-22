@@ -1,0 +1,60 @@
+{
+  "id": "inv-process-analysis",
+  "type": "tutorial",
+  "title": "Process Execution Analysis",
+  "description": "Analyze process creation events, command line arguments, parent-child relationships, and suspicious execution patterns to track attacker activity.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["investigation", "process", "execution", "sysmon", "intermediate"],
+  "objectives": [
+    "Analyze process creation events effectively",
+    "Understand parent-child process relationships",
+    "Identify suspicious command line patterns",
+    "Recognize living-off-the-land binary (LOLBin) usage"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Process Event Sources",
+        "body": "<p>Process execution data comes from multiple sources:</p><h4>Windows Security Event 4688</h4><pre><code>index=security EventCode=4688\n| table _time, user, Creator_Process_Name, New_Process_Name, Process_Command_Line</code></pre><p><strong>Limitation:</strong> Command line logging requires GPO enablement.</p><h4>Sysmon Event 1 (Process Creation)</h4><pre><code>index=sysmon EventCode=1\n| table _time, User, ParentImage, Image, CommandLine, Hashes</code></pre><p>Sysmon provides richer data: hashes, parent process, full command line.</p><h4>EDR Telemetry</h4><p>Endpoint detection tools often provide their own process telemetry with additional context like file reputation and behavior tags.</p>"
+      },
+      {
+        "title": "Command Line Analysis",
+        "body": "<h4>Basic Command Line Search</h4><pre><code>index=sysmon EventCode=1 CommandLine=*\n| table _time, User, Image, CommandLine</code></pre><h4>Encoded PowerShell Detection</h4><pre><code>index=sysmon EventCode=1 Image=\"*powershell*\"\n| search CommandLine IN (\"*-enc*\", \"*-e *\", \"*-encoded*\", \"*FromBase64*\")\n| table _time, User, CommandLine</code></pre><p>Encoded commands often indicate malicious activity hiding its true purpose.</p><h4>Decoding Base64 Commands</h4><p>When you find encoded PowerShell, decode it:</p><pre><code>| eval decoded = base64decode(CommandLine)\n| table CommandLine, decoded</code></pre><h4>Suspicious Command Patterns</h4><pre><code>index=sysmon EventCode=1\n| search CommandLine IN (\n    \"*whoami*\",\n    \"*net user*\",\n    \"*net group*\",\n    \"*quser*\",\n    \"*systeminfo*\",\n    \"*tasklist*\",\n    \"*ipconfig /all*\",\n    \"*netstat -an*\"\n)\n| table _time, User, Image, CommandLine</code></pre><p>These are common reconnaissance commands used early in attacks.</p>"
+      },
+      {
+        "title": "Parent-Child Relationships",
+        "body": "<p>Process lineage reveals how execution occurred. Suspicious patterns often have unusual parent processes.</p><h4>Viewing Process Trees</h4><pre><code>index=sysmon EventCode=1\n| table _time, User, ParentImage, Image, CommandLine\n| sort _time</code></pre><h4>Suspicious Parent-Child Combinations</h4><table><tr><th>Parent</th><th>Child</th><th>Concern</th></tr><tr><td>outlook.exe</td><td>powershell.exe</td><td>Macro execution</td></tr><tr><td>winword.exe</td><td>cmd.exe</td><td>Document macro</td></tr><tr><td>excel.exe</td><td>mshta.exe</td><td>Macro spawning script</td></tr><tr><td>services.exe</td><td>cmd.exe</td><td>Service-based execution</td></tr><tr><td>wmiprvse.exe</td><td>powershell.exe</td><td>WMI-based execution</td></tr></table><h4>Query for Suspicious Parent-Child</h4><pre><code>index=sysmon EventCode=1\n| eval suspicious = case(\n    match(ParentImage, \"(?i)outlook|winword|excel\") AND match(Image, \"(?i)cmd|powershell|mshta\"), \"Office macro execution\",\n    match(ParentImage, \"(?i)wmiprvse\") AND match(Image, \"(?i)powershell|cmd\"), \"WMI execution\",\n    match(ParentImage, \"(?i)services\") AND match(Image, \"(?i)cmd\"), \"Service execution\",\n    true(), null())\n| where isnotnull(suspicious)\n| table _time, User, ParentImage, Image, CommandLine, suspicious</code></pre>"
+      },
+      {
+        "title": "Living Off the Land Binaries (LOLBins)",
+        "body": "<p>Attackers use legitimate Windows tools to avoid detection. These are called LOLBins.</p><h4>Common LOLBins</h4><table><tr><th>Binary</th><th>Abuse Purpose</th><th>Suspicious Usage</th></tr><tr><td>certutil.exe</td><td>Download files</td><td>-urlcache -split -f</td></tr><tr><td>mshta.exe</td><td>Execute scripts</td><td>Running remote HTA files</td></tr><tr><td>regsvr32.exe</td><td>Execute code</td><td>/s /n /u /i:url</td></tr><tr><td>rundll32.exe</td><td>Execute DLLs</td><td>Running unusual DLLs</td></tr><tr><td>bitsadmin.exe</td><td>Download files</td><td>/transfer operations</td></tr><tr><td>wmic.exe</td><td>Remote execution</td><td>process call create</td></tr><tr><td>msiexec.exe</td><td>Install malware</td><td>/q /i http://</td></tr></table><h4>LOLBin Detection Query</h4><pre><code>index=sysmon EventCode=1\n| search Image IN (\n    \"*\\\\certutil.exe\",\n    \"*\\\\mshta.exe\",\n    \"*\\\\regsvr32.exe\",\n    \"*\\\\bitsadmin.exe\",\n    \"*\\\\wmic.exe\",\n    \"*\\\\msiexec.exe\"\n)\n| search CommandLine IN (\"*http*\", \"*-urlcache*\", \"*/i:*\", \"*process call*\")\n| table _time, User, Image, CommandLine</code></pre>"
+      },
+      {
+        "title": "Execution from Suspicious Locations",
+        "body": "<p>Legitimate software runs from expected locations. Malware often runs from unusual paths.</p><h4>Suspicious Execution Paths</h4><ul><li><code>C:\\Users\\*\\AppData\\Local\\Temp\\</code> - Temp directory</li><li><code>C:\\Users\\*\\Downloads\\</code> - Downloads folder</li><li><code>C:\\Windows\\Temp\\</code> - System temp</li><li><code>C:\\ProgramData\\</code> - Hidden by default</li><li><code>C:\\Users\\Public\\</code> - World-writable</li></ul><h4>Query for Suspicious Paths</h4><pre><code>index=sysmon EventCode=1\n| search Image IN (\n    \"*\\\\Temp\\\\*\",\n    \"*\\\\Downloads\\\\*\",\n    \"*\\\\ProgramData\\\\*\",\n    \"*\\\\Users\\\\Public\\\\*\",\n    \"*\\\\AppData\\\\Local\\\\Temp\\\\*\"\n)\n| stats count by Image, User\n| sort - count</code></pre><h4>Executables with Unusual Extensions</h4><pre><code>index=sysmon EventCode=1\n| rex field=Image \"(?<filename>[^\\\\\\\\]+)$\"\n| where NOT match(filename, \"\\.(exe|dll|com|bat|cmd|ps1)$\")\n| table _time, User, Image, CommandLine</code></pre>"
+      },
+      {
+        "title": "Process Execution Timeline",
+        "body": "<h4>User Session Activity</h4><pre><code>index=sysmon EventCode=1 User=\"DOMAIN\\\\jsmith\"\n| table _time, ParentImage, Image, CommandLine\n| sort _time</code></pre><h4>System-Wide Execution Timeline</h4><pre><code>index=sysmon EventCode=1 earliest=-1h\n| timechart span=1m count by Image limit=10</code></pre><h4>Tracking a Specific Process Chain</h4><pre><code>index=sysmon EventCode=1\n| search CommandLine=\"*suspicious_string*\"\n| table ProcessId, ParentProcessId, Image, CommandLine, _time\n| sort _time</code></pre><p>Then trace back to the parent:</p><pre><code>index=sysmon EventCode=1 ProcessId=&lt;parent_pid&gt;\n| table _time, ParentImage, Image, CommandLine</code></pre>"
+      },
+      {
+        "title": "Script Block Logging",
+        "body": "<p>PowerShell script block logging captures actual script content, not just command lines.</p><h4>Finding Script Blocks</h4><pre><code>index=security OR index=wineventlog EventCode=4104\n| table _time, ScriptBlockText, Path</code></pre><h4>Searching Script Content</h4><pre><code>index=* EventCode=4104\n| search ScriptBlockText IN (\n    \"*Invoke-Mimikatz*\",\n    \"*Get-Credential*\",\n    \"*New-Object System.Net.WebClient*\",\n    \"*DownloadString*\",\n    \"*IEX*\"\n)\n| table _time, ScriptBlockText</code></pre><h4>Correlating Scripts with Process Creation</h4><pre><code>index=sysmon EventCode=1 Image=\"*powershell*\"\n| join ProcessId [search index=* EventCode=4104]\n| table _time, User, CommandLine, ScriptBlockText</code></pre>"
+      },
+      {
+        "title": "Common Attack Patterns",
+        "body": "<h4>Pattern 1: Download and Execute</h4><pre><code>index=sysmon EventCode=1\n| search CommandLine IN (\n    \"*Invoke-WebRequest*\",\n    \"*wget*\",\n    \"*curl*\",\n    \"*DownloadFile*\",\n    \"*DownloadString*\",\n    \"*Net.WebClient*\",\n    \"*certutil*-urlcache*\",\n    \"*bitsadmin*/transfer*\"\n)\n| table _time, User, ParentImage, Image, CommandLine</code></pre><h4>Pattern 2: Credential Access</h4><pre><code>index=sysmon EventCode=1\n| search CommandLine IN (\n    \"*mimikatz*\",\n    \"*sekurlsa*\",\n    \"*lsass*\",\n    \"*procdump*lsass*\",\n    \"*comsvcs*MiniDump*\"\n)\n| table _time, User, Image, CommandLine</code></pre><h4>Pattern 3: Persistence Installation</h4><pre><code>index=sysmon EventCode=1\n| search CommandLine IN (\n    \"*schtasks*/create*\",\n    \"*reg*add*Run*\",\n    \"*sc*create*\",\n    \"*wmic*startup*\"\n)\n| table _time, User, Image, CommandLine</code></pre>"
+      },
+      {
+        "title": "Process Analysis Workflow",
+        "body": "<h4>Step 1: Identify Suspicious Process</h4><pre><code>index=sysmon EventCode=1 earliest=-24h\n| search CommandLine=\"*suspicious*\" OR Image=\"*malware*\"\n| table _time, ProcessId, User, ParentImage, Image, CommandLine</code></pre><h4>Step 2: Find Parent Process</h4><p>Use the ParentProcessId to trace how it was spawned:</p><pre><code>index=sysmon EventCode=1 ProcessId=&lt;ParentProcessId_value&gt;\n| table _time, ParentImage, Image, CommandLine</code></pre><h4>Step 3: Find Child Processes</h4><p>See what the suspicious process spawned:</p><pre><code>index=sysmon EventCode=1 ParentProcessId=&lt;suspicious_ProcessId&gt;\n| table _time, Image, CommandLine</code></pre><h4>Step 4: Check Network Connections</h4><p>Did the process make network connections?</p><pre><code>index=sysmon EventCode=3 ProcessId=&lt;suspicious_ProcessId&gt;\n| table _time, DestinationIp, DestinationPort</code></pre><h4>Step 5: Check File Operations</h4><pre><code>index=sysmon EventCode IN (11, 15, 23) ProcessId=&lt;suspicious_ProcessId&gt;\n| table _time, EventCode, TargetFilename</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key process analysis techniques:</p><ul><li><strong>Command line analysis</strong> - Search for suspicious arguments and encoded commands</li><li><strong>Parent-child analysis</strong> - Identify unusual process relationships</li><li><strong>LOLBin detection</strong> - Watch for legitimate tools used maliciously</li><li><strong>Path analysis</strong> - Flag execution from unusual locations</li><li><strong>Timeline reconstruction</strong> - Trace process chains to understand attack flow</li><li><strong>Script logging</strong> - Capture actual script content, not just launchers</li></ul><p>Process execution data is the backbone of endpoint investigation. Combined with authentication and network data, it reveals the complete attack story.</p>"
+      }
+    ]
+  }
+}

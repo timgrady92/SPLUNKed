@@ -1,5 +1,140 @@
 [
   {
+    "id": "pipeline-fundamentals",
+    "title": "Splunk Fundamentals",
+    "description": "Start here if you're brand new to Splunk. Learn what Splunk is, how data is organized, and how to write your first searches. No prior experience required.",
+    "level": "beginner",
+    "duration": "3-4 hours",
+    "icon": "📚",
+    "track": "Fundamentals",
+    "objectives": [
+      "Understand what Splunk is and why organizations use it",
+      "Learn how data is organized into events, indexes, and sourcetypes",
+      "Navigate the Splunk interface confidently",
+      "Write basic searches with keywords, fields, and filters",
+      "Count, group, and visualize data over time"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "What is Splunk?",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "fund-what-is-splunk",
+        "description": "Understand what Splunk does, why organizations use it, and key terminology.",
+        "duration": "10 min"
+      },
+      {
+        "id": "step-2",
+        "title": "Understanding Data in Splunk",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "fund-understanding-data",
+        "description": "Learn how data is organized into events, indexes, sourcetypes, and fields.",
+        "duration": "12 min"
+      },
+      {
+        "id": "step-3",
+        "title": "Navigating the Interface",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "fund-interface-tour",
+        "description": "Get comfortable with the Splunk web interface and Search & Reporting app.",
+        "duration": "12 min"
+      },
+      {
+        "id": "step-4",
+        "title": "Your First Search",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "fund-first-search",
+        "description": "Write and run your first Splunk searches with keywords and boolean operators.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-5",
+        "title": "Time in Splunk",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "fund-time-concepts",
+        "description": "Master time ranges, the time picker, and time-based searching.",
+        "duration": "10 min"
+      },
+      {
+        "id": "step-6",
+        "title": "Working with Fields",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "fund-working-with-fields",
+        "description": "Use fields effectively with the fields, table, and rename commands.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Filtering Your Results",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "fund-basic-filtering",
+        "description": "Narrow down results using search and where commands.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-8",
+        "title": "Sorting and Limiting Results",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "fund-sorting-results",
+        "description": "Control result order and quantity with sort, head, tail, and dedup.",
+        "duration": "12 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Counting and Grouping Events",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "fund-counting-events",
+        "description": "Count events and group by field values using the stats command.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-10",
+        "title": "Visualizing Data Over Time",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "fund-visualizing-time",
+        "description": "Create time-based visualizations with the timechart command.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-11",
+        "title": "Data Exploration Scenario",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "fund-data-exploration",
+        "description": "Practice exploring an unfamiliar dataset to understand its structure.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-12",
+        "title": "Your First Investigation",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "fund-simple-investigation",
+        "description": "Apply your skills in a guided investigation to track down errors.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-13",
+        "title": "Fundamentals Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "fund-basics-challenge",
+        "description": "Test your understanding of Splunk fundamentals with hands-on tasks.",
+        "duration": "25 min"
+      }
+    ]
+  },
+  {
     "id": "pipeline-new-analyst",
     "title": "New Analyst Onboarding",
     "description": "A comprehensive learning path for analysts new to Splunk and security operations. Build foundational skills from search basics to your first investigation.",
@@ -361,42 +496,44 @@
   {
     "id": "pipeline-spl-mastery",
     "title": "SPL Mastery Bootcamp",
-    "description": "Level up your search skills from basic to advanced. Master the stats family, eval functions, rex patterns, and query optimization techniques that separate good analysts from great ones.",
+    "description": "Level up your search skills from intermediate to advanced. Master the stats family, eval transformations, rex pattern extraction, subsearch correlation, and query optimization techniques that separate good analysts from great ones.",
     "level": "intermediate",
     "duration": "3-4 hours",
     "icon": "\u26a1",
+    "track": "Power User",
     "objectives": [
       "Master the stats family: stats, eventstats, and streamstats",
       "Build powerful field transformations with eval functions",
-      "Extract data from unstructured text using rex patterns",
+      "Extract structured data from raw text using rex patterns",
+      "Correlate data across searches using subsearches and lookups",
       "Optimize query performance with efficient search practices"
     ],
     "steps": [
       {
         "id": "step-1",
-        "title": "Where vs Search: Filtering Mastery",
-        "type": "tutorial",
-        "source": "training",
+        "title": "Where vs Search: Filtering Fundamentals",
+        "type": "lesson",
+        "source": "lessons",
         "sourceId": "spl-where-vs-search",
-        "description": "Understand when to use where versus search for optimal filtering.",
-        "duration": "20 min"
+        "description": "Learn when to use where vs search, performance implications, null handling, and regex in where.",
+        "duration": "15 min"
       },
       {
         "id": "step-2",
         "title": "Stats Command Deep Dive",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "found-002",
-        "description": "Master aggregation functions beyond basic count.",
+        "sourceId": "spl-stats-deep-dive",
+        "description": "Master aggregation functions beyond count: dc, values, list, percentiles, and sparklines.",
         "duration": "25 min"
       },
       {
         "id": "step-3",
-        "title": "Eventstats: Stats Without Collapse",
+        "title": "Eventstats: Enrich Without Collapse",
         "type": "tutorial",
         "source": "training",
         "sourceId": "spl-eventstats",
-        "description": "Add aggregated values to events without losing detail.",
+        "description": "Add aggregated values to events without losing detail. Calculate percentage of total, identify outliers.",
         "duration": "20 min"
       },
       {
@@ -405,136 +542,226 @@
         "type": "tutorial",
         "source": "training",
         "sourceId": "spl-streamstats",
-        "description": "Calculate running totals, averages, and window functions.",
+        "description": "Calculate running totals, window-based averages, detect time gaps, and identify sessions.",
         "duration": "25 min"
       },
       {
         "id": "step-5",
-        "title": "Eval Functions Library",
-        "type": "tutorial",
+        "title": "Stats Family Practice Scenario",
+        "type": "scenario",
         "source": "training",
-        "sourceId": "spl-eval-functions",
-        "description": "Transform fields with string, numeric, and conditional functions.",
-        "duration": "30 min"
+        "sourceId": "spl-stats-family-scenario",
+        "description": "Investigate data exfiltration using stats family techniques. Calculate baselines and identify anomalies.",
+        "duration": "25 min"
       },
       {
         "id": "step-6",
+        "title": "Eval Functions: String Manipulation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "spl-eval-strings",
+        "description": "String extraction, case normalization, field splitting, and multivalue handling.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-7",
+        "title": "Eval Functions: Conditionals and Math",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "spl-eval-conditionals",
+        "description": "Conditional field creation with if/case, null handling patterns, and calculated fields.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-8",
         "title": "Rex Pattern Extraction",
         "type": "tutorial",
         "source": "training",
         "sourceId": "spl-rex-patterns",
-        "description": "Extract fields from raw text using regular expressions.",
+        "description": "Extract fields from unstructured logs using regex, sed mode, and common security patterns.",
         "duration": "25 min"
       },
       {
-        "id": "step-7",
-        "title": "Performance Optimization Tips",
+        "id": "step-9",
+        "title": "Subsearches and Correlation",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "spl-performance",
-        "description": "Write faster searches with efficient command ordering.",
+        "sourceId": "spl-subsearches",
+        "description": "Filter with dynamic lists, correlate across indexes, and understand subsearch limits.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-10",
+        "title": "Lookups for Enrichment",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "spl-lookups",
+        "description": "CSV lookups for enrichment, automatic lookups, and threat intel matching patterns.",
         "duration": "20 min"
       },
       {
-        "id": "step-8",
+        "id": "step-11",
+        "title": "Query Performance Optimization",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "spl-performance",
+        "description": "Command ordering, field selection, bloom filters, and Job Inspector interpretation.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-12",
+        "title": "Correlation Investigation Scenario",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "spl-correlation-scenario",
+        "description": "Investigate account compromise across VPN, authentication, and email data sources.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-13",
         "title": "SPL Mastery Challenge",
         "type": "challenge",
         "source": "training",
         "sourceId": "spl-mastery-challenge",
-        "description": "Test your skills with complex multi-step search challenges.",
-        "duration": "30 min"
+        "description": "Build a complete detection combining stats family, eval, rex, and lookup techniques.",
+        "duration": "35 min"
       }
-    ],
-    "track": "Power User"
+    ]
   },
   {
     "id": "pipeline-security-investigation",
     "title": "Security Investigation Fundamentals",
-    "description": "Develop structured investigation methodology for SOC analysts. Learn to interpret Windows event logs, correlate authentication events, build timelines, and document findings professionally.",
+    "description": "Develop structured investigation methodology for SOC analysts. Learn to interpret Windows event logs, analyze process execution, correlate authentication events across sources, build comprehensive timelines, and document findings professionally.",
     "level": "intermediate",
-    "duration": "3-4 hours",
+    "duration": "4-5 hours",
     "icon": "\ud83d\udd2c",
+    "track": "Power User",
     "objectives": [
-      "Interpret Windows Security event logs for investigation",
-      "Correlate authentication events across multiple sources",
+      "Apply structured investigation methodology with hypothesis-driven analysis",
+      "Interpret Windows Security events and process execution telemetry",
+      "Correlate authentication and network events across multiple sources",
       "Build comprehensive investigation timelines",
-      "Document and present investigation findings"
+      "Document and present investigation findings professionally"
     ],
     "steps": [
       {
         "id": "step-1",
-        "title": "Windows Events 101",
-        "type": "tutorial",
-        "source": "training",
-        "sourceId": "inv-windows-events",
-        "description": "Understand critical Windows Security event codes and their meaning.",
-        "duration": "25 min"
+        "title": "Investigation Methodology Fundamentals",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "inv-methodology",
+        "description": "Learn the OODA loop, hypothesis-driven analysis, scoping, and evidence preservation.",
+        "duration": "15 min"
       },
       {
         "id": "step-2",
-        "title": "Authentication Event Correlation",
+        "title": "Windows Security Events 101",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "inv-auth-correlation",
-        "description": "Connect login events across endpoints, domain controllers, and applications.",
+        "sourceId": "inv-windows-events",
+        "description": "Understand critical Windows Security event IDs and their meaning for investigations.",
         "duration": "25 min"
       },
       {
         "id": "step-3",
-        "title": "Detecting Brute Force Attacks",
-        "type": "lesson",
-        "source": "lessons",
-        "sourceId": "find-brute-force",
-        "description": "Identify password guessing and credential stuffing patterns.",
-        "duration": "15 min"
-      },
-      {
-        "id": "step-4",
-        "title": "Lateral Movement Detection",
-        "type": "scenario",
+        "title": "Process Execution Analysis",
+        "type": "tutorial",
         "source": "training",
-        "sourceId": "int-002",
-        "description": "Track attacker movement through your network after initial access.",
+        "sourceId": "inv-process-analysis",
+        "description": "Analyze process creation, parent-child relationships, and LOLBin usage.",
         "duration": "25 min"
       },
       {
+        "id": "step-4",
+        "title": "Authentication Event Interpretation",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "inv-auth-interpretation",
+        "description": "Understand logon types, failure codes, account types, and authentication protocols.",
+        "duration": "15 min"
+      },
+      {
         "id": "step-5",
-        "title": "Building Investigation Timelines",
+        "title": "Authentication Correlation Techniques",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "inv-timeline-building",
-        "description": "Create chronological event sequences for incident reconstruction.",
-        "duration": "20 min"
+        "sourceId": "inv-auth-correlation",
+        "description": "Track user sessions and detect lateral movement through authentication patterns.",
+        "duration": "25 min"
       },
       {
         "id": "step-6",
-        "title": "Multi-Source Correlation",
-        "type": "tutorial",
+        "title": "Brute Force Investigation Scenario",
+        "type": "scenario",
         "source": "training",
-        "sourceId": "inv-multi-source",
-        "description": "Combine data from endpoints, network, and identity sources.",
+        "sourceId": "inv-bruteforce-scenario",
+        "description": "Investigate a brute force attack from alert to documented findings.",
         "duration": "25 min"
       },
       {
         "id": "step-7",
-        "title": "Investigation Documentation",
+        "title": "Network Connection Analysis",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "inv-documentation",
-        "description": "Record findings with queries, screenshots, and conclusions.",
-        "duration": "15 min"
+        "sourceId": "inv-network-analysis",
+        "description": "Analyze firewall, DNS, and proxy logs for C2 and exfiltration indicators.",
+        "duration": "25 min"
       },
       {
         "id": "step-8",
-        "title": "Full Investigation Scenario",
+        "title": "Timeline Building Techniques",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "inv-timeline-building",
+        "description": "Construct chronological event sequences using transaction and streamstats.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-9",
+        "title": "Investigation Documentation",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "inv-documentation",
+        "description": "Document investigations with reproducible queries and chain of custody awareness.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-10",
+        "title": "Lateral Movement Investigation Scenario",
         "type": "scenario",
         "source": "training",
-        "sourceId": "inv-full-scenario",
-        "description": "Complete an end-to-end investigation from alert to documentation.",
+        "sourceId": "inv-lateral-movement-scenario",
+        "description": "Track attacker movement through the network after initial compromise.",
         "duration": "30 min"
+      },
+      {
+        "id": "step-11",
+        "title": "Multi-Source Correlation Techniques",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "inv-multi-source",
+        "description": "Combine endpoint, network, and identity data using join, append, and lookup.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-12",
+        "title": "Common Investigation Artifacts",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "inv-common-artifacts",
+        "description": "Identify registry, scheduled task, service, and file system artifacts.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-13",
+        "title": "Complete Investigation Challenge",
+        "type": "challenge",
+        "source": "training",
+        "sourceId": "inv-challenge",
+        "description": "Conduct a full ransomware precursor investigation from alert to documentation.",
+        "duration": "40 min"
       }
-    ],
-    "track": "Power User"
+    ]
   },
   {
     "id": "pipeline-dashboard-development",
@@ -665,114 +892,164 @@
   {
     "id": "pipeline-threat-intel",
     "title": "Threat Intelligence Integration",
-    "description": "Enhance your detections with external intelligence. Learn to integrate threat feeds, perform IOC matching with lookups, manage false positives, and enrich events with contextual data.",
+    "description": "Transform raw threat intelligence into actionable detection. Master IOC matching across data sources, implement automatic enrichment, build feed integration pipelines, reduce false positives, and measure TI program effectiveness.",
     "level": "advanced",
-    "duration": "3-4 hours",
+    "duration": "4-5 hours",
     "icon": "\ud83c\udfaf",
+    "track": "Power User",
     "objectives": [
-      "Understand threat intelligence fundamentals and feed types",
-      "Integrate IOC lookups for automated enrichment",
-      "Use subsearches for correlation and matching",
-      "Implement GeoIP and context enrichment"
+      "Understand threat intelligence fundamentals and the pyramid of pain",
+      "Match IOCs across multiple fields with CIDR and wildcard support",
+      "Implement automatic lookup enrichment for transparent detection",
+      "Integrate external threat feeds with normalization and aggregation",
+      "Reduce false positives with allowlists and confidence-based tuning",
+      "Measure TI program effectiveness with operational metrics"
     ],
     "steps": [
       {
         "id": "step-1",
         "title": "Threat Intelligence Fundamentals",
-        "type": "tutorial",
-        "source": "training",
+        "type": "lesson",
+        "source": "lessons",
         "sourceId": "ti-fundamentals",
-        "description": "Understand TI types, sources, and operational use cases.",
-        "duration": "20 min"
+        "description": "Understand TI types, the pyramid of pain, confidence levels, and operational use cases.",
+        "duration": "15 min"
       },
       {
         "id": "step-2",
-        "title": "Lookup Tables for IOC Matching",
+        "title": "IOC Types and Detection Patterns",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "ti-lookup-matching",
-        "description": "Create and maintain IOC lookup tables for detection.",
+        "sourceId": "ti-ioc-types",
+        "description": "Learn detection patterns for IPs, domains, hashes, URLs, and behavioral indicators.",
         "duration": "25 min"
       },
       {
         "id": "step-3",
-        "title": "Automatic Lookup Enrichment",
+        "title": "Lookup Tables for IOC Matching",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "ti-auto-enrichment",
-        "description": "Configure automatic field lookups for seamless enrichment.",
-        "duration": "20 min"
+        "sourceId": "ti-lookup-matching",
+        "description": "Create and maintain CSV lookups for IOC detection with proper schema design.",
+        "duration": "25 min"
       },
       {
         "id": "step-4",
-        "title": "Subsearch Correlation Techniques",
+        "title": "Multi-Field IOC Matching",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "ti-subsearch",
-        "description": "Use subsearches to correlate events with threat intelligence.",
+        "sourceId": "ti-multi-field-matching",
+        "description": "Match IOCs across multiple fields with CIDR ranges and wildcard domains.",
         "duration": "25 min"
       },
       {
         "id": "step-5",
-        "title": "GeoIP Enrichment",
-        "type": "lesson",
-        "source": "lessons",
-        "sourceId": "viz-geographic",
-        "description": "Add geographic context to IP addresses for analysis.",
-        "duration": "15 min"
+        "title": "Automatic Lookup Enrichment",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ti-auto-enrichment",
+        "description": "Configure automatic lookups for transparent search-time enrichment.",
+        "duration": "20 min"
       },
       {
         "id": "step-6",
+        "title": "Enrichment Strategies",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "ti-enrichment-strategies",
+        "description": "Add context with GeoIP, ASN, WHOIS, and asset/identity correlation.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-7",
         "title": "Managing False Positives",
         "type": "tutorial",
         "source": "training",
         "sourceId": "ti-false-positives",
-        "description": "Build allowlists and tune detections to reduce noise.",
+        "description": "Build allowlists, tune confidence thresholds, and implement feedback loops.",
         "duration": "20 min"
       },
       {
-        "id": "step-7",
-        "title": "Custom Threat Feeds",
+        "id": "step-8",
+        "title": "Threat Feed Integration",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "ti-custom-feeds",
-        "description": "Integrate custom and third-party threat intelligence feeds.",
+        "sourceId": "ti-feed-integration",
+        "description": "Integrate STIX/TAXII feeds with normalization and multi-source aggregation.",
         "duration": "25 min"
       },
       {
-        "id": "step-8",
+        "id": "step-9",
+        "title": "TI Workflow Automation",
+        "type": "tutorial",
+        "source": "training",
+        "sourceId": "ti-workflow-automation",
+        "description": "Automate IOC ingestion, alert enrichment, prioritization, and metrics tracking.",
+        "duration": "20 min"
+      },
+      {
+        "id": "step-10",
+        "title": "Building Custom Intelligence",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "ti-custom-intel",
+        "description": "Create internal TI from incidents, hunts, and industry sharing.",
+        "duration": "15 min"
+      },
+      {
+        "id": "step-11",
+        "title": "IOC Sweep Scenario",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "ti-ioc-matching-scenario",
+        "description": "Sweep network data for APT indicators and assess potential compromise.",
+        "duration": "25 min"
+      },
+      {
+        "id": "step-12",
+        "title": "TI-Driven Threat Hunt",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "ti-hunt-scenario",
+        "description": "Use behavioral TI to hunt for C2 beaconing without exact IOC matches.",
+        "duration": "30 min"
+      },
+      {
+        "id": "step-13",
         "title": "TI Integration Challenge",
         "type": "challenge",
         "source": "training",
         "sourceId": "ti-integration-challenge",
-        "description": "Build a complete threat intelligence workflow from feed to alert.",
-        "duration": "30 min"
+        "description": "Build a complete TI pipeline from feed aggregation to prioritized alerting.",
+        "duration": "40 min"
       }
-    ],
-    "track": "Power User"
+    ]
   },
   {
     "id": "pipeline-data-onboarding",
     "title": "Data Onboarding Mastery",
-    "description": "Master the art of ingesting new data sources into Splunk. Learn input configuration, field extraction, data normalization, and quality validation for reliable, searchable data.",
+    "description": "Master the complete data onboarding lifecycle in Splunk. Learn how data flows through the pipeline, configure inputs for any source type, parse events correctly with props.conf, create powerful field extractions, normalize to CIM for cross-source correlation, and validate data quality.",
     "level": "intermediate",
-    "duration": "3-4 hours",
+    "duration": "4-5 hours",
     "icon": "\ud83d\udce5",
+    "track": "Administrator",
     "objectives": [
-      "Configure data inputs using inputs.conf",
-      "Create custom field extractions with props.conf and transforms.conf",
-      "Normalize data with field aliasing and CIM compliance",
-      "Troubleshoot parsing issues and validate data quality"
+      "Understand data flow through input, parsing, and indexing phases",
+      "Configure file, network, and HEC inputs with proper metadata",
+      "Master event breaking and timestamp extraction with props.conf",
+      "Create field extractions using regex, delimiters, and KV_MODE",
+      "Normalize data to CIM standards for Enterprise Security compatibility",
+      "Troubleshoot parsing issues and validate data quality systematically"
     ],
     "steps": [
       {
         "id": "step-1",
-        "title": "Data Ingestion Architecture",
-        "type": "tutorial",
-        "source": "training",
-        "sourceId": "onb-architecture",
-        "description": "Understand how data flows from source to searchable index.",
-        "duration": "20 min"
+        "title": "Understanding the Data Pipeline",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "onb-data-pipeline",
+        "description": "Learn how data flows through Splunk's input, parsing, and indexing phases, and where configuration happens at each stage.",
+        "duration": "12 min"
       },
       {
         "id": "step-2",
@@ -780,7 +1057,7 @@
         "type": "tutorial",
         "source": "training",
         "sourceId": "onb-inputs-conf",
-        "description": "Set up file monitors, network inputs, and scripted inputs.",
+        "description": "Master inputs.conf for file monitoring, network streams, HTTP Event Collector, and scripted inputs with proper metadata assignment.",
         "duration": "25 min"
       },
       {
@@ -789,7 +1066,7 @@
         "type": "tutorial",
         "source": "training",
         "sourceId": "onb-event-breaking",
-        "description": "Configure props.conf for proper event boundaries and time extraction.",
+        "description": "Configure LINE_BREAKER for event boundaries, SHOULD_LINEMERGE for multi-line events, and TIME_FORMAT for accurate timestamp extraction.",
         "duration": "25 min"
       },
       {
@@ -798,56 +1075,55 @@
         "type": "tutorial",
         "source": "training",
         "sourceId": "onb-field-extraction",
-        "description": "Create search-time and index-time field extractions.",
+        "description": "Create inline EXTRACT patterns, REPORT transforms for reusable extractions, KV_MODE for structured data, and DELIMS for delimited formats.",
         "duration": "30 min"
       },
       {
         "id": "step-5",
-        "title": "Transforms and Lookups",
+        "title": "CIM Compliance and Normalization",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "onb-transforms",
-        "description": "Use transforms.conf for complex extractions and enrichment.",
+        "sourceId": "onb-cim-normalization",
+        "description": "Map vendor fields to CIM standards using FIELDALIAS and calculated fields. Enable cross-source correlation and ES compatibility.",
         "duration": "25 min"
       },
       {
         "id": "step-6",
-        "title": "Field Aliasing and CIM",
+        "title": "Troubleshooting Data Issues",
         "type": "tutorial",
         "source": "training",
-        "sourceId": "onb-field-aliasing",
-        "description": "Normalize fields to Common Information Model standards.",
+        "sourceId": "onb-troubleshooting",
+        "description": "Use btool, data preview, and diagnostic searches to identify and fix event breaking, timestamp, and extraction problems.",
         "duration": "20 min"
       },
       {
         "id": "step-7",
-        "title": "Parsing Troubleshooting",
-        "type": "tutorial",
-        "source": "training",
-        "sourceId": "onb-troubleshooting",
-        "description": "Diagnose and fix common data parsing issues.",
-        "duration": "20 min"
-      },
-      {
-        "id": "step-8",
         "title": "Data Quality Validation",
-        "type": "tutorial",
-        "source": "training",
-        "sourceId": "onb-validation",
-        "description": "Verify ingested data meets quality and completeness standards.",
+        "type": "lesson",
+        "source": "lessons",
+        "sourceId": "onb-data-validation",
+        "description": "Systematically verify data completeness, timeliness, accuracy, and consistency. Build validation dashboards and monitoring.",
         "duration": "15 min"
       },
       {
+        "id": "step-8",
+        "title": "Onboarding Scenario: Custom Application Log",
+        "type": "scenario",
+        "source": "training",
+        "sourceId": "onb-new-source-scenario",
+        "description": "Walk through complete onboarding of a CASB log from broken parsing to CIM-compliant events ready for security analysis.",
+        "duration": "30 min"
+      },
+      {
         "id": "step-9",
-        "title": "Onboarding Challenge",
+        "title": "Data Onboarding Challenge",
         "type": "challenge",
         "source": "training",
-        "sourceId": "onb-challenge",
-        "description": "Onboard a new data source from raw logs to normalized fields.",
-        "duration": "30 min"
+        "sourceId": "onb-complete-challenge",
+        "description": "Demonstrate mastery by onboarding an EDR data source from scratch with full parsing, extraction, and CIM normalization.",
+        "duration": "35 min"
       }
-    ],
-    "track": "Administrator"
+    ]
   },
   {
     "id": "pipeline-search-optimization",

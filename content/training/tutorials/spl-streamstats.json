@@ -1,0 +1,65 @@
+{
+  "id": "spl-streamstats",
+  "type": "tutorial",
+  "title": "Streamstats: Running Calculations",
+  "description": "Master running aggregations, window-based calculations, detecting time gaps, session identification, and rate of change analysis.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["spl", "streamstats", "stats", "intermediate"],
+  "objectives": [
+    "Calculate running totals and averages",
+    "Use window-based calculations for recent context",
+    "Detect time gaps between events",
+    "Identify sessions based on activity patterns",
+    "Calculate rate of change over time"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "How Streamstats Works",
+        "body": "<p><code>streamstats</code> processes events in order, calculating aggregations based on events seen so far:</p><pre><code>index=security sourcetype=auth\n| sort 0 _time\n| streamstats count as running_count</code></pre><p>Each event gets a count of how many events came before it (plus itself):</p><ul><li>Event 1: running_count = 1</li><li>Event 2: running_count = 2</li><li>Event 3: running_count = 3</li></ul><p><strong>Important:</strong> streamstats depends on event order. Always <code>sort 0 _time</code> first for time-based analysis (the 0 removes the default 10,000 row limit).</p>"
+      },
+      {
+        "title": "Running Totals",
+        "body": "<p>Accumulate values across events:</p><pre><code>index=network sourcetype=firewall\n| sort 0 _time\n| streamstats sum(bytes_out) as cumulative_bytes by user</code></pre><p>Each event shows the total bytes transferred by that user up to that point.</p><h4>Cumulative Percentage Analysis</h4><pre><code>index=security action=failure\n| stats count by src_ip\n| sort - count\n| streamstats sum(count) as running_total\n| eventstats sum(count) as grand_total\n| eval cumulative_pct = round((running_total / grand_total) * 100, 1)</code></pre><p>This reveals Pareto patterns: \"The top 20% of sources cause 80% of failures.\"</p>"
+      },
+      {
+        "title": "The Window Parameter",
+        "body": "<p>Limit calculations to a sliding window of recent events:</p><pre><code>index=network\n| sort 0 _time\n| streamstats avg(bytes_out) as recent_avg window=10 by user</code></pre><p>This calculates the average of the last 10 events for each user, creating a moving average.</p><h4>Window Use Cases</h4><ul><li><code>window=5</code> - Very responsive, noisy</li><li><code>window=20</code> - Smoother, slower to react</li><li><code>window=100</code> - Long-term baseline</li></ul><h4>Detecting Anomalies with Windows</h4><pre><code>index=network\n| sort 0 _time\n| streamstats avg(bytes_out) as baseline window=100 current=false by user\n| where bytes_out > baseline * 5</code></pre><p>The <code>current=false</code> parameter excludes the current event from the calculation, ensuring you're comparing against historical behavior.</p>"
+      },
+      {
+        "title": "The Current Parameter",
+        "body": "<p>Control whether the current event is included in the calculation:</p><h4>current=true (Default)</h4><pre><code>| streamstats count as running_count</code></pre><p>Event is included: First event has running_count = 1</p><h4>current=false</h4><pre><code>| streamstats count as events_before current=false</code></pre><p>Event excluded: First event has events_before = 0 (null until second event)</p><h4>Why current=false Matters</h4><p>For anomaly detection, you want to compare the current event against the baseline without including itself:</p><pre><code>| streamstats avg(value) as historical_avg window=100 current=false\n| eval anomaly = if(value > historical_avg * 2, \"yes\", \"no\")</code></pre><p>Including the current event would dilute the comparison.</p>"
+      },
+      {
+        "title": "Detecting Time Gaps",
+        "body": "<p>Find unusual delays between events:</p><pre><code>index=security sourcetype=auth\n| sort 0 _time\n| streamstats current=false last(_time) as prev_time by user\n| eval gap_seconds = _time - prev_time\n| where gap_seconds > 3600</code></pre><p>This finds authentication events that occurred more than an hour after the user's previous activity.</p><h4>Time Gap Analysis Pattern</h4><pre><code>index=security sourcetype=auth\n| sort 0 _time\n| streamstats current=false last(_time) as prev_time by user\n| eval gap_minutes = round((_time - prev_time) / 60, 1)\n| stats avg(gap_minutes) as avg_gap, max(gap_minutes) as max_gap, stdev(gap_minutes) as gap_variability by user\n| where gap_variability > avg_gap</code></pre><p>Users with high gap variability may have irregular usage patterns worth investigating.</p>"
+      },
+      {
+        "title": "Session Identification",
+        "body": "<p>Group events into sessions based on time gaps:</p><pre><code>index=security sourcetype=auth\n| sort 0 _time\n| streamstats current=false last(_time) as prev_time by user\n| eval gap = _time - prev_time\n| eval new_session = if(isnull(prev_time) OR gap > 1800, 1, 0)\n| streamstats sum(new_session) as session_id by user</code></pre><p>This creates session IDs that increment whenever there's more than a 30-minute gap (1800 seconds).</p><h4>Session Analysis</h4><pre><code>| stats count as events_in_session, earliest(_time) as session_start, latest(_time) as session_end, dc(dest) as systems_accessed by user, session_id\n| eval session_duration = round((session_end - session_start) / 60, 1)\n| where session_duration > 60</code></pre><p>Analyze sessions longer than an hour for potential investigation.</p>"
+      },
+      {
+        "title": "Rate of Change Calculations",
+        "body": "<p>Track how values change between events:</p><pre><code>index=network sourcetype=firewall\n| sort 0 _time\n| streamstats current=false last(bytes_out) as prev_bytes by user\n| eval change = bytes_out - prev_bytes\n| eval pct_change = round(((bytes_out - prev_bytes) / prev_bytes) * 100, 1)</code></pre><p>Find sudden spikes:</p><pre><code>| where pct_change > 500</code></pre><p>This finds transfers that are 5x larger than the previous one.</p><h4>Velocity Analysis</h4><pre><code>index=security sourcetype=auth action=failure\n| bin _time span=1m\n| stats count by _time, src_ip\n| sort 0 src_ip, _time\n| streamstats current=false last(count) as prev_count last(_time) as prev_time by src_ip\n| eval acceleration = count - prev_count\n| where acceleration > 10</code></pre><p>Detect attackers ramping up - failure rate increasing by more than 10 per minute.</p>"
+      },
+      {
+        "title": "The Global Parameter",
+        "body": "<p>By default, streamstats resets for each group in the <code>by</code> clause. The <code>global=true</code> parameter overrides this:</p><h4>Default (global=false)</h4><pre><code>| streamstats count as user_running_count by user</code></pre><p>Each user's count starts at 1.</p><h4>global=true</h4><pre><code>| streamstats count as overall_running_count global=true by user</code></pre><p>Count continues across users based on event order.</p><p>This is rarely needed but useful when you want absolute position in the result set while still grouping.</p>"
+      },
+      {
+        "title": "Reset Aggregations",
+        "body": "<p>Combine streamstats with reset conditions:</p><pre><code>index=security sourcetype=auth\n| sort 0 _time\n| streamstats current=false last(action) as prev_action by user\n| eval sequence_break = if(prev_action=\"success\" AND action=\"failure\", 1, 0)\n| streamstats sum(sequence_break) as failure_sequence by user\n| where action=\"failure\"\n| stats count as failures_in_sequence by user, failure_sequence</code></pre><p>This counts consecutive failures, resetting after each success.</p>"
+      },
+      {
+        "title": "Common Patterns",
+        "body": "<h4>Moving Average for Baseline</h4><pre><code>index=network\n| bin _time span=1h\n| stats sum(bytes_out) as hourly_bytes by _time, user\n| sort 0 user, _time\n| streamstats avg(hourly_bytes) as baseline_avg window=24 current=false by user\n| eval deviation = round((hourly_bytes - baseline_avg) / baseline_avg * 100, 1)\n| where deviation > 200</code></pre><h4>Event Sequencing</h4><pre><code>index=security sourcetype=auth\n| sort 0 _time\n| streamstats count as event_sequence global=true\n| streamstats count as user_sequence by user\n| table _time, event_sequence, user, user_sequence, action</code></pre><h4>Cumulative Failure Rate</h4><pre><code>index=security sourcetype=auth\n| sort 0 _time\n| streamstats count(eval(action=\"failure\")) as cum_failures, count as cum_total\n| eval cum_failure_rate = round((cum_failures / cum_total) * 100, 2)</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key takeaways for streamstats:</p><ul><li><strong>Order matters</strong> - Always <code>sort 0 _time</code> before streamstats for time-based analysis</li><li><strong>Running calculations</strong> - Accumulate sums, counts, and other aggregations across events</li><li><strong>Window parameter</strong> - Limit to recent N events for moving averages</li><li><strong>current=false</strong> - Exclude current event when comparing against baseline</li><li><strong>Time gaps</strong> - Calculate elapsed time between events</li><li><strong>Session detection</strong> - Group events by time-based boundaries</li><li><strong>Rate of change</strong> - Track acceleration and deceleration in metrics</li></ul><p>Next, apply the full stats family in the \"Stats Family Practice Scenario.\"</p>"
+      }
+    ]
+  }
+}

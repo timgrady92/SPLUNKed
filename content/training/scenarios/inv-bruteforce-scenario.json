@@ -1,0 +1,119 @@
+{
+  "id": "inv-bruteforce-scenario",
+  "type": "scenario",
+  "title": "Brute Force Investigation",
+  "description": "Investigate a brute force authentication attack from alert to conclusion, determining attack scope, identifying compromised accounts, and documenting findings.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["investigation", "brute-force", "authentication", "scenario"],
+  "objectives": [
+    "Investigate brute force attack patterns",
+    "Determine attack scope and targeted accounts",
+    "Identify if any accounts were compromised",
+    "Document investigation findings properly"
+  ],
+  "content": {
+    "situation": {
+      "title": "Scenario Setup",
+      "description": "Your SIEM generated an alert: 'Multiple Failed Logins Detected' for source IP 192.168.50.100. The alert shows 150 failed login attempts in the last hour. Your task is to investigate this potential brute force attack, determine its scope, and identify any successful compromises.",
+      "environment": "Data sources available: index=security (Windows Security events), index=vpn (VPN logs), index=firewall (perimeter firewall). User directory lookup: user_directory.csv (user, department, manager, is_privileged). Time of alert: 2024-01-15 14:30 UTC."
+    },
+    "steps": [
+      {
+        "id": 1,
+        "title": "Confirm the Alert",
+        "question": "First, verify the alert details. How many failed login attempts came from 192.168.50.100 in the last 2 hours?",
+        "spl": "index=security EventCode=4625 src_ip=\"192.168.50.100\" earliest=-2h\n| stats count",
+        "explanation": "We start by confirming the alert data. This establishes the baseline scope of the attack.",
+        "validation": "You should see a count of failed attempts. If significantly different from the alert (150), investigate the discrepancy."
+      },
+      {
+        "id": 2,
+        "title": "Identify Attack Pattern",
+        "question": "What type of brute force attack is this? Analyze the targeted accounts and failure reasons.",
+        "spl": "index=security EventCode=4625 src_ip=\"192.168.50.100\" earliest=-2h\n| stats count as attempts, dc(user) as unique_users, values(SubStatus) as failure_codes by src_ip\n| eval attack_type = case(\n    unique_users > 50, \"Password Spray\",\n    unique_users < 5 AND attempts > 50, \"Targeted Brute Force\",\n    unique_users > 10 AND unique_users < 50, \"Credential Stuffing\",\n    true(), \"Unknown\")",
+        "explanation": "The number of unique users targeted reveals the attack type. Password spray targets many users with few passwords. Targeted brute force focuses on specific accounts. Credential stuffing uses known username/password pairs.",
+        "validation": "Identify whether this is password spray (many users), targeted brute force (few users, many attempts), or credential stuffing."
+      },
+      {
+        "id": 3,
+        "title": "Map Targeted Accounts",
+        "question": "Which accounts were targeted? Are any privileged accounts among them?",
+        "spl": "index=security EventCode=4625 src_ip=\"192.168.50.100\" earliest=-2h\n| stats count as attempts by user\n| lookup user_directory.csv user OUTPUT department, is_privileged\n| sort - attempts\n| head 20",
+        "explanation": "Understanding which accounts were targeted reveals attacker intent. Privileged accounts are higher-value targets.",
+        "validation": "Note any privileged accounts (is_privileged=true) or accounts with many attempts. These need priority investigation."
+      },
+      {
+        "id": 4,
+        "title": "Check for Success",
+        "question": "Critical question: Did any accounts successfully authenticate from this source IP after the attack began?",
+        "pivot_step": true,
+        "spl": "index=security EventCode=4624 src_ip=\"192.168.50.100\" earliest=-2h\n| table _time, user, Logon_Type, dest\n| sort _time",
+        "explanation": "This is the pivot point. Finding successful logins from the attacking IP indicates account compromise and changes the investigation urgency dramatically.",
+        "validation": "Any successful logins indicate compromise. Note the user, time, and destination system."
+      },
+      {
+        "id": 5,
+        "title": "Reasoning Checkpoint",
+        "question": "You found 3 successful logins from IP 192.168.50.100: user 'svc_backup' at 14:15, user 'mwilliams' at 14:22, and user 'admin_jones' at 14:28. All previous activity from this IP was failed logins. What does this pattern indicate?",
+        "reasoning_checkpoint": true,
+        "expected_answer": "This pattern strongly indicates successful credential compromise: 1) The IP had no legitimate history (only failures before success), 2) Three different accounts compromised suggests attacker had a credential list (credential stuffing or prior breach data), 3) The successful logins occurred during the attack window, not before, 4) One service account (svc_backup) and one admin account (admin_jones) compromised - high-value targets, 5) The timing (success at 14:15, 14:22, 14:28) shows the attacker was actively testing credentials and proceeding when finding valid ones. Immediate actions: Reset passwords for all three accounts, terminate active sessions, check for activity from those accounts post-compromise."
+      },
+      {
+        "id": 6,
+        "title": "Trace Post-Compromise Activity",
+        "question": "For the compromised account 'admin_jones', what did the attacker do after successfully logging in?",
+        "spl": "index=security user=\"admin_jones\" earliest=\"01/15/2024:14:28:00\" latest=\"01/15/2024:16:00:00\"\n| table _time, EventCode, src_ip, dest, Logon_Type\n| sort _time",
+        "explanation": "Once we know an account was compromised, we must trace all subsequent activity to understand the attack scope.",
+        "validation": "Look for: lateral movement (Type 3 to other systems), privilege escalation (4672, 4673), or persistence installation."
+      },
+      {
+        "id": 7,
+        "title": "Check Lateral Movement",
+        "question": "Did the attacker use admin_jones to access other systems after the initial compromise?",
+        "spl": "index=security EventCode=4624 user=\"admin_jones\" Logon_Type=3 earliest=\"01/15/2024:14:28:00\"\n| stats count, dc(dest) as systems_accessed, values(dest) as system_list by src_ip\n| sort - count",
+        "explanation": "Type 3 (Network) logons to multiple systems from a compromised account indicate lateral movement.",
+        "validation": "Multiple destination systems accessed from a single source indicates the attacker is moving through the network."
+      },
+      {
+        "id": 8,
+        "title": "Identify Attack Source",
+        "question": "Is 192.168.50.100 an internal or external IP? What do we know about this system?",
+        "spl": "index=firewall src_ip=\"192.168.50.100\" OR dest_ip=\"192.168.50.100\" earliest=-24h\n| stats count by action, direction\n| append [\n    search index=asset_inventory ip=\"192.168.50.100\"\n    | table hostname, asset_type, owner, location\n]",
+        "explanation": "Understanding the attack source helps determine if this is an external attack, compromised internal system, or insider threat.",
+        "validation": "Internal IP + asset inventory match = compromised internal system. No asset match + internal range = rogue device. External IP = external attack."
+      },
+      {
+        "id": 9,
+        "title": "Assess Full Attack Scope",
+        "question": "Build a complete picture: how many accounts targeted, how many compromised, and what systems were accessed?",
+        "spl": "index=security src_ip=\"192.168.50.100\" earliest=-2h\n| stats \n    count(eval(EventCode=4625)) as failed_attempts,\n    count(eval(EventCode=4624)) as successful_logins,\n    dc(eval(if(EventCode=4625, user, null()))) as users_targeted,\n    dc(eval(if(EventCode=4624, user, null()))) as users_compromised,\n    values(eval(if(EventCode=4624, user, null()))) as compromised_accounts,\n    dc(eval(if(EventCode=4624, dest, null()))) as systems_accessed",
+        "explanation": "This summary provides the key metrics for incident documentation and response planning.",
+        "validation": "Document these numbers for your incident report."
+      },
+      {
+        "id": 10,
+        "title": "Document Investigation",
+        "question": "Based on your investigation, what are your findings and recommended actions?",
+        "expected_answer": "FINDINGS: 1) Attack Type: Credential stuffing/brute force from IP 192.168.50.100, 2) Duration: Approximately 2 hours starting around 14:00 UTC, 3) Scope: ~150 failed attempts against multiple accounts, 4) Compromises: 3 accounts successfully accessed (svc_backup, mwilliams, admin_jones), 5) Post-Compromise: admin_jones used for lateral movement to X systems. IMMEDIATE ACTIONS: 1) Reset passwords for svc_backup, mwilliams, admin_jones, 2) Terminate all active sessions for these accounts, 3) Block IP 192.168.50.100 at firewall, 4) Review/reset credentials for all other targeted accounts, 5) Check systems accessed by admin_jones for persistence. LONGER-TERM: 1) Enable MFA for privileged accounts, 2) Implement account lockout policies, 3) Investigate source of credential list (check breach databases), 4) Review 192.168.50.100 - if internal, investigate that system as compromised."
+      }
+    ],
+    "conclusion": {
+      "title": "Scenario Complete",
+      "summary": "You investigated a brute force attack from initial alert through complete scope assessment. You identified compromised accounts, traced post-compromise activity, and documented findings for response.",
+      "key_takeaways": [
+        "Always check for successful logins after failed attempts - this is the critical pivot point",
+        "Attack type (spray vs targeted vs stuffing) indicates attacker intent and capability",
+        "Compromised privileged accounts require immediate session termination and password reset",
+        "Post-compromise activity must be traced to understand full attack scope",
+        "Document metrics: attempts, unique users, compromises, systems accessed"
+      ],
+      "next_steps": [
+        "Practice lateral movement investigation in the next scenario",
+        "Learn timeline building for complex incident reconstruction",
+        "Apply multi-source correlation for complete attack visibility"
+      ]
+    }
+  }
+}

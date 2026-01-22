@@ -1,0 +1,60 @@
+{
+  "id": "ti-ioc-types",
+  "type": "tutorial",
+  "title": "IOC Types and Matching Patterns",
+  "description": "Learn the different types of Indicators of Compromise, their characteristics, and SPL patterns for effective matching across your security data.",
+  "category": "threat-intel",
+  "difficulty": "advanced",
+  "duration": "20 min",
+  "tags": ["threat-intel", "ioc", "matching", "advanced"],
+  "objectives": [
+    "Understand different IOC types and their characteristics",
+    "Write effective SPL patterns for each IOC type",
+    "Handle IOC format variations",
+    "Build flexible matching queries"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "IOC Type Overview",
+        "body": "<p>Different IOC types require different matching approaches:</p><table><tr><th>Type</th><th>Example</th><th>Matching Challenge</th></tr><tr><td>IPv4 Address</td><td>192.168.1.100</td><td>Exact match, CIDR ranges</td></tr><tr><td>IPv6 Address</td><td>2001:db8::1</td><td>Compression variations</td></tr><tr><td>Domain</td><td>evil.example.com</td><td>Subdomains, wildcards</td></tr><tr><td>URL</td><td>http://evil.com/path</td><td>Encoding, parameters</td></tr><tr><td>File Hash</td><td>d41d8cd98f00b204...</td><td>Case sensitivity, algorithm</td></tr><tr><td>Email</td><td>attacker@evil.com</td><td>Case, display name</td></tr></table>"
+      },
+      {
+        "title": "IP Address Matching",
+        "body": "<h4>Basic IP Matching</h4><pre><code>index=firewall dest_ip=\"192.168.50.100\"</code></pre><h4>Multiple IPs</h4><pre><code>index=firewall dest_ip IN (\"192.168.50.100\", \"192.168.50.101\", \"10.5.3.200\")</code></pre><h4>Using Lookup</h4><pre><code>index=firewall\n| lookup threat_ips ip as dest_ip OUTPUT threat_type, confidence\n| where isnotnull(threat_type)\n| table _time, src_ip, dest_ip, threat_type, confidence</code></pre><h4>CIDR Range Matching</h4><pre><code>index=firewall\n| where cidrmatch(\"192.168.50.0/24\", dest_ip)\n| stats count by dest_ip</code></pre><h4>Matching Multiple Fields</h4><pre><code>index=firewall\n| lookup threat_ips ip as src_ip OUTPUT threat_type as src_threat\n| lookup threat_ips ip as dest_ip OUTPUT threat_type as dest_threat\n| where isnotnull(src_threat) OR isnotnull(dest_threat)</code></pre>"
+      },
+      {
+        "title": "Domain Matching",
+        "body": "<h4>Exact Domain Match</h4><pre><code>index=dns query=\"evil.example.com\"</code></pre><h4>Subdomain Matching</h4><p>Match any subdomain of a malicious domain:</p><pre><code>index=dns\n| where match(query, \"(?i)(\\\\.)?evil\\\\.example\\\\.com$\")</code></pre><h4>Extract Root Domain</h4><pre><code>index=dns\n| rex field=query \"(?<root_domain>[^.]+\\\\.[^.]+)$\"\n| lookup threat_domains domain as root_domain OUTPUT threat_type\n| where isnotnull(threat_type)</code></pre><h4>Wildcard Domain Patterns</h4><pre><code>index=proxy\n| where match(dest, \"(?i).*\\\\.evil\\\\.com$\") OR match(dest, \"(?i)^malware-.*\\\\.net$\")</code></pre><h4>Common Domain IOC Patterns</h4><pre><code>| lookup threat_domains domain as query OUTPUT category\n| append [search index=dns | rex field=query \"(?&lt;domain&gt;[^.]+\\\\.[^.]+)$\" | lookup threat_domains domain OUTPUT category]\n| where isnotnull(category)</code></pre>"
+      },
+      {
+        "title": "URL Matching",
+        "body": "<h4>Exact URL Match</h4><pre><code>index=proxy url=\"http://evil.com/malware.exe\"</code></pre><h4>URL Component Extraction</h4><pre><code>index=proxy\n| rex field=url \"(?<protocol>https?)://(?<host>[^/:]+)(?::(?<port>\\\\d+))?(?<path>/[^?]*)?\"\n| lookup threat_urls url as url OUTPUT threat_type\n| lookup threat_domains domain as host OUTPUT domain_threat\n| where isnotnull(threat_type) OR isnotnull(domain_threat)</code></pre><h4>Path-Based Matching</h4><pre><code>index=proxy\n| where match(url, \"(?i)/wp-admin/.*\\\\.php\\\\?\")\n| where match(url, \"(?i)(eval|base64|cmd)\")</code></pre><h4>Handling URL Encoding</h4><pre><code>index=proxy\n| eval decoded_url = urldecode(url)\n| lookup threat_urls url as decoded_url OUTPUT threat_type</code></pre><h4>Query Parameter Extraction</h4><pre><code>index=proxy\n| rex field=url \"\\\\?(?<params>.*)$\"\n| where match(params, \"(?i)(cmd=|exec=|shell=)\")</code></pre>"
+      },
+      {
+        "title": "File Hash Matching",
+        "body": "<h4>Hash Type Identification</h4><table><tr><th>Algorithm</th><th>Length</th><th>Example</th></tr><tr><td>MD5</td><td>32 chars</td><td>d41d8cd98f00b204e9800998ecf8427e</td></tr><tr><td>SHA1</td><td>40 chars</td><td>da39a3ee5e6b4b0d3255bfef95601890afd80709</td></tr><tr><td>SHA256</td><td>64 chars</td><td>e3b0c44298fc1c149afbf4c8996fb924...</td></tr></table><h4>Basic Hash Matching</h4><pre><code>index=sysmon EventCode=1\n| lookup threat_hashes hash as Hashes OUTPUT threat_type, malware_family\n| where isnotnull(threat_type)</code></pre><h4>Handling Sysmon Hash Format</h4><p>Sysmon stores hashes as: <code>MD5=abc...,SHA256=def...</code></p><pre><code>index=sysmon EventCode=1\n| rex field=Hashes \"SHA256=(?<sha256>[A-Fa-f0-9]{64})\"\n| rex field=Hashes \"MD5=(?<md5>[A-Fa-f0-9]{32})\"\n| lookup threat_hashes hash as sha256 OUTPUT threat_type as sha_threat\n| lookup threat_hashes hash as md5 OUTPUT threat_type as md5_threat\n| where isnotnull(sha_threat) OR isnotnull(md5_threat)</code></pre><h4>Case-Insensitive Hash Matching</h4><pre><code>| eval hash_lower = lower(file_hash)\n| lookup threat_hashes hash as hash_lower OUTPUT threat_type</code></pre>"
+      },
+      {
+        "title": "Email Indicator Matching",
+        "body": "<h4>Email Address Matching</h4><pre><code>index=email\n| lookup threat_emails email as sender OUTPUT threat_type\n| where isnotnull(threat_type)</code></pre><h4>Domain-Only Email Matching</h4><pre><code>index=email\n| rex field=sender \"@(?<sender_domain>.+)$\"\n| lookup threat_domains domain as sender_domain OUTPUT threat_type\n| where isnotnull(threat_type)</code></pre><h4>Display Name Abuse Detection</h4><pre><code>index=email\n| where match(from_header, \"(?i)\\\"(ceo|cfo|executive|hr).*\\\"\")\n| where NOT match(sender, \"@yourdomain\\\\.com$\")\n| table _time, from_header, sender, recipient, subject</code></pre><h4>Reply-To Mismatch</h4><pre><code>index=email\n| rex field=sender \"@(?<sender_domain>.+)$\"\n| rex field=reply_to \"@(?<reply_domain>.+)$\"\n| where sender_domain != reply_domain\n| table _time, sender, reply_to, subject</code></pre>"
+      },
+      {
+        "title": "Behavioral Indicators",
+        "body": "<p>Behavioral IOCs are more durable than atomic indicators.</p><h4>Process Behavior Patterns</h4><pre><code>index=sysmon EventCode=1\n| where match(ParentImage, \"(?i)\\\\\\\\(outlook|winword|excel)\\\\.exe$\")\n| where match(Image, \"(?i)\\\\\\\\(cmd|powershell|wscript|cscript|mshta)\\\\.exe$\")\n| eval behavior=\"Office spawning script interpreter\"\n| table _time, User, ParentImage, Image, CommandLine, behavior</code></pre><h4>Network Behavior Patterns</h4><pre><code>index=sysmon EventCode=3\n| where DestinationPort IN (4444, 5555, 8080, 8443)\n| where NOT match(Image, \"(?i)(chrome|firefox|edge|iexplore)\\\\.exe$\")\n| eval behavior=\"Non-browser connection to suspicious port\"\n| table _time, User, Image, DestinationIp, DestinationPort</code></pre><h4>Command Line Patterns</h4><pre><code>index=sysmon EventCode=1\n| search CommandLine IN (\n    \"*-enc *\",\n    \"*downloadstring*\",\n    \"*invoke-expression*\",\n    \"*-nop -w hidden*\"\n)\n| eval behavior=\"Suspicious PowerShell execution\"\n| table _time, User, CommandLine, behavior</code></pre>"
+      },
+      {
+        "title": "Format Normalization",
+        "body": "<h4>IP Address Normalization</h4><pre><code>| eval ip_normalized = replace(src_ip, \"^0+\", \"\")\n| eval ip_normalized = replace(ip_normalized, \"\\\\.0+\", \".\")</code></pre><h4>Domain Normalization</h4><pre><code>| eval domain_normalized = lower(domain)\n| eval domain_normalized = replace(domain_normalized, \"^www\\\\.\", \"\")\n| eval domain_normalized = replace(domain_normalized, \"\\\\.$\", \"\")</code></pre><h4>Hash Normalization</h4><pre><code>| eval hash_normalized = lower(trim(file_hash))</code></pre><h4>URL Normalization</h4><pre><code>| eval url_normalized = lower(url)\n| eval url_normalized = replace(url_normalized, \"https?://\", \"\")\n| eval url_normalized = replace(url_normalized, \"^www\\\\.\", \"\")\n| eval url_normalized = urldecode(url_normalized)</code></pre>"
+      },
+      {
+        "title": "Multi-Type Matching",
+        "body": "<h4>Universal IOC Lookup</h4><p>Create a lookup that handles multiple IOC types:</p><pre><code>indicator,type,threat_category,confidence\n192.168.50.100,ip,c2,high\nevil.example.com,domain,phishing,medium\nd41d8cd98f00b204...,md5,malware,high</code></pre><h4>Multi-Type Search</h4><pre><code>index=firewall OR index=dns OR index=sysmon\n| eval check_value = coalesce(dest_ip, src_ip, query, file_hash)\n| lookup universal_iocs indicator as check_value OUTPUT type, threat_category, confidence\n| where isnotnull(threat_category)\n| table _time, index, check_value, type, threat_category, confidence</code></pre><h4>Type-Specific Matching with Union</h4><pre><code>| union\n    [search index=firewall | lookup threat_ips ip as dest_ip OUTPUT threat_type | where isnotnull(threat_type) | eval ioc_type=\"ip\", ioc_value=dest_ip]\n    [search index=dns | lookup threat_domains domain as query OUTPUT threat_type | where isnotnull(threat_type) | eval ioc_type=\"domain\", ioc_value=query]\n    [search index=sysmon EventCode=1 | lookup threat_hashes hash as SHA256 OUTPUT threat_type | where isnotnull(threat_type) | eval ioc_type=\"hash\", ioc_value=SHA256]\n| table _time, ioc_type, ioc_value, threat_type</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key IOC matching patterns by type:</p><ul><li><strong>IP</strong>: Direct match, CIDR with cidrmatch(), lookup for lists</li><li><strong>Domain</strong>: Regex for subdomains, extract root domain, case-insensitive</li><li><strong>URL</strong>: Component extraction, URL decoding, path patterns</li><li><strong>Hash</strong>: Normalize case, handle multi-hash formats, algorithm-specific fields</li><li><strong>Email</strong>: Domain extraction, display name analysis, reply-to checks</li><li><strong>Behavioral</strong>: Parent-child patterns, command line matching, port/process correlation</li></ul><p>Always normalize IOC formats before matching to ensure consistent results.</p>"
+      }
+    ]
+  }
+}

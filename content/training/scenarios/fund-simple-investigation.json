@@ -1,0 +1,101 @@
+{
+  "id": "fund-simple-investigation",
+  "type": "scenario",
+  "title": "Your First Investigation: Tracking Down Errors",
+  "description": "Apply everything you've learned in a guided investigation. Start with an alert, gather context, and identify the root cause.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "25 min",
+  "tags": ["fundamentals", "investigation", "beginner", "hands-on", "troubleshooting"],
+  "objectives": [
+    "Follow a structured investigation workflow",
+    "Use search commands to gather evidence",
+    "Build a timeline of events",
+    "Document findings clearly"
+  ],
+  "content": {
+    "background": "<p>You've received an alert: <strong>\"High error rate detected in Splunk internal logs.\"</strong></p><p>Your task is to investigate this alert using the skills you've learned.</p><h4>Investigation Questions</h4><ol><li>Is this a real problem or a false alarm?</li><li>When did it start?</li><li>What component is affected?</li><li>What's the actual error message?</li><li>Is it still happening?</li></ol><h4>Available Data</h4><p>You'll work with <code>index=_internal</code> which contains Splunk's own operational logs. The same investigation techniques apply to any log data.</p>",
+    "steps": [
+      {
+        "title": "Step 1: Confirm the Alert",
+        "type": "pivot",
+        "content": "<p>First, verify that there actually is an elevated error rate.</p><h4>Task</h4><p>Count the number of ERROR events in the last hour. Compare to total events to get a percentage.</p><h4>What You're Looking For</h4><ul><li>How many errors exist?</li><li>Is this number unusually high?</li></ul>",
+        "hint": "Use stats to count total events and ERROR events",
+        "solution": "index=_internal sourcetype=splunkd earliest=-1h\n| stats count as total, count(eval(log_level=\"ERROR\")) as errors\n| eval error_rate = round(errors/total * 100, 2)"
+      },
+      {
+        "title": "Step 2: Establish Timeline",
+        "type": "pivot",
+        "content": "<p>When did the errors start occurring?</p><h4>Task</h4><p>Create a timechart of errors over the last hour to see when the problem began.</p><h4>What You're Looking For</h4><ul><li>Did errors spike at a specific time?</li><li>Are they ongoing or was it a one-time event?</li></ul>",
+        "hint": "Use timechart with span=5m to see the pattern",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-1h\n| timechart span=5m count as errors"
+      },
+      {
+        "title": "Checkpoint: Timeline Assessment",
+        "type": "reasoning",
+        "content": "<p>Based on the timechart, characterize the error pattern.</p>",
+        "question": "Looking at the timechart, which pattern best describes what you see?",
+        "options": [
+          "Sudden spike at a specific time, then returning to normal",
+          "Gradual increase that's still ongoing",
+          "Consistent steady rate of errors throughout",
+          "Random scattered errors with no clear pattern"
+        ]
+      },
+      {
+        "title": "Step 3: Identify the Source",
+        "type": "pivot",
+        "content": "<p>Which component is generating these errors?</p><h4>Task</h4><p>Count errors by component to find the main source of the problem.</p>",
+        "hint": "Stats count by component for ERROR events",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-1h\n| stats count by component\n| sort - count"
+      },
+      {
+        "title": "Step 4: Examine Error Messages",
+        "type": "pivot",
+        "content": "<p>Now look at what the errors actually say.</p><h4>Task</h4><p>View the error messages from the top error-generating component.</p><h4>Tips</h4><ul><li>Look for patterns in the messages</li><li>Note any specific error codes or descriptions</li><li>Check if the same message repeats</li></ul>",
+        "hint": "Filter for the component and display time, host, and message",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-1h\n| table _time, host, component, message\n| sort - _time\n| head 20"
+      },
+      {
+        "title": "Step 5: Check for Patterns in Messages",
+        "type": "pivot",
+        "content": "<p>Are there common error messages or is each one unique?</p><h4>Task</h4><p>Count errors by message to find the most common error.</p>",
+        "hint": "Stats count by message, but truncate long messages first",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-1h\n| eval short_message = substr(message, 1, 100)\n| stats count by short_message\n| sort - count\n| head 10"
+      },
+      {
+        "title": "Step 6: Check Host Distribution",
+        "type": "pivot",
+        "content": "<p>Is this a problem affecting one server or multiple?</p><h4>Task</h4><p>Count errors by host to see if the problem is isolated or widespread.</p>",
+        "hint": "Stats count by host for ERROR events",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-1h\n| stats count by host\n| sort - count"
+      },
+      {
+        "title": "Step 7: Look at Context Around Errors",
+        "type": "pivot",
+        "content": "<p>Sometimes the events just before an error give you clues about the cause.</p><h4>Task</h4><p>Look at events from the highest-error component around the time errors started.</p><h4>Tips</h4><ul><li>Include all log levels, not just ERROR</li><li>Look for WARN events that might precede errors</li><li>Check for INFO events that show what was happening</li></ul>",
+        "hint": "Search the specific component and time window, include all log levels",
+        "solution": "index=_internal sourcetype=splunkd earliest=-1h\n| where component=\"IndexProcessor\" OR component=\"Metrics\"\n| table _time, log_level, component, message\n| sort _time\n| head 50"
+      },
+      {
+        "title": "Step 8: Check If Problem Is Ongoing",
+        "type": "pivot",
+        "content": "<p>Is the problem still happening right now?</p><h4>Task</h4><p>Look at the most recent 15 minutes of errors.</p>",
+        "hint": "Change the time range to -15m",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-15m\n| stats count by component\n| sort - count"
+      },
+      {
+        "title": "Final Assessment: Document Your Findings",
+        "type": "reasoning",
+        "content": "<p>You've completed your investigation. Now document what you found.</p><h4>Investigation Report Template</h4><pre><code>Alert: High error rate in Splunk internal logs\nInvestigator: [Your name]\nDate: [Today's date]\n\nSummary:\n- Alert Status: [Confirmed/False Positive]\n- Severity: [Critical/High/Medium/Low]\n- Current State: [Ongoing/Resolved]\n\nTimeline:\n- First errors detected: [time]\n- Peak error rate: [time and count]\n- Current status: [still occurring / stopped at time]\n\nAffected Systems:\n- Component(s): [list]\n- Host(s): [list]\n\nError Details:\n- Most common error: [message]\n- Error count: [number]\n\nRoot Cause:\n- [Your assessment based on the evidence]\n\nRecommendations:\n- [What should be done next]\n</code></pre>",
+        "question": "What's the most important next step after completing this investigation?",
+        "options": [
+          "Document findings and close the alert if resolved",
+          "Escalate to the appropriate team if the issue is still ongoing",
+          "Create a dashboard to monitor for recurrence",
+          "All of the above, depending on what you found"
+        ]
+      }
+    ]
+  }
+}

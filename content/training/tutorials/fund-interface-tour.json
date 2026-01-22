@@ -1,0 +1,70 @@
+{
+  "id": "fund-interface-tour",
+  "type": "tutorial",
+  "title": "Navigating the Splunk Interface",
+  "description": "Get comfortable with the Splunk web interface. Learn where to find key features and how to navigate efficiently.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "12 min",
+  "tags": ["fundamentals", "interface", "navigation", "beginner", "ui"],
+  "objectives": [
+    "Navigate the main areas of the Splunk interface",
+    "Use the Search & Reporting app effectively",
+    "Understand the search bar and time picker",
+    "Find and use the field sidebar"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "The Splunk Home Screen",
+        "body": "<p>When you first log into Splunk, you'll see the home screen. This is your launching point for everything.</p><h4>Key Areas</h4><table><tr><th>Area</th><th>Purpose</th></tr><tr><td><strong>Apps Bar</strong> (top)</td><td>Switch between Splunk apps (Search & Reporting, Enterprise Security, etc.)</td></tr><tr><td><strong>Splunk Bar</strong> (top right)</td><td>Settings, Messages, Activity, Account menu</td></tr><tr><td><strong>Search Bar</strong> (center)</td><td>Quick search—same as going to Search & Reporting</td></tr><tr><td><strong>Dashboards</strong></td><td>Shortcuts to your favorite dashboards</td></tr></table><p>For most work, you'll click <strong>Search & Reporting</strong> to access the full search interface.</p>"
+      },
+      {
+        "title": "The Search & Reporting App",
+        "body": "<p>This is where you'll spend most of your time. The Search & Reporting app has three main areas:</p><h4>1. Search Bar (Top)</h4><p>This is where you type your SPL queries. It includes:</p><ul><li><strong>Search input</strong>: Where you type your search</li><li><strong>Time picker</strong>: Control which time range to search</li><li><strong>Search button</strong>: Run your search (or press Enter)</li><li><strong>Search mode</strong>: Fast, Smart, or Verbose (leave on Smart for now)</li></ul><h4>2. Results Panel (Center)</h4><p>After running a search, results appear here. You can view them as:</p><ul><li><strong>Events</strong>: Individual log entries with highlighting</li><li><strong>Patterns</strong>: Automatically discovered patterns in your data</li><li><strong>Statistics</strong>: Table view for aggregated results</li><li><strong>Visualization</strong>: Charts and graphs</li></ul><h4>3. Field Sidebar (Left)</h4><p>Shows all fields Splunk found in your results. Click any field to see its values and add it to your search.</p>"
+      },
+      {
+        "title": "The Search Bar in Detail",
+        "body": "<p>The search bar is your primary tool. Let's understand each component.</p><h4>Search Input</h4><p>Type your SPL here. Features include:</p><ul><li><strong>Auto-complete</strong>: Suggests commands and field names as you type</li><li><strong>Search history</strong>: Click the clock icon to see recent searches</li><li><strong>Syntax highlighting</strong>: Commands and pipes are color-coded</li></ul><h4>Time Picker</h4><p>Controls which time range to search. Options include:</p><ul><li><strong>Presets</strong>: Last 15 minutes, Last 24 hours, etc.</li><li><strong>Relative</strong>: Custom relative ranges like \"Last 2 hours\"</li><li><strong>Real-time</strong>: Continuously updating results</li><li><strong>Date Range</strong>: Specific dates and times</li></ul><h4>Search Mode</h4><ul><li><strong>Fast</strong>: Only returns essential fields (fastest)</li><li><strong>Smart</strong>: Balances speed and field extraction (recommended)</li><li><strong>Verbose</strong>: Extracts all possible fields (slowest)</li></ul><p>Start with <strong>Smart</strong> mode until you have specific needs.</p>"
+      },
+      {
+        "title": "The Field Sidebar",
+        "body": "<p>The field sidebar (left side of results) is incredibly useful for exploring your data.</p><h4>Field Categories</h4><ul><li><strong>Selected Fields</strong>: Fields currently shown in your results (default: host, source, sourcetype)</li><li><strong>Interesting Fields</strong>: Fields that appear in at least 20% of events</li><li><strong>Other Fields</strong>: Click \"All Fields\" to see every extracted field</li></ul><h4>Using the Sidebar</h4><p>Click any field name to see:</p><ul><li><strong>Top values</strong>: Most common values for that field</li><li><strong>Value count</strong>: How many unique values exist</li><li><strong>Coverage</strong>: What percentage of events have this field</li></ul><h4>Quick Actions</h4><p>From the field popup, you can:</p><ul><li><strong>Add to search</strong>: Click a value to add <code>field=value</code> to your search</li><li><strong>Exclude from search</strong>: Add <code>field!=value</code></li><li><strong>Add to table</strong>: Include this field in your selected fields</li></ul><p>The sidebar makes exploration fast—you don't need to know field names in advance.</p>"
+      },
+      {
+        "title": "Try It: Your First Navigation",
+        "body": "<p>Let's practice navigating the interface with a simple exercise.</p><h4>Steps</h4><ol><li>Open <strong>Search & Reporting</strong> from the apps menu</li><li>In the search bar, type: <code>index=_internal</code></li><li>Set the time picker to <strong>Last 15 minutes</strong></li><li>Click the <strong>Search</strong> button (or press Enter)</li><li>Wait for results to appear</li></ol><h4>Explore the Results</h4><ol><li>Look at the <strong>Events</strong> tab—these are individual log entries</li><li>Click on the <strong>field sidebar</strong> to expand it if collapsed</li><li>Find the <code>sourcetype</code> field and click it</li><li>Notice the top values—these are the types of internal logs</li><li>Click one of the values to add it to your search</li></ol><p>The <code>_internal</code> index contains Splunk's own logs—it's always available for practice.</p>",
+        "example": {
+          "description": "Basic search to explore",
+          "spl": "index=_internal"
+        }
+      },
+      {
+        "title": "Results Display Options",
+        "body": "<p>After running a search, you have multiple ways to view results.</p><h4>Events Tab</h4><p>The default view. Shows:</p><ul><li>Timestamp for each event</li><li>The raw event text</li><li>Extracted fields (expand with arrow)</li></ul><p>Use Events view when you want to see the actual log data.</p><h4>Statistics Tab</h4><p>Appears when your search produces a table (using commands like <code>stats</code>, <code>table</code>). Shows:</p><ul><li>Columnar data</li><li>Sortable by clicking headers</li><li>Exportable to CSV</li></ul><h4>Visualization Tab</h4><p>Appears when your search produces chartable data. Options include:</p><ul><li>Line charts, bar charts, pie charts</li><li>Geographic maps</li><li>Single value displays</li></ul><h4>Patterns Tab</h4><p>Automatically finds common patterns in your events. Useful for:</p><ul><li>Understanding unfamiliar data</li><li>Finding structure in unstructured logs</li><li>Discovering event types</li></ul>"
+      },
+      {
+        "title": "Saving and Organizing Work",
+        "body": "<p>You don't have to retype searches every time. Splunk provides several ways to save your work.</p><h4>Save As Menu</h4><p>After running a search, click <strong>Save As</strong> to create:</p><ul><li><strong>Report</strong>: A saved search you can run again later</li><li><strong>Dashboard Panel</strong>: Add results to a dashboard</li><li><strong>Alert</strong>: Run automatically and notify you when conditions are met</li></ul><h4>Search History</h4><p>Click the <strong>clock icon</strong> in the search bar to see recent searches. You can:</p><ul><li>Re-run previous searches</li><li>Copy search text</li><li>See when searches were run</li></ul><h4>Jobs</h4><p>Click <strong>Activity > Jobs</strong> to see all your recent search jobs. Completed jobs are cached—you can view results again without re-running.</p>"
+      },
+      {
+        "title": "Practice Exercise",
+        "body": "<p>Now try a complete navigation exercise.</p><h4>Task</h4><ol><li>Open Search & Reporting</li><li>Run this search with <strong>Last 60 minutes</strong> selected:</li></ol>",
+        "example": {
+          "description": "Practice search for navigation",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR OR log_level=WARN"
+        },
+        "exercise": {
+          "instructions": [
+            "After results load, find the 'component' field in the sidebar",
+            "Click it to see which Splunk components are generating errors/warnings",
+            "Click one component value to filter to just those events",
+            "Switch between Events and Patterns tabs",
+            "Click Save As > Report and give it a name"
+          ]
+        }
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><strong>Search & Reporting</strong> is your main workspace</li><li>The <strong>search bar</strong> is where you type SPL queries</li><li>The <strong>time picker</strong> controls which time range to search—always set it intentionally</li><li>The <strong>field sidebar</strong> helps you explore data without knowing field names</li><li><strong>Events, Statistics, and Visualization</strong> tabs show results in different formats</li><li>Use <strong>Save As</strong> to save searches for reuse</li></ul>"
+  }
+}

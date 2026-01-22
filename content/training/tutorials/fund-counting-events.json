@@ -1,0 +1,158 @@
+{
+  "id": "fund-counting-events",
+  "type": "tutorial",
+  "title": "Counting and Grouping Events",
+  "description": "Learn to count events and group them by field values using the stats command—the foundation of data analysis in Splunk.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "15 min",
+  "tags": ["fundamentals", "stats", "count", "grouping", "beginner", "spl"],
+  "objectives": [
+    "Count total events in your search results",
+    "Count events grouped by field values",
+    "Use multiple aggregation functions together",
+    "Understand the stats command syntax"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Counting Matters",
+        "body": "<p>Counting is the foundation of data analysis. It answers questions like:</p><ul><li>How many failed login attempts occurred?</li><li>Which server has the most errors?</li><li>What are the top source IPs hitting our firewall?</li><li>How many events per hour are we processing?</li></ul><p>The <code>stats</code> command is your primary tool for counting and aggregating data in Splunk.</p>"
+      },
+      {
+        "title": "Counting All Events",
+        "body": "<p>The simplest count: how many events match your search?</p>",
+        "example": {
+          "description": "Count all matching events",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| stats count"
+        },
+        "explanation": "<p>This returns a single number: the total count of ERROR events in splunkd logs.</p><p>The result appears in the <strong>Statistics</strong> tab as a single row with one column.</p>"
+      },
+      {
+        "title": "Counting by a Field (Grouping)",
+        "body": "<p>More useful: count events grouped by a field value.</p>",
+        "example": {
+          "description": "Count events by host",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| stats count by host"
+        },
+        "explanation": "<p>This shows how many ERROR events came from each host. The result is a table with two columns:</p><table><tr><th>host</th><th>count</th></tr><tr><td>server01</td><td>145</td></tr><tr><td>server02</td><td>89</td></tr><tr><td>server03</td><td>203</td></tr></table><p>You can see at a glance which servers have the most errors.</p>"
+      },
+      {
+        "title": "Grouping by Multiple Fields",
+        "body": "<p>Group by multiple fields for more granular analysis.</p>",
+        "example": {
+          "description": "Count by host and component",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| stats count by host, component"
+        },
+        "explanation": "<p>This creates a row for each unique combination of host and component:</p><table><tr><th>host</th><th>component</th><th>count</th></tr><tr><td>server01</td><td>IndexProcessor</td><td>45</td></tr><tr><td>server01</td><td>Scheduler</td><td>23</td></tr><tr><td>server02</td><td>IndexProcessor</td><td>67</td></tr></table>"
+      },
+      {
+        "title": "Naming Your Count",
+        "body": "<p>Give your count column a meaningful name with <code>as</code>.</p>",
+        "example": {
+          "description": "Named count column",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| stats count as error_count by host"
+        },
+        "explanation": "<p>Instead of a column named \"count\", you get \"error_count\". This is clearer, especially when you have multiple aggregations.</p>"
+      },
+      {
+        "title": "Counting Unique Values",
+        "body": "<p>Use <code>dc</code> (distinct count) to count unique values.</p>",
+        "example": {
+          "description": "Count unique users",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| stats dc(component) as unique_components by host"
+        },
+        "explanation": "<p>This shows how many different components generated errors on each host—not total events, but unique component names.</p><table><tr><th>host</th><th>unique_components</th></tr><tr><td>server01</td><td>5</td></tr><tr><td>server02</td><td>3</td></tr></table><p>Server01 has errors from 5 different components; server02 from only 3.</p>"
+      },
+      {
+        "title": "Multiple Aggregations",
+        "body": "<p>Combine multiple functions in one stats command.</p>",
+        "example": {
+          "description": "Multiple aggregations",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count as total_events, dc(component) as unique_components, dc(host) as unique_hosts by log_level"
+        },
+        "explanation": "<p>This creates a summary by log level showing:</p><ul><li>Total events at each level</li><li>How many different components generated events at that level</li><li>How many different hosts had events at that level</li></ul><table><tr><th>log_level</th><th>total_events</th><th>unique_components</th><th>unique_hosts</th></tr><tr><td>INFO</td><td>50000</td><td>25</td><td>10</td></tr><tr><td>WARN</td><td>1200</td><td>8</td><td>6</td></tr><tr><td>ERROR</td><td>350</td><td>5</td><td>4</td></tr></table>"
+      },
+      {
+        "title": "The top Command: Quick Counts",
+        "body": "<p>The <code>top</code> command is a shortcut for counting and sorting.</p>",
+        "example": {
+          "description": "Top 10 components",
+          "spl": "index=_internal sourcetype=splunkd\n| top component"
+        },
+        "explanation": "<p>This is equivalent to:</p><pre><code>| stats count by component\n| sort - count\n| head 10</code></pre><p><code>top</code> automatically adds count and percentage columns.</p><h4>top Options</h4>",
+        "example2": {
+          "description": "Top with options",
+          "spl": "index=_internal sourcetype=splunkd\n| top 5 component showperc=false"
+        },
+        "explanation2": "<p>Options:</p><ul><li><code>top 5</code> - show top 5 (default is 10)</li><li><code>showperc=false</code> - hide percentage column</li><li><code>showcount=false</code> - hide count column</li></ul>"
+      },
+      {
+        "title": "The rare Command",
+        "body": "<p>The opposite of <code>top</code>—find the least common values.</p>",
+        "example": {
+          "description": "Least common components",
+          "spl": "index=_internal sourcetype=splunkd\n| rare component"
+        },
+        "explanation": "<p>Useful for finding:</p><ul><li>Unusual activity that happens infrequently</li><li>Rare error types</li><li>Outlier values</li></ul>"
+      },
+      {
+        "title": "Common Aggregation Functions",
+        "body": "<p>Beyond count, stats supports many functions:</p><table><tr><th>Function</th><th>Purpose</th><th>Example</th></tr><tr><td><code>count</code></td><td>Count events</td><td><code>stats count</code></td></tr><tr><td><code>dc(field)</code></td><td>Count unique values</td><td><code>stats dc(user)</code></td></tr><tr><td><code>sum(field)</code></td><td>Sum numeric values</td><td><code>stats sum(bytes)</code></td></tr><tr><td><code>avg(field)</code></td><td>Average value</td><td><code>stats avg(duration)</code></td></tr><tr><td><code>min(field)</code></td><td>Minimum value</td><td><code>stats min(_time)</code></td></tr><tr><td><code>max(field)</code></td><td>Maximum value</td><td><code>stats max(_time)</code></td></tr><tr><td><code>values(field)</code></td><td>List unique values</td><td><code>stats values(host)</code></td></tr><tr><td><code>list(field)</code></td><td>List all values</td><td><code>stats list(user)</code></td></tr></table>",
+        "example": {
+          "description": "Mixed aggregations",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count, min(_time) as first_seen, max(_time) as last_seen, values(log_level) as levels by component"
+        }
+      },
+      {
+        "title": "Practical Examples",
+        "body": "<h4>Example 1: Error Summary</h4>",
+        "example": {
+          "description": "Error summary by host and component",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| stats count as errors by host, component\n| sort - errors\n| head 10"
+        },
+        "example2_title": "Example 2: Activity Overview",
+        "example2": {
+          "description": "Activity summary",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count as events, dc(component) as components, dc(host) as hosts"
+        },
+        "example3_title": "Example 3: First and Last Seen",
+        "example3": {
+          "description": "When was each component active?",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count, earliest(_time) as first_seen, latest(_time) as last_seen by component\n| sort - count"
+        }
+      },
+      {
+        "title": "Practice Exercises",
+        "body": "<p>Practice counting with these exercises.</p><h4>Exercise 1: Basic Count</h4><p>Count total events in _internal with sourcetype=splunkd:</p>",
+        "example": {
+          "description": "Exercise 1 solution",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count"
+        },
+        "exercises": [
+          {
+            "title": "Exercise 2: Count by Field",
+            "prompt": "Count events by log_level",
+            "solution": "index=_internal sourcetype=splunkd\n| stats count by log_level"
+          },
+          {
+            "title": "Exercise 3: Top Components",
+            "prompt": "Find the top 5 most active components",
+            "solution": "index=_internal sourcetype=splunkd\n| top 5 component"
+          },
+          {
+            "title": "Exercise 4: Multiple Aggregations",
+            "prompt": "For each host, show event count and unique components",
+            "solution": "index=_internal sourcetype=splunkd\n| stats count as events, dc(component) as unique_components by host"
+          },
+          {
+            "title": "Exercise 5: Rare Values",
+            "prompt": "Find the 5 least common log levels",
+            "solution": "index=_internal sourcetype=splunkd\n| rare 5 log_level"
+          }
+        ]
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><code>stats count</code> counts total events</li><li><code>stats count by field</code> groups counts by field values</li><li><code>dc(field)</code> counts unique values (distinct count)</li><li>Use <code>as</code> to name your aggregation columns</li><li>Combine multiple aggregations: <code>stats count, dc(user), sum(bytes)</code></li><li><code>top</code> is a shortcut for count + sort + head</li><li><code>rare</code> finds least common values</li><li>Stats results appear in the Statistics tab</li></ul>"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "id": "inv-auth-correlation",
+  "type": "tutorial",
+  "title": "Authentication Correlation Techniques",
+  "description": "Correlate authentication events across domain controllers, endpoints, and applications to track user sessions, identify lateral movement, and detect credential abuse.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["investigation", "authentication", "correlation", "lateral-movement", "intermediate"],
+  "objectives": [
+    "Correlate authentication events across multiple sources",
+    "Track user sessions from login to logout",
+    "Identify lateral movement patterns",
+    "Detect credential abuse and pass-the-hash attacks"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Authentication Correlation?",
+        "body": "<p>Single authentication events tell part of the story. Correlation reveals:</p><ul><li>Complete user session activity</li><li>Movement between systems (lateral movement)</li><li>Credential reuse patterns</li><li>Timeline of account compromise</li></ul><h4>Data Sources for Correlation</h4><ul><li><strong>Domain Controllers</strong> - Kerberos (4768, 4769), NTLM authentication</li><li><strong>Endpoints</strong> - Local logon events (4624, 4625)</li><li><strong>VPN/Remote Access</strong> - Remote authentication logs</li><li><strong>Applications</strong> - Web apps, databases, cloud services</li></ul>"
+      },
+      {
+        "title": "Basic Cross-Source Correlation",
+        "body": "<h4>Finding All Authentication for a User</h4><pre><code>index=security OR index=vpn OR index=app_auth user=jsmith earliest=-24h\n| table _time, index, sourcetype, user, src_ip, dest, action\n| sort _time</code></pre><h4>Authentication Volume by Source</h4><pre><code>(index=security EventCode IN (4624, 4625)) OR index=vpn OR index=app_auth\n| eval source_type = case(\n    index=\"security\", \"Windows\",\n    index=\"vpn\", \"VPN\",\n    index=\"app_auth\", \"Application\",\n    true(), index)\n| stats count by user, source_type\n| sort - count</code></pre><h4>Unified Authentication View</h4><pre><code>index=security EventCode=4624\n| eval auth_source=\"windows\", outcome=\"success\"\n| append [search index=vpn action=success | eval auth_source=\"vpn\", outcome=\"success\"]\n| append [search index=app_auth status=200 | eval auth_source=\"app\", outcome=\"success\"]\n| table _time, user, src_ip, dest, auth_source, outcome\n| sort _time</code></pre>"
+      },
+      {
+        "title": "Tracking User Sessions",
+        "body": "<h4>Session Start and End</h4><pre><code>index=security EventCode IN (4624, 4634, 4647) user=jsmith\n| eval session_event = case(\n    EventCode=4624, \"login\",\n    EventCode=4634, \"logoff\",\n    EventCode=4647, \"logoff\")\n| transaction user dest maxspan=8h startswith=(session_event=\"login\") endswith=(session_event=\"logoff\")\n| eval session_duration = tostring(duration, \"duration\")\n| table _time, user, dest, session_duration, eventcount</code></pre><h4>Interactive Sessions Only</h4><pre><code>index=security EventCode=4624 Logon_Type IN (2, 10, 11) user=jsmith\n| eval session_type = case(\n    Logon_Type=2, \"Console\",\n    Logon_Type=10, \"RDP\",\n    Logon_Type=11, \"Cached\")\n| table _time, user, src_ip, dest, session_type</code></pre><h4>Concurrent Sessions Detection</h4><pre><code>index=security EventCode=4624 Logon_Type IN (2, 10)\n| bin _time span=5m\n| stats dc(dest) as concurrent_sessions, values(dest) as systems by user, _time\n| where concurrent_sessions > 1\n| table _time, user, concurrent_sessions, systems</code></pre>"
+      },
+      {
+        "title": "Lateral Movement Detection",
+        "body": "<p>Lateral movement occurs when an attacker moves from one system to another. Authentication patterns reveal this.</p><h4>Network Logon Spread</h4><pre><code>index=security EventCode=4624 Logon_Type=3\n| stats dc(dest) as systems_accessed, values(dest) as system_list, earliest(_time) as first_access, latest(_time) as last_access by user, src_ip\n| where systems_accessed > 5\n| eval access_window = (last_access - first_access) / 60\n| table user, src_ip, systems_accessed, access_window, system_list</code></pre><h4>Rapid System Hopping</h4><pre><code>index=security EventCode=4624 Logon_Type=3\n| sort _time\n| streamstats current=f last(dest) as prev_dest, last(_time) as prev_time by user\n| eval time_gap = _time - prev_time\n| where time_gap < 300 AND dest != prev_dest\n| table _time, user, src_ip, prev_dest, dest, time_gap</code></pre><p>Systems accessed within 5 minutes of each other indicate rapid movement.</p><h4>Unusual Destination Access</h4><pre><code>index=security EventCode=4624 Logon_Type=3\n| stats count by user, dest\n| eventstats avg(count) as avg_access, stdev(count) as stdev_access by dest\n| eval z_score = (count - avg_access) / stdev_access\n| where z_score > 2\n| table user, dest, count, z_score</code></pre>"
+      },
+      {
+        "title": "Credential Abuse Detection",
+        "body": "<h4>Same User, Multiple Sources</h4><pre><code>index=security EventCode=4624 earliest=-1h\n| stats dc(src_ip) as source_ips, values(src_ip) as ip_list by user\n| where source_ips > 3\n| table user, source_ips, ip_list</code></pre><h4>Pass-the-Hash Indicators (Event 4648)</h4><pre><code>index=security EventCode=4648\n| where SubjectUserName != TargetUserName\n| table _time, SubjectUserName, TargetUserName, TargetServerName\n| sort _time</code></pre><p>User A using User B's credentials is suspicious unless authorized.</p><h4>NTLM vs Kerberos Analysis</h4><pre><code>index=security EventCode=4624\n| stats count by user, Authentication_Package\n| xyseries user Authentication_Package count</code></pre><p>High NTLM usage when Kerberos is expected may indicate pass-the-hash attacks or misconfigurations.</p><h4>Service Account Misuse</h4><pre><code>index=security EventCode=4624 user=\"svc_*\"\n| stats dc(src_ip) as unique_sources, dc(Logon_Type) as logon_types, values(Logon_Type) as types by user\n| where logon_types > 1 OR unique_sources > 2\n| table user, unique_sources, types</code></pre><p>Service accounts should have predictable behavior.</p>"
+      },
+      {
+        "title": "VPN and Remote Access Correlation",
+        "body": "<h4>VPN Login to Internal Activity</h4><pre><code>index=vpn action=success user=jsmith\n| join type=inner user [search index=security EventCode=4624 user=jsmith]\n| where _time > vpn_time AND _time < vpn_time + 3600\n| table vpn_time, _time, user, vpn_src_ip, dest, Logon_Type</code></pre><h4>Post-VPN Activity Timeline</h4><pre><code>index=vpn action=success user=jsmith\n| head 1\n| map search=\"index=security user=jsmith earliest=$_time$ latest=+4h\n    | table _time, EventCode, dest, src_ip\n    | sort _time\"</code></pre><h4>VPN Without Subsequent Activity</h4><pre><code>index=vpn action=success earliest=-24h\n| join type=left user [search index=security EventCode=4624 earliest=-24h | dedup user]\n| where isnull(EventCode)\n| table _time, user, src_ip</code></pre><p>VPN login without any internal authentication is suspicious.</p>"
+      },
+      {
+        "title": "Application Authentication Correlation",
+        "body": "<h4>Web Application Login Correlation</h4><pre><code>index=app_auth app=\"corporate_portal\" action=login\n| lookup user_directory user OUTPUT department, manager\n| stats count, dc(src_ip) as unique_ips by user, department\n| where unique_ips > 3</code></pre><h4>Cross-Application Session Tracking</h4><pre><code>index=app_auth action=login user=jsmith\n| stats values(app) as apps_accessed, dc(app) as app_count, min(_time) as first_login, max(_time) as last_activity by user, src_ip\n| eval session_span = (last_activity - first_login) / 60\n| table user, src_ip, app_count, apps_accessed, session_span</code></pre><h4>Impossible Application Access</h4><pre><code>index=app_auth action=login\n| lookup geoip src_ip OUTPUT country, lat, lon\n| sort user, _time\n| streamstats current=f last(country) as prev_country, last(_time) as prev_time, last(lat) as prev_lat, last(lon) as prev_lon by user\n| eval time_diff = (_time - prev_time) / 3600\n| eval distance = sqrt(pow(lat - prev_lat, 2) + pow(lon - prev_lon, 2)) * 111\n| eval travel_speed = distance / time_diff\n| where travel_speed > 500 AND prev_country != country\n| table _time, user, prev_country, country, time_diff, travel_speed</code></pre>"
+      },
+      {
+        "title": "Building Investigation Queries",
+        "body": "<h4>Complete User Activity Summary</h4><pre><code>(index=security EventCode IN (4624, 4625)) OR index=vpn OR index=app_auth user=jsmith earliest=-7d\n| eval event_type = case(\n    EventCode=4624, \"Windows Login\",\n    EventCode=4625, \"Windows Failed\",\n    index=\"vpn\", \"VPN\",\n    index=\"app_auth\", \"App Login\",\n    true(), \"Other\")\n| eval outcome = if(EventCode=4625 OR action=\"failure\", \"failure\", \"success\")\n| stats count by event_type, outcome, src_ip\n| sort event_type</code></pre><h4>Authentication Anomaly Detection</h4><pre><code>index=security EventCode=4624 earliest=-7d\n| bin _time span=1d\n| stats dc(src_ip) as daily_ips, dc(dest) as daily_systems by user, _time\n| eventstats avg(daily_ips) as avg_ips, stdev(daily_ips) as stdev_ips, avg(daily_systems) as avg_systems, stdev(daily_systems) as stdev_systems by user\n| eval ip_zscore = (daily_ips - avg_ips) / stdev_ips\n| eval system_zscore = (daily_systems - avg_systems) / stdev_systems\n| where ip_zscore > 2 OR system_zscore > 2\n| table _time, user, daily_ips, avg_ips, ip_zscore, daily_systems, avg_systems, system_zscore</code></pre><h4>First-Time Access Detection</h4><pre><code>index=security EventCode=4624 Logon_Type=3 earliest=-1d\n| stats min(_time) as first_access by user, dest\n| join type=left user, dest [search index=security EventCode=4624 Logon_Type=3 earliest=-30d latest=-1d | stats count by user, dest]\n| where isnull(count)\n| table first_access, user, dest</code></pre><p>Users accessing systems for the first time in the last 30 days.</p>"
+      },
+      {
+        "title": "Correlation Best Practices",
+        "body": "<h4>Normalize User Names</h4><p>Different sources may format usernames differently:</p><pre><code>| eval user_normalized = lower(coalesce(\n    replace(user, \"DOMAIN\\\\\\\\\", \"\"),\n    replace(user, \"@domain.com\", \"\"),\n    user))</code></pre><h4>Handle Time Zone Differences</h4><pre><code>| eval _time_utc = strftime(_time, \"%Y-%m-%d %H:%M:%S UTC\")</code></pre><h4>Use Transaction Carefully</h4><p>Transaction is powerful but expensive. Use it with filters:</p><pre><code>index=security EventCode IN (4624, 4634) user=jsmith dest=server01\n| transaction user dest maxspan=8h</code></pre><p>Rather than:</p><pre><code>index=security EventCode IN (4624, 4634)\n| transaction user dest maxspan=8h</code></pre><h4>Leverage Lookups for Enrichment</h4><pre><code>| lookup user_directory user OUTPUT department, manager, is_admin\n| lookup asset_inventory dest OUTPUT asset_type, criticality</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key authentication correlation techniques:</p><ul><li><strong>Cross-source correlation</strong> - Combine Windows, VPN, and application logs</li><li><strong>Session tracking</strong> - Use transaction to group login/logoff events</li><li><strong>Lateral movement detection</strong> - Track rapid access to multiple systems</li><li><strong>Credential abuse</strong> - Identify pass-the-hash and credential sharing</li><li><strong>Baseline comparison</strong> - Use eventstats to find anomalous access patterns</li><li><strong>First-time access</strong> - Detect users accessing new systems</li></ul><p>Authentication correlation is the foundation of tracking attacker movement through your environment.</p>"
+      }
+    ]
+  }
+}

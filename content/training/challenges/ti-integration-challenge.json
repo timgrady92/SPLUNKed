@@ -1,0 +1,162 @@
+{
+  "id": "ti-integration-challenge",
+  "type": "challenge",
+  "title": "TI Integration Challenge: Build a Complete Detection Pipeline",
+  "description": "Design and implement a complete threat intelligence integration from raw feeds to automated detection. Demonstrate mastery of IOC matching, enrichment, prioritization, and operational metrics.",
+  "category": "threat-intel",
+  "difficulty": "advanced",
+  "duration": "40 min",
+  "tags": ["threat-intel", "challenge", "integration", "detection", "advanced"],
+  "objectives": [
+    "Build a multi-source threat intelligence aggregation pipeline",
+    "Implement intelligent IOC matching with contextual enrichment",
+    "Create prioritized alerting with false positive reduction",
+    "Design operational metrics for TI program effectiveness"
+  ],
+  "content": {
+    "scenario": "<p>You are the lead threat intelligence analyst at a mid-size enterprise. Management has asked you to demonstrate the value of the TI program by building an end-to-end detection pipeline that:</p><ol><li>Aggregates IOCs from multiple sources</li><li>Matches against live network data with enrichment</li><li>Prioritizes alerts to reduce analyst fatigue</li><li>Provides metrics showing program effectiveness</li></ol><h4>Available Resources</h4><table><tr><th>Resource</th><th>Description</th></tr><tr><td>Commercial feed</td><td>High quality, curated IOCs (IP, domain, hash)</td></tr><tr><td>Open source feed</td><td>Community-contributed, variable quality</td></tr><tr><td>Internal IOCs</td><td>From past incidents, high confidence</td></tr><tr><td>Asset inventory</td><td>IP to hostname, criticality, owner</td></tr><tr><td>User directory</td><td>User to department, privileged status</td></tr><tr><td>GeoIP database</td><td>IP to country, city, ASN</td></tr></table><h4>Data Available</h4><pre><code>Indexes:\n- firewall: src_ip, dest_ip, dest_port, action, bytes_in, bytes_out\n- dns: src_ip, query, answer, record_type\n- proxy: src_ip, dest, url, user, bytes, user_agent\n- endpoint: host, user, file_hash, file_path, process, command_line\n\nLookups (pre-existing):\n- commercial_feed.csv: indicator, type, confidence, category, source\n- opensource_feed.csv: indicator, type, confidence, category, source  \n- internal_iocs.csv: indicator, type, confidence, category, source\n- asset_inventory.csv: ip, hostname, criticality, department, owner\n- user_directory.csv: user, department, manager, is_privileged\n- geoip.csv: ip, country, city, asn, org</code></pre>",
+    "requirements": [
+      {
+        "id": "req1",
+        "title": "Requirement 1: Feed Aggregation",
+        "description": "Create a search that aggregates IOCs from all three feeds into a unified lookup with deduplication and confidence scoring.",
+        "criteria": [
+          "Combine commercial, opensource, and internal feeds",
+          "Deduplicate by indicator, keeping highest confidence",
+          "Track which sources contain each IOC",
+          "Output to master_threat_intel.csv lookup"
+        ],
+        "hints": [
+          "Use append to combine feeds",
+          "stats can aggregate values() and max() by indicator",
+          "mvcount(sources) shows multi-source validation"
+        ],
+        "solution": "| inputlookup commercial_feed.csv\n| append [| inputlookup opensource_feed.csv]\n| append [| inputlookup internal_iocs.csv]\n| eval source_priority = case(\n    source=\"internal\", 100,\n    source=\"commercial\", 80,\n    source=\"opensource\", 50,\n    true(), 30)\n| stats \n    max(confidence) as confidence,\n    max(source_priority) as priority,\n    values(source) as sources,\n    values(category) as categories,\n    first(type) as type\n    by indicator\n| eval source_count = mvcount(sources)\n| eval adjusted_confidence = case(\n    source_count >= 3, \"high\",\n    source_count >= 2 AND confidence=\"high\", \"high\",\n    source_count >= 2, \"medium\",\n    confidence=\"high\", \"medium\",\n    true(), \"low\")\n| table indicator, type, adjusted_confidence, sources, categories, source_count\n| outputlookup master_threat_intel.csv"
+      },
+      {
+        "id": "req2",
+        "title": "Requirement 2: Multi-Source IOC Matching",
+        "description": "Create a search that matches IOCs across firewall, DNS, and proxy data with appropriate field mappings.",
+        "criteria": [
+          "Match IP IOCs against firewall src_ip and dest_ip",
+          "Match domain IOCs against DNS queries and proxy destinations",
+          "Match hash IOCs against endpoint file_hash",
+          "Identify which field matched for each hit"
+        ],
+        "hints": [
+          "Multiple lookup calls with different OUTPUT field names",
+          "Use coalesce to create unified match fields",
+          "Track match_type to know which data source triggered"
+        ],
+        "solution": "index=firewall OR index=dns OR index=proxy OR index=endpoint earliest=-1h\n| eval check_ip = coalesce(dest_ip, src_ip)\n| eval check_domain = coalesce(query, dest)\n| eval check_hash = file_hash\n| lookup master_threat_intel.csv indicator as check_ip OUTPUT adjusted_confidence as ip_confidence, categories as ip_categories\n| lookup master_threat_intel.csv indicator as check_domain OUTPUT adjusted_confidence as domain_confidence, categories as domain_categories  \n| lookup master_threat_intel.csv indicator as check_hash OUTPUT adjusted_confidence as hash_confidence, categories as hash_categories\n| where isnotnull(ip_confidence) OR isnotnull(domain_confidence) OR isnotnull(hash_confidence)\n| eval match_type = case(\n    isnotnull(hash_confidence), \"file_hash\",\n    isnotnull(domain_confidence), \"domain\",\n    isnotnull(ip_confidence), \"ip\")\n| eval matched_indicator = case(\n    match_type=\"file_hash\", check_hash,\n    match_type=\"domain\", check_domain,\n    match_type=\"ip\", check_ip)\n| eval confidence = coalesce(hash_confidence, domain_confidence, ip_confidence)\n| eval categories = coalesce(hash_categories, domain_categories, ip_categories)\n| table _time, index, src_ip, matched_indicator, match_type, confidence, categories"
+      },
+      {
+        "id": "req3",
+        "title": "Requirement 3: Contextual Enrichment",
+        "description": "Enrich IOC matches with asset criticality, user context, and geographic information.",
+        "criteria": [
+          "Add asset criticality and owner from inventory",
+          "Add user department and privileged status",
+          "Add geographic context (country, ASN) for external IPs",
+          "Create summary field combining enrichment highlights"
+        ],
+        "hints": [
+          "Chain multiple lookup calls for different enrichment sources",
+          "Use conditional logic to only add geo for external IPs",
+          "mvappend can build a multi-value summary field"
+        ],
+        "solution": "index=firewall earliest=-1h\n| lookup master_threat_intel.csv indicator as dest_ip OUTPUT adjusted_confidence as ti_confidence, categories as ti_categories, sources as ti_sources\n| where isnotnull(ti_confidence)\n| lookup asset_inventory.csv ip as src_ip OUTPUT hostname, criticality, department as asset_department, owner\n| lookup user_directory.csv user OUTPUT department as user_department, manager, is_privileged\n| lookup geoip.csv ip as dest_ip OUTPUT country, city, asn, org\n| eval is_external_dest = if(NOT cidrmatch(\"10.0.0.0/8\", dest_ip) AND NOT cidrmatch(\"192.168.0.0/16\", dest_ip), \"yes\", \"no\")\n| eval enrichment_summary = mvappend(\n    \"TI: \" . ti_confidence . \" (\" . mvjoin(ti_categories, \",\") . \")\",\n    if(isnotnull(criticality), \"Asset: \" . criticality, null()),\n    if(is_privileged=\"true\", \"PRIVILEGED USER\", null()),\n    if(isnotnull(country) AND is_external_dest=\"yes\", \"Geo: \" . country . \" (\" . org . \")\", null())\n)\n| table _time, src_ip, hostname, user, dest_ip, ti_confidence, ti_categories, criticality, is_privileged, country, org, enrichment_summary"
+      },
+      {
+        "id": "req4",
+        "title": "Requirement 4: Priority Scoring",
+        "description": "Implement a priority scoring system that ranks alerts based on TI confidence, asset criticality, and user context.",
+        "criteria": [
+          "Score based on TI confidence (high=30, medium=20, low=10)",
+          "Add points for critical/high-value assets (30/20 points)",
+          "Add points for privileged users (20 points)",
+          "Bonus for multi-source validated IOCs",
+          "Map score to priority levels (critical/high/medium/low)"
+        ],
+        "hints": [
+          "Use case() for each scoring component",
+          "Sum components into total_score",
+          "Use case() again to map score ranges to priority names"
+        ],
+        "solution": "index=firewall earliest=-1h\n| lookup master_threat_intel.csv indicator as dest_ip OUTPUT adjusted_confidence as ti_confidence, source_count\n| where isnotnull(ti_confidence)\n| lookup asset_inventory.csv ip as src_ip OUTPUT criticality\n| lookup user_directory.csv user OUTPUT is_privileged\n| eval ti_score = case(\n    ti_confidence=\"high\", 30,\n    ti_confidence=\"medium\", 20,\n    ti_confidence=\"low\", 10,\n    true(), 0)\n| eval asset_score = case(\n    criticality=\"critical\", 30,\n    criticality=\"high\", 20,\n    criticality=\"medium\", 10,\n    true(), 0)\n| eval user_score = if(is_privileged=\"true\", 20, 0)\n| eval multi_source_bonus = if(source_count >= 2, 10, 0)\n| eval total_score = ti_score + asset_score + user_score + multi_source_bonus\n| eval priority = case(\n    total_score >= 70, \"critical\",\n    total_score >= 50, \"high\",\n    total_score >= 30, \"medium\",\n    true(), \"low\")\n| eval priority_breakdown = \"TI:\" . ti_score . \" Asset:\" . asset_score . \" User:\" . user_score . \" Multi:\" . multi_source_bonus\n| stats count by priority, priority_breakdown\n| sort - priority"
+      },
+      {
+        "id": "req5",
+        "title": "Requirement 5: False Positive Reduction",
+        "description": "Implement allowlist logic and contextual suppression to reduce false positives.",
+        "criteria": [
+          "Check against allowlist lookup before alerting",
+          "Suppress low-confidence IOCs unless on critical assets",
+          "Suppress known security tool traffic",
+          "Log suppressed events separately for auditing"
+        ],
+        "hints": [
+          "Allowlist lookup with OUTPUT reason",
+          "Use case() to evaluate suppression conditions",
+          "Split output into alerted vs suppressed for metrics"
+        ],
+        "solution": "index=firewall earliest=-1h\n| lookup master_threat_intel.csv indicator as dest_ip OUTPUT adjusted_confidence as ti_confidence\n| where isnotnull(ti_confidence)\n| lookup allowlist.csv indicator as dest_ip OUTPUT reason as allowlist_reason, approved_by\n| lookup asset_inventory.csv ip as src_ip OUTPUT criticality, asset_type\n| eval suppress_reason = case(\n    isnotnull(allowlist_reason), \"allowlisted: \" . allowlist_reason,\n    asset_type=\"security_scanner\", \"security_tool_traffic\",\n    asset_type=\"threat_research\", \"research_system\",\n    ti_confidence=\"low\" AND criticality!=\"critical\", \"low_confidence_non_critical\",\n    true(), null())\n| eval alert_status = if(isnull(suppress_reason), \"alert\", \"suppressed\")\n| stats count by alert_status, suppress_reason, ti_confidence\n| sort alert_status, - count"
+      },
+      {
+        "id": "req6",
+        "title": "Requirement 6: Operational Metrics Dashboard",
+        "description": "Create searches for a TI program effectiveness dashboard.",
+        "criteria": [
+          "IOC coverage: total IOCs in master lookup by type",
+          "Hit rate: percentage of IOCs that matched in last 7 days",
+          "Alert volume by source feed",
+          "True positive rate by feed (if outcome data available)"
+        ],
+        "hints": [
+          "inputlookup for IOC counts",
+          "Compare matched IOCs to total IOCs for hit rate",
+          "mvexpand sources to attribute alerts to feeds"
+        ],
+        "solution": "| inputlookup master_threat_intel.csv\n| stats count as total_iocs, dc(indicator) as unique_iocs by type\n| appendcols [\n    search index=firewall OR index=dns OR index=proxy earliest=-7d\n    | eval check_field = coalesce(dest_ip, query, dest)\n    | lookup master_threat_intel.csv indicator as check_field OUTPUT adjusted_confidence\n    | where isnotnull(adjusted_confidence)\n    | stats dc(check_field) as matched_iocs\n]\n| appendcols [\n    search index=firewall OR index=dns OR index=proxy earliest=-7d\n    | eval check_field = coalesce(dest_ip, query, dest)\n    | lookup master_threat_intel.csv indicator as check_field OUTPUT sources\n    | where isnotnull(sources)\n    | mvexpand sources\n    | stats count as alerts_by_source by sources\n    | stats values(sources) as feed_names, values(alerts_by_source) as feed_alert_counts\n]\n| eval hit_rate_pct = round(matched_iocs / unique_iocs * 100, 2)\n| table type, total_iocs, unique_iocs, matched_iocs, hit_rate_pct, feed_names, feed_alert_counts"
+      }
+    ],
+    "scoring": {
+      "total_points": 100,
+      "breakdown": [
+        {"requirement": "Feed Aggregation", "points": 15},
+        {"requirement": "Multi-Source Matching", "points": 20},
+        {"requirement": "Contextual Enrichment", "points": 15},
+        {"requirement": "Priority Scoring", "points": 20},
+        {"requirement": "False Positive Reduction", "points": 15},
+        {"requirement": "Operational Metrics", "points": 15}
+      ],
+      "passing_score": 70
+    },
+    "bonus_challenges": [
+      {
+        "title": "Bonus 1: CIDR Range Support",
+        "description": "Modify your IOC matching to support CIDR ranges for IP indicators.",
+        "points": 10
+      },
+      {
+        "title": "Bonus 2: Automated Feed Refresh",
+        "description": "Design a scheduled search workflow that refreshes the master lookup hourly.",
+        "points": 10
+      },
+      {
+        "title": "Bonus 3: Feed Quality Scoring",
+        "description": "Create a search that calculates true positive rate by feed source and recommends feeds for retirement.",
+        "points": 10
+      }
+    ],
+    "submission_checklist": [
+      "All six requirement searches execute without errors",
+      "Master lookup contains deduplicated IOCs with confidence scores",
+      "Matches appear across all data sources (firewall, DNS, proxy, endpoint)",
+      "Enrichment adds asset, user, and geo context appropriately",
+      "Priority scoring produces reasonable distribution (not all critical or all low)",
+      "Allowlist and suppression logic reduces alert volume appropriately",
+      "Metrics dashboard shows coverage, hit rate, and source attribution"
+    ]
+  }
+}

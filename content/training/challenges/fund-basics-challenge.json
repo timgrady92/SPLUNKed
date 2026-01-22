@@ -1,0 +1,157 @@
+{
+  "id": "fund-basics-challenge",
+  "type": "challenge",
+  "title": "Splunk Fundamentals Challenge",
+  "description": "Test your understanding of Splunk fundamentals. Complete these tasks without hints to demonstrate your skills.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "25 min",
+  "tags": ["fundamentals", "challenge", "beginner", "assessment"],
+  "objectives": [
+    "Demonstrate proficiency with basic search syntax",
+    "Show ability to use fields, filtering, and sorting",
+    "Prove understanding of counting and grouping",
+    "Create meaningful visualizations"
+  ],
+  "content": {
+    "scenario": "<p>You're a new security analyst starting your first day on the job. Your manager wants to assess your Splunk skills by having you complete a series of tasks using Splunk's internal logs.</p><p>Complete each requirement without referring to hints. The solutions are provided so you can check your work after attempting each task.</p><h4>Data Available</h4><p>You'll work with <code>index=_internal</code>, which contains Splunk's own operational logs. Key fields include:</p><ul><li><code>sourcetype</code> - Type of log (splunkd, scheduler, etc.)</li><li><code>log_level</code> - Severity (INFO, WARN, ERROR, DEBUG)</li><li><code>component</code> - Splunk subsystem that generated the log</li><li><code>host</code> - Server name</li><li><code>message</code> - The log message text</li></ul><h4>Time Range</h4><p>Use <strong>Last 60 minutes</strong> for all tasks unless otherwise specified.</p>",
+    "requirements": [
+      {
+        "id": "req1",
+        "title": "Requirement 1: Basic Search",
+        "description": "Find all events in the _internal index where the sourcetype is 'splunkd' and the log_level is 'ERROR'. Display only the first 20 results.",
+        "criteria": [
+          "Search the _internal index",
+          "Filter for sourcetype=splunkd",
+          "Filter for log_level=ERROR",
+          "Limit to 20 results"
+        ],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR\n| head 20"
+      },
+      {
+        "id": "req2",
+        "title": "Requirement 2: Field Selection",
+        "description": "Create a table showing the timestamp, host, component, and message for ERROR events. Sort by time with newest first.",
+        "criteria": [
+          "Include fields: _time, host, component, message",
+          "Filter for ERROR events",
+          "Sort by time descending"
+        ],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR\n| table _time, host, component, message\n| sort - _time"
+      },
+      {
+        "id": "req3",
+        "title": "Requirement 3: Counting Events",
+        "description": "Count the total number of events by log_level and sort the results to show the most common level first.",
+        "criteria": [
+          "Use stats to count by log_level",
+          "Sort by count descending"
+        ],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd\n| stats count by log_level\n| sort - count"
+      },
+      {
+        "id": "req4",
+        "title": "Requirement 4: Multiple Groupings",
+        "description": "Create a summary showing the count of events for each combination of host and log_level. Name the count column 'event_count'.",
+        "criteria": [
+          "Group by both host and log_level",
+          "Name the count column 'event_count'",
+          "Sort by host, then by event_count descending"
+        ],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd\n| stats count as event_count by host, log_level\n| sort host, - event_count"
+      },
+      {
+        "id": "req5",
+        "title": "Requirement 5: Finding Top Values",
+        "description": "Find the top 5 components generating ERROR events. Include the count and percentage.",
+        "criteria": [
+          "Filter for ERROR events",
+          "Find top 5 components",
+          "Show count and percentage"
+        ],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR\n| top 5 component"
+      },
+      {
+        "id": "req6",
+        "title": "Requirement 6: Deduplication",
+        "description": "Show a unique list of hosts that have generated ERROR events, with their most recent error time.",
+        "criteria": [
+          "Filter for ERROR events",
+          "Show unique hosts only",
+          "Include when the last error occurred",
+          "Sort by most recent first"
+        ],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR\n| sort - _time\n| dedup host\n| table _time, host, component, message"
+      },
+      {
+        "id": "req7",
+        "title": "Requirement 7: Time Visualization",
+        "description": "Create a timechart showing event count over time, split by log_level, using 10-minute buckets.",
+        "criteria": [
+          "Use timechart command",
+          "Set span to 10 minutes",
+          "Split by log_level"
+        ],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd\n| timechart span=10m count by log_level"
+      },
+      {
+        "id": "req8",
+        "title": "Requirement 8: Complex Query",
+        "description": "Find all ERROR and WARN events that are NOT from the 'Metrics' or 'Scheduler' components. Show the time, host, component, log_level, and first 100 characters of the message.",
+        "criteria": [
+          "Filter for ERROR OR WARN log_level",
+          "Exclude Metrics and Scheduler components",
+          "Select specific fields including truncated message",
+          "Limit to 30 results"
+        ],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd (log_level=ERROR OR log_level=WARN)\n| where component!=\"Metrics\" AND component!=\"Scheduler\"\n| eval short_message = substr(message, 1, 100)\n| table _time, host, component, log_level, short_message\n| head 30"
+      }
+    ],
+    "scoring": {
+      "total_points": 100,
+      "breakdown": [
+        {"requirement": "Basic Search", "points": 10},
+        {"requirement": "Field Selection", "points": 10},
+        {"requirement": "Counting Events", "points": 15},
+        {"requirement": "Multiple Groupings", "points": 15},
+        {"requirement": "Finding Top Values", "points": 10},
+        {"requirement": "Deduplication", "points": 15},
+        {"requirement": "Time Visualization", "points": 10},
+        {"requirement": "Complex Query", "points": 15}
+      ],
+      "passing_score": 70
+    },
+    "bonus_challenges": [
+      {
+        "title": "Bonus 1: Error Trend Analysis",
+        "description": "Create a search that identifies whether errors are increasing or decreasing over the last hour. Compare the error count in the first 30 minutes to the last 30 minutes.",
+        "points": 10
+      },
+      {
+        "title": "Bonus 2: Component Health Report",
+        "description": "Create a summary table showing for each component: total events, error count, warning count, and error percentage. Sort by error percentage descending.",
+        "points": 10
+      },
+      {
+        "title": "Bonus 3: Multi-Value Analysis",
+        "description": "For each host, show the list of unique components that have generated errors and the list of unique log levels observed.",
+        "points": 10
+      }
+    ],
+    "submission_checklist": [
+      "All 8 requirements produce results without errors",
+      "Searches use appropriate time ranges",
+      "Results are formatted clearly (tables where appropriate)",
+      "Complex query correctly combines multiple conditions",
+      "Timechart displays properly in Visualization tab"
+    ]
+  }
+}

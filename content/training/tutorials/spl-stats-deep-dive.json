@@ -1,0 +1,65 @@
+{
+  "id": "spl-stats-deep-dive",
+  "type": "tutorial",
+  "title": "Stats Command Deep Dive",
+  "description": "Master the stats command beyond basic count, including aggregation functions, multiple aggregations, by-clause grouping, null handling, and sparklines.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["spl", "stats", "aggregation", "intermediate"],
+  "objectives": [
+    "Use aggregation functions beyond count (dc, values, list, sum, avg)",
+    "Combine multiple aggregations in a single stats command",
+    "Control grouping behavior with the by clause",
+    "Handle null values in aggregations",
+    "Add sparklines for trend visualization"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Beyond Basic Count",
+        "body": "<p>The <code>stats</code> command is the workhorse of SPL analysis. While <code>count</code> is the most common function, mastering the full stats family unlocks powerful analytical capabilities.</p><h4>The Stats Function Categories</h4><ul><li><strong>Counting</strong>: count, dc (distinct count)</li><li><strong>Aggregating</strong>: sum, avg, min, max, range, stdev</li><li><strong>Collecting</strong>: values, list, first, last</li><li><strong>Statistical</strong>: perc&lt;N&gt;, median, mode</li><li><strong>Time</strong>: earliest, latest, rate</li></ul>"
+      },
+      {
+        "title": "Distinct Count (dc)",
+        "body": "<p>Count unique values rather than total occurrences:</p><pre><code>index=security sourcetype=auth action=failure\n| stats count as total_failures, dc(user) as unique_users_affected by src_ip\n| sort - total_failures</code></pre><p>This reveals the difference between a brute force attack (many failures, few users) and credential stuffing (many failures, many users).</p><h4>Use Cases for dc()</h4><ul><li><code>dc(user)</code> - How many unique users?</li><li><code>dc(src_ip)</code> - How many unique sources?</li><li><code>dc(dest)</code> - How many systems targeted?</li><li><code>dc(signature)</code> - How many unique alert types?</li></ul>"
+      },
+      {
+        "title": "Values vs List",
+        "body": "<p>Both collect field values, but with important differences:</p><h4>values() - Unique Values Only</h4><pre><code>index=security sourcetype=auth\n| stats count, values(action) as actions by user</code></pre><p>Returns each unique value once: <code>actions = [\"success\", \"failure\"]</code></p><h4>list() - All Values Including Duplicates</h4><pre><code>index=security sourcetype=auth\n| stats count, list(action) as all_actions by user</code></pre><p>Returns every occurrence: <code>all_actions = [\"success\", \"success\", \"failure\", \"success\"]</code></p><h4>When to Use Each</h4><ul><li><code>values()</code> - \"What types of actions occurred?\"</li><li><code>list()</code> - \"What was the sequence of actions?\"</li></ul><p><strong>Warning:</strong> <code>list()</code> can create very large multivalue fields. Use with limits.</p>"
+      },
+      {
+        "title": "Sum, Avg, and Statistical Functions",
+        "body": "<p>Numeric aggregations for quantitative analysis:</p><pre><code>index=network sourcetype=firewall\n| stats sum(bytes_out) as total_bytes, avg(bytes_out) as avg_bytes, max(bytes_out) as max_transfer, stdev(bytes_out) as transfer_variability by src_ip\n| where total_bytes > 1000000000</code></pre><h4>Percentiles for Outlier Detection</h4><pre><code>index=network sourcetype=firewall\n| stats perc95(bytes_out) as p95_bytes, perc99(bytes_out) as p99_bytes by src_ip</code></pre><p>Percentiles help establish what's \"normal\" - anything above p95 or p99 may warrant investigation.</p><h4>Range for Variability</h4><pre><code>index=security sourcetype=auth\n| stats count, range(_time) as active_window by user</code></pre><p>The <code>range</code> function shows the span between min and max - useful for seeing how long an entity was active.</p>"
+      },
+      {
+        "title": "Multiple Aggregations",
+        "body": "<p>Combine multiple functions in a single stats command for efficient analysis:</p><pre><code>index=security sourcetype=auth earliest=-24h\n| stats count as total_auth, count(eval(action=\"failure\")) as failures, count(eval(action=\"success\")) as successes, dc(src_ip) as source_ips, dc(dest) as destinations, earliest(_time) as first_seen, latest(_time) as last_seen by user</code></pre><p>This single command creates a comprehensive user activity summary.</p><h4>Conditional Counting with eval</h4><p>The pattern <code>count(eval(condition))</code> counts only matching events:</p><pre><code>| stats count(eval(status>=400)) as errors, count(eval(status>=200 AND status<300)) as success, count(eval(status>=300 AND status<400)) as redirects</code></pre>"
+      },
+      {
+        "title": "The by Clause: Grouping Fundamentals",
+        "body": "<p>The <code>by</code> clause creates groups for aggregation:</p><pre><code>| stats count by user</code></pre><p>One row per unique user value.</p><h4>Multiple by Fields</h4><pre><code>| stats count by user, src_ip, dest</code></pre><p>One row per unique combination of user + src_ip + dest.</p><h4>Grouping Order Matters</h4><p>The first by-field becomes the primary grouping. Consider your analysis goal:</p><ul><li><code>by user, src_ip</code> - Analysis centered on users</li><li><code>by src_ip, user</code> - Analysis centered on sources</li></ul>"
+      },
+      {
+        "title": "Handling Nulls in Stats",
+        "body": "<p>Null handling in stats is crucial for accurate results:</p><h4>Default Behavior</h4><p>By default, <code>stats</code> ignores null values in aggregation fields but groups null by-values together.</p><pre><code>index=security\n| stats count by user</code></pre><p>Events with null user are grouped into a row where user is blank.</p><h4>Excluding Null Groups</h4><pre><code>index=security\n| stats count by user\n| where isnotnull(user)</code></pre><h4>Counting Nulls Explicitly</h4><pre><code>| stats count, count(user) as events_with_user, count(eval(isnull(user))) as events_without_user</code></pre><p>This reveals data quality issues - how many events lack a user field?</p>"
+      },
+      {
+        "title": "Sparklines for Inline Trends",
+        "body": "<p>Add mini time-series charts to stats results:</p><pre><code>index=security sourcetype=auth action=failure earliest=-24h\n| stats count, sparkline(count, 1h) as trend by user\n| sort - count</code></pre><p>The sparkline shows hourly failure patterns for each user in a small inline chart.</p><h4>Sparkline Syntax</h4><p><code>sparkline(aggregation, span)</code></p><ul><li><code>sparkline(count, 1h)</code> - Hourly counts</li><li><code>sparkline(sum(bytes), 15m)</code> - 15-minute byte totals</li><li><code>sparkline(avg(duration), 30m)</code> - 30-minute average durations</li></ul><h4>Use Cases</h4><ul><li>Identify users with recent activity spikes</li><li>See if an IP's behavior is consistent or bursty</li><li>Spot time-based patterns within summary data</li></ul>"
+      },
+      {
+        "title": "First and Last Functions",
+        "body": "<p>Get boundary values from grouped data:</p><pre><code>index=security sourcetype=auth\n| stats first(action) as first_action, last(action) as last_action, first(_time) as first_time, last(_time) as last_time by user, src_ip</code></pre><p><strong>Important:</strong> <code>first</code> and <code>last</code> depend on event order. Use with time-sorted data or be explicit:</p><pre><code>| sort 0 _time\n| stats first(action) as first_action, last(action) as last_action by user</code></pre><h4>Earliest and Latest</h4><p>For time-based boundaries, <code>earliest</code> and <code>latest</code> are more reliable:</p><pre><code>| stats earliest(_time) as session_start, latest(_time) as session_end by session_id</code></pre><p>These functions find the min/max timestamps regardless of event order.</p>"
+      },
+      {
+        "title": "Common Patterns",
+        "body": "<h4>User Activity Summary</h4><pre><code>index=security sourcetype=auth earliest=-7d\n| stats count as total_auth, count(eval(action=\"failure\")) as failures, count(eval(action=\"success\")) as successes, dc(src_ip) as unique_sources, dc(dest) as systems_accessed, earliest(_time) as first_seen, latest(_time) as last_seen, sparkline(count, 1d) as daily_trend by user\n| eval failure_rate = round((failures/total_auth)*100, 1)\n| sort - total_auth</code></pre><h4>Source IP Risk Assessment</h4><pre><code>index=security sourcetype=auth action=failure earliest=-24h\n| stats count as failures, dc(user) as users_targeted, dc(dest) as systems_targeted, values(user) as sample_users, latest(_time) as last_attempt by src_ip\n| eval risk = case(\n    failures > 1000 AND users_targeted > 100, \"critical\",\n    failures > 500 OR users_targeted > 50, \"high\",\n    failures > 100, \"medium\",\n    true(), \"low\")\n| sort - failures</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key takeaways for mastering stats:</p><ul><li><strong>dc()</strong> counts unique values - essential for understanding attack breadth</li><li><strong>values() vs list()</strong> - unique values vs all occurrences</li><li><strong>count(eval(condition))</strong> - conditional counting without filtering</li><li><strong>sparkline()</strong> - inline trends within summary tables</li><li><strong>Multiple aggregations</strong> - one stats command can create comprehensive summaries</li><li><strong>Null awareness</strong> - understand how nulls affect your grouping and counting</li></ul><p>In the next tutorials, you'll learn how <code>eventstats</code> and <code>streamstats</code> extend these capabilities.</p>"
+      }
+    ]
+  }
+}

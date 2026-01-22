@@ -1,0 +1,104 @@
+{
+  "id": "spl-mastery-challenge",
+  "type": "challenge",
+  "title": "SPL Mastery Challenge: Build a Complete Detection",
+  "description": "Combine stats family, eval functions, rex extraction, and lookups to build a sophisticated insider threat detection query from scratch.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "35 min",
+  "tags": ["spl", "challenge", "stats", "eval", "rex", "lookup"],
+  "objectives": [
+    "Integrate multiple SPL techniques into a cohesive solution",
+    "Build baseline-aware anomaly detection",
+    "Apply field extraction and enrichment",
+    "Create actionable detection output"
+  ],
+  "content": {
+    "problem_statement": {
+      "title": "Challenge: Insider Threat Detection Query",
+      "description": "Build a detection query that identifies users who may be staging data for exfiltration. The detection should find users accessing an unusually high number of sensitive file shares, calculate their baseline, identify deviation, enrich with user context, and output actionable results for the SOC. This challenge combines all techniques from the SPL Mastery Bootcamp.",
+      "requirements": [
+        "Calculate each user's 30-day baseline for file share access",
+        "Identify users whose last 24-hour activity exceeds their baseline by >2 standard deviations",
+        "Filter to only users accessing 'sensitive' shares (shares with names containing 'finance', 'hr', 'legal', or 'executive')",
+        "Extract department from share path using rex (format: \\\\server\\department\\folder)",
+        "Enrich with user directory information (department, manager, location)",
+        "Calculate a risk score based on: deviation magnitude + number of sensitive shares + after-hours access",
+        "Output should include: user, risk_score, shares_accessed, baseline_avg, current_count, deviation, manager",
+        "Sort by risk_score descending, limit to top 20"
+      ],
+      "data_context": "File access logs are in index=file_access with sourcetype=file_audit. Key fields: user, share_path (format \\\\server\\share_name\\subfolder), action (read, write, delete), _time. User directory is available via lookup: user_directory.csv (user, department, manager, location). Normal business hours are 08:00-18:00 local time."
+    },
+    "constraints": [
+      "Query must complete in under 30 seconds on typical deployment",
+      "Use only techniques covered in the SPL Mastery Bootcamp",
+      "No custom commands or macros",
+      "Must handle users who have no 30-day history (new employees)",
+      "Risk score must be numeric and range from 0-100"
+    ],
+    "hints": [
+      {
+        "id": 1,
+        "title": "Identifying Sensitive Shares",
+        "content": "Use a regex or LIKE pattern to find sensitive shares: where match(share_path, \"(?i)(finance|hr|legal|executive)\"). The (?i) makes it case-insensitive."
+      },
+      {
+        "id": 2,
+        "title": "Baseline Calculation Approach",
+        "content": "Calculate 30-day stats first, then join or correlate with last 24 hours. Consider: | stats dc(share_path) as shares_30d by user | eventstats avg(shares_30d) as user_avg, stdev(shares_30d) as user_stdev"
+      },
+      {
+        "id": 3,
+        "title": "After-Hours Detection",
+        "content": "Extract hour from _time with: | eval hour = tonumber(strftime(_time, \"%H\")) | eval after_hours = if(hour < 8 OR hour >= 18, 1, 0)"
+      },
+      {
+        "id": 4,
+        "title": "Risk Score Formula",
+        "content": "A reasonable formula might be: risk_score = min(round((z_score * 20) + (sensitive_share_count * 5) + (after_hours_events * 10)), 100). Adjust weights based on your detection philosophy."
+      },
+      {
+        "id": 5,
+        "title": "Handling New Employees",
+        "content": "New employees have no baseline, so stdev may be 0 or null. Handle with: | eval z_score = if(user_stdev > 0, (current - avg) / user_stdev, if(current > 10, 3, 0)). This gives new users a z-score of 3 if they exceed 10 shares."
+      }
+    ],
+    "solution": {
+      "title": "Reference Solution",
+      "description": "This solution demonstrates one approach. Your implementation may differ while still meeting requirements.",
+      "panels": [
+        {
+          "title": "Step 1: Calculate 30-Day Baseline",
+          "purpose": "Establish normal behavior for each user",
+          "spl": "index=file_access sourcetype=file_audit earliest=-30d latest=-1d\n| where match(share_path, \"(?i)(finance|hr|legal|executive)\")\n| bin _time span=1d\n| stats dc(share_path) as daily_sensitive_shares by user, _time\n| stats avg(daily_sensitive_shares) as baseline_avg, stdev(daily_sensitive_shares) as baseline_stdev, count as days_with_activity by user"
+        },
+        {
+          "title": "Step 2: Calculate Last 24 Hours Activity",
+          "purpose": "Measure current behavior",
+          "spl": "index=file_access sourcetype=file_audit earliest=-24h\n| where match(share_path, \"(?i)(finance|hr|legal|executive)\")\n| eval hour = tonumber(strftime(_time, \"%H\"))\n| eval after_hours = if(hour < 8 OR hour >= 18, 1, 0)\n| rex field=share_path \"\\\\\\\\[^\\\\]+\\\\(?<share_dept>[^\\\\]+)\"\n| stats dc(share_path) as current_sensitive_shares, sum(after_hours) as after_hours_events, values(share_dept) as depts_accessed by user"
+        },
+        {
+          "title": "Step 3: Complete Detection Query",
+          "purpose": "Full solution combining all requirements",
+          "spl": "index=file_access sourcetype=file_audit earliest=-30d\n| where match(share_path, \"(?i)(finance|hr|legal|executive)\")\n| eval period = if(_time >= relative_time(now(), \"-1d\"), \"last_24h\", \"baseline\")\n| eval hour = tonumber(strftime(_time, \"%H\"))\n| eval after_hours = if(hour < 8 OR hour >= 18, 1, 0)\n| rex field=share_path \"\\\\\\\\[^\\\\]+\\\\(?<share_dept>[^\\\\]+)\"\n| eventstats dc(share_path) as total_sensitive_shares, sum(after_hours) as total_after_hours by user, period\n| where period=\"last_24h\"\n| dedup user\n| eval current_shares = total_sensitive_shares\n| eval current_after_hours = total_after_hours\n| join type=left user\n    [search index=file_access sourcetype=file_audit earliest=-30d latest=-1d\n    | where match(share_path, \"(?i)(finance|hr|legal|executive)\")\n    | bin _time span=1d\n    | stats dc(share_path) as daily_shares by user, _time\n    | stats avg(daily_shares) as baseline_avg, stdev(daily_shares) as baseline_stdev by user]\n| eval baseline_avg = coalesce(baseline_avg, 0)\n| eval baseline_stdev = coalesce(baseline_stdev, 1)\n| eval z_score = if(baseline_stdev > 0, round((current_shares - baseline_avg) / baseline_stdev, 2), if(current_shares > 10, 3, 0))\n| where z_score > 2\n| lookup user_directory.csv user OUTPUT department, manager, location\n| eval risk_score = min(round((z_score * 20) + (current_shares * 3) + (current_after_hours * 10)), 100)\n| eval deviation_pct = if(baseline_avg > 0, round((current_shares - baseline_avg) / baseline_avg * 100, 1), \"N/A\")\n| sort - risk_score\n| head 20\n| table user, risk_score, current_shares, baseline_avg, z_score, deviation_pct, current_after_hours, department, manager",
+          "notes": "This solution uses eventstats to calculate period-specific metrics, join for baseline comparison, coalesce for new user handling, and a weighted formula for risk scoring."
+        }
+      ],
+      "performance_notes": "The solution uses a 30-day time range which may be expensive. For production, consider: 1) Pre-calculating baselines with a scheduled search that outputs to a lookup, 2) Using tstats if a data model exists, 3) Reducing the baseline window to 14 days if 30 is too slow."
+    },
+    "acceptance_criteria": [
+      "Query returns users with >2 standard deviation increase in sensitive share access",
+      "Only shares containing 'finance', 'hr', 'legal', or 'executive' are counted",
+      "Risk score is calculated using multiple factors (deviation, count, after-hours)",
+      "Results are enriched with user directory information",
+      "Output is sorted by risk score and limited to top 20",
+      "New employees (no baseline) are handled without errors",
+      "Query completes in under 30 seconds"
+    ],
+    "evaluation_rubric": {
+      "meets_requirements": "Query calculates baseline, identifies deviation, filters to sensitive shares, and produces actionable output with user enrichment",
+      "exceeds_requirements": "Query includes sophisticated risk scoring, handles edge cases (new users, zero variance), and optimizes performance with efficient command ordering",
+      "exceptional": "Query could be deployed as a production detection with minimal modification, includes thoughtful weighting of risk factors, and demonstrates mastery of all SPL Mastery Bootcamp techniques"
+    }
+  }
+}

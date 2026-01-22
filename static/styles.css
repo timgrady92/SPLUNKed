@@ -2723,18 +2723,165 @@ kbd {
 
 /* Inline code in guides */
 .guide-detail-section code:not(.spl-code code) {
-    background: var(--bg-dark);
+    background: rgba(0, 0, 0, 0.3);
     padding: 2px 6px;
     border-radius: var(--radius-sm);
     font-size: 0.9em;
-    color: var(--splunk-teal);
-    border: 1px solid var(--border-subtle);
+    color: var(--splunk-amber);
+    border: none;
 }
 
 /* Better visual hierarchy for nested sections */
 .guide-detail-section + .guide-detail-section {
     padding-top: var(--space-md);
     border-top: 1px dashed var(--border-subtle);
+}
+
+/* ============================================
+   Lesson Content Styling (Markdown rendered)
+   ============================================ */
+
+/* Headings */
+.guide-modal-body h2 {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--splunk-teal);
+    margin: var(--space-xl) 0 var(--space-md) 0;
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.guide-modal-body h2:first-child {
+    margin-top: 0;
+}
+
+.guide-modal-body h3 {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--text-main);
+    margin: var(--space-lg) 0 var(--space-sm) 0;
+}
+
+.guide-modal-body h4 {
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: var(--space-md) 0 var(--space-sm) 0;
+}
+
+/* Paragraphs */
+.guide-modal-body p {
+    margin: 0 0 var(--space-md) 0;
+    line-height: 1.7;
+    color: var(--text-main);
+}
+
+/* Lists */
+.guide-modal-body ul,
+.guide-modal-body ol {
+    margin: 0 0 var(--space-md) 0;
+    padding-left: var(--space-xl);
+}
+
+.guide-modal-body li {
+    margin-bottom: var(--space-xs);
+    line-height: 1.6;
+    color: var(--text-main);
+}
+
+.guide-modal-body li strong {
+    color: var(--splunk-amber);
+}
+
+/* Inline code */
+.guide-modal-body code:not(pre code) {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15em 0.4em;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--splunk-amber);
+}
+
+/* Code blocks */
+.guide-modal-body pre {
+    margin: var(--space-md) 0;
+    padding: var(--space-md);
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-subtle);
+    border-left: 3px solid var(--splunk-orange);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+}
+
+.guide-modal-body pre code {
+    background: none;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-main);
+}
+
+/* Tables */
+.guide-modal-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--space-md) 0;
+    font-size: var(--text-sm);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.guide-modal-body th {
+    background: rgba(0, 0, 0, 0.3);
+    padding: var(--space-sm) var(--space-md);
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-main);
+    border-bottom: 2px solid var(--border-subtle);
+}
+
+.guide-modal-body td {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+}
+
+.guide-modal-body tr:last-child td {
+    border-bottom: none;
+}
+
+.guide-modal-body tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.guide-modal-body td code {
+    font-size: 0.85em;
+}
+
+/* Blockquotes */
+.guide-modal-body blockquote {
+    margin: var(--space-md) 0;
+    padding: var(--space-md);
+    padding-left: var(--space-lg);
+    background: rgba(var(--splunk-teal-rgb), 0.08);
+    border-left: 3px solid var(--splunk-teal);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.guide-modal-body blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+/* Horizontal rules */
+.guide-modal-body hr {
+    margin: var(--space-xl) 0;
+    border: none;
+    border-top: 1px solid var(--border-subtle);
 }
 
 /* ============================================
@@ -7443,6 +7590,89 @@ kbd {
     line-height: 1.6;
 }
 
+/* Training Content Tables */
+.tutorial-section-body table,
+.scenario-step-content table,
+.challenge-problem-text table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--space-md) 0;
+    font-size: var(--text-sm);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.tutorial-section-body th,
+.scenario-step-content th,
+.challenge-problem-text th {
+    background: rgba(0, 0, 0, 0.3);
+    padding: var(--space-sm) var(--space-md);
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-main);
+    border-bottom: 2px solid var(--border-subtle);
+}
+
+.tutorial-section-body td,
+.scenario-step-content td,
+.challenge-problem-text td {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+}
+
+.tutorial-section-body tr:last-child td,
+.scenario-step-content tr:last-child td,
+.challenge-problem-text tr:last-child td {
+    border-bottom: none;
+}
+
+.tutorial-section-body tr:nth-child(even) td,
+.scenario-step-content tr:nth-child(even) td,
+.challenge-problem-text tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Comparison and Reference Table Classes */
+.comparison-table,
+.reference-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--space-md) 0;
+    font-size: var(--text-sm);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.comparison-table th,
+.reference-table th {
+    background: rgba(0, 0, 0, 0.3);
+    padding: var(--space-sm) var(--space-md);
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-main);
+    border-bottom: 2px solid var(--border-subtle);
+}
+
+.comparison-table td,
+.reference-table td {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+}
+
+.comparison-table tr:last-child td,
+.reference-table tr:last-child td {
+    border-bottom: none;
+}
+
+.comparison-table tr:nth-child(even) td,
+.reference-table tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
 /* SPL Block in Training - matches glossary .spl-block styling */
 .training-spl-block {
     position: relative;
@@ -7515,6 +7745,14 @@ kbd {
     font-style: italic;
 }
 
+.training-spl-explanation code {
+    font-style: normal;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.1em 0.35em;
+    border-radius: var(--radius-sm);
+    color: var(--splunk-amber);
+}
+
 /* Scenario Styles */
 .scenario-situation {
     padding: var(--space-lg);
@@ -7551,6 +7789,20 @@ kbd {
     margin: 0;
     color: var(--text-main);
     line-height: 1.7;
+}
+
+/* Inline code styling for scenario content */
+.scenario-situation code,
+.scenario-card-question code,
+.scenario-card-body code,
+.scenario-card-finding code,
+.scenario-conclusion code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15em 0.4em;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--splunk-amber);
 }
 
 /* Scenario Narrative - Collapsible Cards */
@@ -7752,9 +8004,9 @@ kbd {
     padding: var(--space-sm) var(--space-md);
     color: var(--text-main);
     border-bottom: 1px solid var(--border-subtle);
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    max-width: 400px;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .scenario-output-table tbody tr:hover {
@@ -7866,7 +8118,7 @@ kbd {
     border-radius: var(--radius-sm);
     font-family: var(--font-mono);
     font-size: 0.9em;
-    color: var(--splunk-orange-light);
+    color: var(--splunk-amber);
 }
 
 .challenge-problem-text .training-spl-block {
@@ -7910,7 +8162,7 @@ kbd {
 }
 
 .challenge-hint:not(.revealed) {
-    opacity: 0.6;
+    /* Removed opacity: 0.6 to improve readability when combined with blur */
 }
 
 .challenge-hint:not(.revealed):hover {
@@ -7964,7 +8216,7 @@ kbd {
     border-radius: var(--radius-sm);
     font-family: var(--font-mono);
     font-size: 0.9em;
-    color: var(--splunk-teal);
+    color: var(--splunk-amber);
 }
 
 /* Challenge Workspace (SPL Input) */
@@ -8324,6 +8576,11 @@ kbd {
 .pipeline-track-badge.architect {
     background: rgba(var(--splunk-pink-rgb), 0.2);
     color: var(--splunk-pink);
+}
+
+.pipeline-track-badge.fundamentals {
+    background: rgba(var(--splunk-green-rgb), 0.18);
+    color: var(--splunk-green);
 }
 
 .pipeline-level-badge.beginner {

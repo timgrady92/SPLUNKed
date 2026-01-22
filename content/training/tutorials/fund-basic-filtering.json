@@ -1,0 +1,146 @@
+{
+  "id": "fund-basic-filtering",
+  "type": "tutorial",
+  "title": "Filtering Your Results",
+  "description": "Learn to narrow down results using the search and where commands. Master filtering techniques to find exactly what you need.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "15 min",
+  "tags": ["fundamentals", "filtering", "where", "search", "beginner", "spl"],
+  "objectives": [
+    "Filter results using keywords and field values",
+    "Use the search command to add conditions mid-search",
+    "Use the where command for precise field comparisons",
+    "Combine multiple filter conditions"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Filtering Matters",
+        "body": "<p>A typical search might return thousands or millions of events. Filtering narrows that down to exactly what you need.</p><p>Without filtering:</p><ul><li>Too much data to review manually</li><li>Important events buried in noise</li><li>Slow searches that time out</li></ul><p>With good filtering:</p><ul><li>Only relevant events appear</li><li>Quick answers to specific questions</li><li>Fast, efficient searches</li></ul>"
+      },
+      {
+        "title": "Basic Filtering in the Search Bar",
+        "body": "<p>The simplest filtering happens at the start of your search.</p>",
+        "example": {
+          "description": "Filter by index and keyword",
+          "spl": "index=_internal error"
+        },
+        "explanation": "<p>This filters in two ways:</p><ol><li><code>index=_internal</code> limits to one index</li><li><code>error</code> requires that keyword to be present</li></ol><p>You can add more conditions:</p>",
+        "example2": {
+          "description": "Multiple filter conditions",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR component=IndexProcessor"
+        },
+        "explanation2": "<p>Each condition further narrows the results. All conditions must be true (AND logic).</p>"
+      },
+      {
+        "title": "The search Command",
+        "body": "<p>Use the <code>search</code> command to add filters in the middle of your search pipeline.</p>",
+        "example": {
+          "description": "Using search to filter mid-pipeline",
+          "spl": "index=_internal sourcetype=splunkd\n| search log_level=ERROR OR log_level=WARN\n| table _time, host, log_level, message"
+        },
+        "explanation": "<p>The <code>search</code> command filters events after the pipe. This is useful when:</p><ul><li>You need to filter after other transformations</li><li>You're adding conditions based on calculated fields</li><li>You want to keep your base search simple</li></ul><h4>search Command Features</h4><ul><li>Supports same syntax as the search bar (keywords, fields, booleans)</li><li>Works with wildcards</li><li>Case-insensitive for keywords</li></ul>"
+      },
+      {
+        "title": "The where Command",
+        "body": "<p>The <code>where</code> command provides precise, expression-based filtering.</p>",
+        "example": {
+          "description": "Filter with where",
+          "spl": "index=_internal sourcetype=splunkd\n| where log_level=\"ERROR\""
+        },
+        "explanation": "<p><code>where</code> evaluates each event against an expression. Key differences from <code>search</code>:</p><table class=\"comparison-table\"><tr><th>Feature</th><th>search</th><th>where</th></tr><tr><td>Syntax</td><td><code>field=value</code></td><td><code>field=\"value\"</code> (quotes for strings)</td></tr><tr><td>Case sensitivity</td><td>No (for keywords)</td><td>Yes</td></tr><tr><td>Null handling</td><td>Includes nulls</td><td>Excludes nulls by default</td></tr><tr><td>Functions</td><td>Limited</td><td>Full eval function support</td></tr></table>"
+      },
+      {
+        "title": "Numeric Comparisons",
+        "body": "<p>For numeric fields, use comparison operators.</p>",
+        "example": {
+          "description": "Filter on numeric values",
+          "spl": "index=_internal sourcetype=splunkd\n| where log_level=\"ERROR\" AND _time > relative_time(now(), \"-1h\")"
+        },
+        "explanation": "<p>Common numeric comparisons:</p><table class=\"reference-table\"><tr><th>Expression</th><th>Meaning</th></tr><tr><td><code>bytes &gt; 1000</code></td><td>More than 1000 bytes</td></tr><tr><td><code>status &gt;= 400</code></td><td>HTTP error codes</td></tr><tr><td><code>duration &lt; 5</code></td><td>Less than 5 seconds</td></tr><tr><td><code>count != 0</code></td><td>Non-zero counts</td></tr></table>"
+      },
+      {
+        "title": "String Functions in where",
+        "body": "<p><code>where</code> supports functions for more complex filtering.</p>",
+        "example": {
+          "description": "Filter using string functions",
+          "spl": "index=_internal sourcetype=splunkd\n| where like(message, \"%connection%\")"
+        },
+        "explanation": "<h4>Useful Functions</h4><table class=\"reference-table\"><tr><th>Function</th><th>Purpose</th><th>Example</th></tr><tr><td><code>like(field, pattern)</code></td><td>Wildcard matching</td><td><code>like(user, \"admin%\")</code></td></tr><tr><td><code>match(field, regex)</code></td><td>Regex matching</td><td><code>match(ip, \"^10\\.\")</code></td></tr><tr><td><code>isnull(field)</code></td><td>Check if null</td><td><code>isnull(user)</code></td></tr><tr><td><code>isnotnull(field)</code></td><td>Check if not null</td><td><code>isnotnull(error_code)</code></td></tr><tr><td><code>len(field)</code></td><td>String length</td><td><code>len(password) &gt; 8</code></td></tr></table>"
+      },
+      {
+        "title": "Combining Conditions",
+        "body": "<p>Use AND, OR, and parentheses to build complex filters.</p>",
+        "example": {
+          "description": "Complex filter with multiple conditions",
+          "spl": "index=_internal sourcetype=splunkd\n| where (log_level=\"ERROR\" OR log_level=\"WARN\") AND component!=\"Metrics\""
+        },
+        "explanation": "<p>Operator precedence (highest to lowest):</p><ol><li>NOT</li><li>AND</li><li>OR</li></ol><p>Use parentheses to make your intent clear and override default precedence.</p>"
+      },
+      {
+        "title": "search vs where: When to Use Each",
+        "body": "<h4>Use search When:</h4><ul><li>Filtering by keywords in the raw event</li><li>You don't need case sensitivity</li><li>Combining with wildcards</li><li>Simple field=value conditions</li></ul><h4>Use where When:</h4><ul><li>Comparing numeric values</li><li>Case-sensitive matching is needed</li><li>Using functions (like, match, len)</li><li>Filtering on calculated fields</li><li>You need to exclude null values</li></ul><h4>Example Comparison</h4>",
+        "example": {
+          "description": "search approach",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR"
+        },
+        "example2": {
+          "description": "where approach",
+          "spl": "index=_internal sourcetype=splunkd\n| where log_level=\"ERROR\""
+        },
+        "explanation": "<p>Both find ERROR events, but <code>where</code> is case-sensitive (\"ERROR\" vs \"error\").</p>"
+      },
+      {
+        "title": "Filtering Patterns",
+        "body": "<h4>Pattern 1: Progressive Filtering</h4><p>Start broad, then narrow down:</p>",
+        "example": {
+          "description": "Progressive filtering",
+          "spl": "index=_internal sourcetype=splunkd\n| search error OR fail\n| where component!=\"TcpInputProc\"\n| table _time, host, component, message"
+        },
+        "example2_title": "Pattern 2: Filtering After Aggregation",
+        "example2": {
+          "description": "Filter aggregated results",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count by component\n| where count > 100"
+        },
+        "explanation2": "<p>Filter after <code>stats</code> to show only components with more than 100 events.</p>",
+        "example3_title": "Pattern 3: Exclude Known Noise",
+        "example3": {
+          "description": "Exclude noisy events",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| search NOT (component=Metrics OR component=Scheduler)\n| table _time, component, message"
+        }
+      },
+      {
+        "title": "Practice Exercises",
+        "body": "<p>Practice filtering with these exercises.</p><h4>Exercise 1: Basic Field Filter</h4><p>Find all WARN level events in _internal:</p>",
+        "example": {
+          "description": "Exercise 1 solution",
+          "spl": "index=_internal log_level=WARN\n| head 100"
+        },
+        "exercises": [
+          {
+            "title": "Exercise 2: Multiple Conditions",
+            "prompt": "Find ERROR events from the IndexProcessor component",
+            "solution": "index=_internal sourcetype=splunkd log_level=ERROR component=IndexProcessor"
+          },
+          {
+            "title": "Exercise 3: Using where",
+            "prompt": "Find events where the message contains 'connection'",
+            "solution": "index=_internal sourcetype=splunkd\n| where like(message, \"%connection%\")"
+          },
+          {
+            "title": "Exercise 4: Exclude Noise",
+            "prompt": "Find ERROR events but exclude the 'Metrics' component",
+            "solution": "index=_internal sourcetype=splunkd log_level=ERROR\n| where component!=\"Metrics\""
+          },
+          {
+            "title": "Exercise 5: Combined Filters",
+            "prompt": "Find ERROR or WARN events from any component except Scheduler",
+            "solution": "index=_internal sourcetype=splunkd (log_level=ERROR OR log_level=WARN)\n| where component!=\"Scheduler\"\n| table _time, log_level, component, message"
+          }
+        ]
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li>Filter early to reduce data volume and improve performance</li><li>Use <code>search</code> for keyword and simple field=value filtering</li><li>Use <code>where</code> for numeric comparisons, case-sensitivity, and functions</li><li><code>where</code> excludes null values; <code>search</code> does not</li><li>Combine conditions with AND, OR, NOT and parentheses</li><li>Common pattern: broad base search, then filter in pipeline</li><li>Always exclude known noise to focus on important events</li></ul>"
+  }
+}

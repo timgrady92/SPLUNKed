@@ -1,0 +1,148 @@
+{
+  "id": "onb-inputs-conf",
+  "type": "tutorial",
+  "title": "Configuring Data Inputs",
+  "description": "Master inputs.conf to collect data from files, network streams, and HTTP endpoints. Learn input types, metadata assignment, and deployment best practices.",
+  "category": "data-onboarding",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["data-onboarding", "inputs.conf", "file-monitor", "tcp", "udp", "hec", "forwarder"],
+  "objectives": [
+    "Configure file and directory monitoring inputs",
+    "Set up TCP and UDP network inputs",
+    "Deploy HTTP Event Collector endpoints",
+    "Assign appropriate metadata to inputs",
+    "Understand input deployment locations"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Understanding inputs.conf",
+        "body": "<p>The <code>inputs.conf</code> file defines what data Splunk collects and how it enters the pipeline. Every data source you want to index requires an input configuration.</p><h4>File Locations</h4><p>Inputs can be configured in several locations, evaluated in this order:</p><ul><li><code>$SPLUNK_HOME/etc/system/local/inputs.conf</code> - System-level inputs</li><li><code>$SPLUNK_HOME/etc/apps/&lt;app&gt;/local/inputs.conf</code> - App-specific inputs</li><li><code>$SPLUNK_HOME/etc/apps/&lt;app&gt;/default/inputs.conf</code> - App defaults</li></ul><p>For production deployments, always create inputs in an app directory, not in <code>system/local</code>. This makes configurations portable and manageable.</p><h4>Stanza Structure</h4><p>Each input is defined by a stanza header indicating the input type and path, followed by configuration attributes:</p>",
+        "example": {
+          "description": "Basic stanza structure",
+          "spl": "[<input_type>://<path>]\nattribute1 = value1\nattribute2 = value2\nsourcetype = your_sourcetype\nindex = your_index"
+        }
+      },
+      {
+        "title": "File Monitoring Inputs",
+        "body": "<p>File monitoring is the most common input type. Splunk watches files or directories and indexes new data as it's written.</p><h4>Monitor a Single File</h4>",
+        "example": {
+          "description": "Monitor a specific log file",
+          "spl": "[monitor:///var/log/application/app.log]\ndisabled = false\nindex = application\nsourcetype = app:logs\nhost_segment = 3"
+        },
+        "explanation": "<p>Key attributes for file monitoring:</p><ul><li><code>disabled</code> - Set to <code>false</code> to enable (inputs are disabled by default in some contexts)</li><li><code>index</code> - Target index for the data</li><li><code>sourcetype</code> - Determines parsing rules applied</li><li><code>host_segment</code> - Extract host from path segment (segment 3 of /var/log/application/ is \"application\")</li></ul>"
+      },
+      {
+        "title": "Directory Monitoring with Wildcards",
+        "body": "<p>Monitor entire directories or use wildcards to capture multiple log files dynamically.</p><h4>Monitor All Files in a Directory</h4>",
+        "example": {
+          "description": "Monitor all files in a directory",
+          "spl": "[monitor:///var/log/apache2/]\ndisabled = false\nindex = web\nsourcetype = apache:access\nwhitelist = access\\.log$\nblacklist = \\.(gz|zip|bz2)$"
+        },
+        "explanation": "<p>Directory monitoring attributes:</p><ul><li><code>whitelist</code> - Regex pattern; only matching files are monitored</li><li><code>blacklist</code> - Regex pattern; matching files are excluded</li><li><code>recursive</code> - Set to <code>true</code> to monitor subdirectories</li><li><code>followTail</code> - Set to <code>true</code> to only index new data (skip existing content)</li></ul><p><strong>Note:</strong> In Splunk 8.0+, <code>whitelist</code> and <code>blacklist</code> are renamed to <code>allowlist</code> and <code>denylist</code>. Both forms work for backward compatibility.</p>"
+      },
+      {
+        "title": "Wildcard Path Patterns",
+        "body": "<p>Use wildcards to monitor files matching patterns across multiple directories.</p>",
+        "example": {
+          "description": "Monitor logs across multiple application instances",
+          "spl": "[monitor:///opt/apps/*/logs/*.log]\ndisabled = false\nindex = applications\nsourcetype = app:generic\nhost_segment = 4"
+        },
+        "explanation": "<p>Wildcard behavior:</p><ul><li><code>*</code> matches any characters within a single directory level</li><li><code>...</code> (ellipsis) matches across directory levels recursively</li><li>Host segment 4 extracts the app name from <code>/opt/apps/<strong>appname</strong>/logs/</code></li></ul><h4>Recursive Monitoring</h4>",
+        "example2": {
+          "description": "Monitor all .log files recursively",
+          "spl": "[monitor:///var/log/.../*.log]\ndisabled = false\nindex = os\nsourcetype = syslog"
+        }
+      },
+      {
+        "title": "Network Inputs: TCP and UDP",
+        "body": "<p>Network inputs receive data over TCP or UDP connections. Use these for syslog, application streams, or any network-based data source.</p><h4>TCP Input</h4>",
+        "example": {
+          "description": "Receive syslog over TCP port 514",
+          "spl": "[tcp://514]\ndisabled = false\nindex = network\nsourcetype = syslog\nconnection_host = dns\nqueueSize = 100KB"
+        },
+        "explanation": "<p>TCP input attributes:</p><ul><li><code>connection_host</code> - How to determine host: <code>dns</code> (reverse lookup), <code>ip</code> (use IP), or <code>none</code></li><li><code>queueSize</code> - Buffer size for incoming data</li><li><code>restrictToHost</code> - Only accept connections from specified host</li></ul><h4>UDP Input</h4>",
+        "example2": {
+          "description": "Receive syslog over UDP port 514",
+          "spl": "[udp://514]\ndisabled = false\nindex = network\nsourcetype = syslog\nconnection_host = ip\nno_appending_timestamp = true"
+        }
+      },
+      {
+        "title": "Source-Specific Network Inputs",
+        "body": "<p>When receiving data from multiple sources on the same port, you may need to differentiate by source IP.</p>",
+        "example": {
+          "description": "Override sourcetype based on sending host",
+          "spl": "[tcp://514]\nindex = network\nsourcetype = syslog\n\n[source::tcp:514]\nTRANSFORMS-sourcetype = set_sourcetype_by_host"
+        },
+        "explanation": "<p>This pattern uses <code>props.conf</code> and <code>transforms.conf</code> to dynamically set sourcetype based on the sending host. You'll learn more about transforms in the field extraction tutorial.</p><h4>SSL/TLS Configuration</h4><p>For secure TCP inputs:</p>",
+        "example2": {
+          "description": "TCP input with SSL",
+          "spl": "[tcp-ssl://9997]\ndisabled = false\nindex = secure_logs\nsourcetype = secure:data"
+        }
+      },
+      {
+        "title": "HTTP Event Collector (HEC)",
+        "body": "<p>HEC provides a modern, scalable way to send data to Splunk over HTTP/HTTPS. It's ideal for applications, containers, and cloud services.</p><h4>Enable HEC Globally</h4><p>First, enable HEC in <code>inputs.conf</code>:</p>",
+        "example": {
+          "description": "Enable HTTP Event Collector",
+          "spl": "[http]\ndisabled = false\nport = 8088\nenableSSL = true\ndedicatedIoThreads = 2"
+        },
+        "explanation": "<p>Global HEC settings:</p><ul><li><code>port</code> - Listening port (default 8088)</li><li><code>enableSSL</code> - Enable HTTPS (strongly recommended)</li><li><code>dedicatedIoThreads</code> - Threads for handling connections</li><li><code>maxSockets</code> - Maximum concurrent connections</li><li><code>maxThreads</code> - Maximum processing threads</li></ul>"
+      },
+      {
+        "title": "HEC Tokens",
+        "body": "<p>Each HEC token defines permissions and default metadata for incoming data.</p>",
+        "example": {
+          "description": "HEC token configuration",
+          "spl": "[http://app_metrics]\ndisabled = false\ntoken = your-guid-token-here\nindex = metrics\nsourcetype = app:metrics\nindexes = metrics,metrics_summary\nuseACK = true"
+        },
+        "explanation": "<p>Token attributes:</p><ul><li><code>token</code> - The authentication token (GUID format)</li><li><code>index</code> - Default index when not specified in event</li><li><code>indexes</code> - Allowed indexes this token can write to</li><li><code>sourcetype</code> - Default sourcetype</li><li><code>useACK</code> - Enable acknowledgment for guaranteed delivery</li><li><code>allowQueryStringAuth</code> - Allow token in URL (less secure)</li></ul><h4>Sending Data to HEC</h4><p>Example curl command:</p>",
+        "example2": {
+          "description": "Send event via HEC",
+          "spl": "curl -k https://splunk:8088/services/collector/event \\\n  -H \"Authorization: Splunk your-guid-token-here\" \\\n  -d '{\"event\": \"User login successful\", \"sourcetype\": \"app:auth\"}'"
+        }
+      },
+      {
+        "title": "Scripted Inputs",
+        "body": "<p>Scripted inputs run external scripts on a schedule and index their output. Use these for APIs, databases, or custom data collection.</p>",
+        "example": {
+          "description": "Run a script every 5 minutes",
+          "spl": "[script:///opt/splunk/etc/apps/myapp/bin/collect_metrics.sh]\ndisabled = false\nindex = metrics\nsourcetype = custom:metrics\ninterval = 300\nhost = metrics_collector"
+        },
+        "explanation": "<p>Scripted input attributes:</p><ul><li><code>interval</code> - Seconds between executions (300 = 5 minutes)</li><li><code>passAuth</code> - Pass Splunk session key to script for API access</li><li><code>source</code> - Override the source value</li></ul><h4>Cron-Style Scheduling</h4>",
+        "example2": {
+          "description": "Run at specific times using cron syntax",
+          "spl": "[script:///opt/splunk/etc/apps/myapp/bin/daily_report.py]\ndisabled = false\nindex = reports\nsourcetype = daily:report\ninterval = 0 6 * * *"
+        }
+      },
+      {
+        "title": "Metadata Assignment Best Practices",
+        "body": "<p>Proper metadata assignment is critical for data organization and searchability.</p><h4>Essential Metadata</h4><table class=\"reference-table\"><tr><th>Attribute</th><th>Purpose</th><th>Best Practice</th></tr><tr><td><code>index</code></td><td>Data storage location</td><td>Always specify explicitly; never rely on default index</td></tr><tr><td><code>sourcetype</code></td><td>Parsing rules and field extractions</td><td>Use descriptive, namespaced names: <code>vendor:product:type</code></td></tr><tr><td><code>source</code></td><td>Data origin identifier</td><td>Usually auto-set; override only when needed</td></tr><tr><td><code>host</code></td><td>Originating system</td><td>Use <code>host_segment</code> or explicit value for non-obvious cases</td></tr></table><h4>Sourcetype Naming Convention</h4><p>Follow a consistent naming pattern:</p><ul><li><code>vendor:product:logtype</code> - e.g., <code>cisco:asa:firewall</code></li><li><code>category:application</code> - e.g., <code>web:nginx:access</code></li><li>Lowercase with colons as separators</li><li>Avoid spaces and special characters</li></ul>"
+      },
+      {
+        "title": "Deployment Considerations",
+        "body": "<p>Where you deploy inputs depends on your Splunk architecture.</p><h4>Deployment Locations</h4><table class=\"reference-table\"><tr><th>Scenario</th><th>Configure Inputs On</th></tr><tr><td>Single instance</td><td>The Splunk instance itself</td></tr><tr><td>Universal Forwarder collecting files</td><td>The forwarder</td></tr><tr><td>Network inputs (syslog)</td><td>Indexers or dedicated syslog collectors</td></tr><tr><td>HEC</td><td>Indexers or dedicated HEC tier</td></tr></table><h4>Deployment Server</h4><p>For forwarder management, deploy inputs via server classes:</p>",
+        "example": {
+          "description": "Deployment app structure",
+          "spl": "$SPLUNK_HOME/etc/deployment-apps/\n  TA-linux-inputs/\n    local/\n      inputs.conf    <- Your input definitions\n    metadata/\n      local.meta     <- Permissions"
+        },
+        "explanation": "<p>The deployment server pushes apps to forwarders based on server class membership, ensuring consistent input configuration across your environment.</p>"
+      },
+      {
+        "title": "Verifying Inputs",
+        "body": "<p>After configuring inputs, verify they're working correctly.</p><h4>Check Input Status via CLI</h4>",
+        "example": {
+          "description": "List configured inputs",
+          "spl": "./splunk list monitor\n./splunk list tcp\n./splunk list udp"
+        },
+        "explanation": "<p>These commands show active inputs and their status.</p><h4>Search for Incoming Data</h4>",
+        "example2": {
+          "description": "Verify data is being indexed",
+          "spl": "index=your_index sourcetype=your_sourcetype earliest=-5m\n| stats count by host, source\n| sort - count"
+        }
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><strong>Input Types:</strong> Monitor (files), TCP/UDP (network), HEC (HTTP), Script (custom)</li><li><strong>Always specify:</strong> index, sourcetype, and appropriate host assignment</li><li><strong>Use apps:</strong> Configure inputs in app directories, not system/local</li><li><strong>Wildcards:</strong> Use <code>*</code> for single level, <code>...</code> for recursive</li><li><strong>HEC:</strong> Modern choice for applications; always enable SSL in production</li><li><strong>Verify:</strong> Always confirm data is arriving with the expected metadata</li></ul>"
+  }
+}

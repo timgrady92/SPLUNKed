@@ -1,0 +1,143 @@
+{
+  "id": "fund-visualizing-time",
+  "type": "tutorial",
+  "title": "Visualizing Data Over Time",
+  "description": "Learn to create time-based visualizations using timechart. Spot trends, spikes, and patterns in your data.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "15 min",
+  "tags": ["fundamentals", "timechart", "visualization", "trends", "beginner", "spl"],
+  "objectives": [
+    "Create time-series charts with the timechart command",
+    "Control time intervals with the span option",
+    "Split data into multiple series by field values",
+    "Interpret common patterns in time-based data"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Time Visualization Matters",
+        "body": "<p>Security data is inherently temporal. Time-based charts help you:</p><ul><li><strong>Spot spikes</strong>: Sudden increases in errors or attacks</li><li><strong>Find patterns</strong>: Daily cycles, weekly trends</li><li><strong>Identify anomalies</strong>: Unusual activity at odd hours</li><li><strong>Track trends</strong>: Is the problem getting worse or better?</li></ul><p>A table of numbers is hard to interpret. A chart makes patterns instantly visible.</p>"
+      },
+      {
+        "title": "The timechart Command",
+        "body": "<p><code>timechart</code> creates time-series data suitable for visualization.</p>",
+        "example": {
+          "description": "Basic timechart",
+          "spl": "index=_internal sourcetype=splunkd\n| timechart count"
+        },
+        "explanation": "<p>This creates a chart showing event count over time. Splunk automatically:</p><ul><li>Divides time into intervals (buckets)</li><li>Counts events in each interval</li><li>Produces a line chart in the Visualization tab</li></ul><p>Click the <strong>Visualization</strong> tab after running to see the chart.</p>"
+      },
+      {
+        "title": "Controlling Time Intervals with span",
+        "body": "<p>Use <code>span</code> to control the size of time buckets.</p>",
+        "example": {
+          "description": "Timechart with hourly buckets",
+          "spl": "index=_internal sourcetype=splunkd\n| timechart span=1h count"
+        },
+        "explanation": "<p>Common span values:</p><table><tr><th>Span</th><th>Meaning</th><th>Use Case</th></tr><tr><td><code>span=1m</code></td><td>1 minute</td><td>Real-time monitoring, short time ranges</td></tr><tr><td><code>span=5m</code></td><td>5 minutes</td><td>Recent activity, last few hours</td></tr><tr><td><code>span=1h</code></td><td>1 hour</td><td>Daily patterns, last 24-48 hours</td></tr><tr><td><code>span=1d</code></td><td>1 day</td><td>Weekly/monthly trends</td></tr><tr><td><code>span=1w</code></td><td>1 week</td><td>Long-term trends</td></tr></table><h4>Choosing the Right Span</h4><p>Match span to your time range:</p><ul><li>Last 15 minutes → <code>span=1m</code></li><li>Last 4 hours → <code>span=5m</code></li><li>Last 24 hours → <code>span=1h</code></li><li>Last 7 days → <code>span=1d</code></li></ul>"
+      },
+      {
+        "title": "Splitting by a Field",
+        "body": "<p>Use <code>by</code> to create separate lines for each value of a field.</p>",
+        "example": {
+          "description": "Timechart split by field",
+          "spl": "index=_internal sourcetype=splunkd\n| timechart span=1h count by log_level"
+        },
+        "explanation": "<p>This creates a separate line for each log_level (INFO, WARN, ERROR). You can visually compare how each level trends over time.</p><p>The chart legend shows each series, and you can click to toggle them on/off.</p>"
+      },
+      {
+        "title": "Limiting Series",
+        "body": "<p>When splitting by a field with many values, limit the number of series.</p>",
+        "example": {
+          "description": "Limit to top 5",
+          "spl": "index=_internal sourcetype=splunkd\n| timechart span=1h count by component limit=5"
+        },
+        "explanation": "<p><code>limit=5</code> shows only the 5 most common values. Other values are grouped into \"OTHER\".</p><p>To hide the OTHER category:</p>",
+        "example2": {
+          "description": "Hide OTHER category",
+          "spl": "index=_internal sourcetype=splunkd\n| timechart span=1h count by component limit=5 useother=false"
+        }
+      },
+      {
+        "title": "Different Aggregations",
+        "body": "<p>timechart supports the same aggregation functions as stats.</p>",
+        "example": {
+          "description": "Average over time",
+          "spl": "index=_internal sourcetype=splunkd\n| timechart span=1h avg(linecount) as avg_lines"
+        },
+        "explanation": "<h4>Common Aggregations</h4><table><tr><th>Function</th><th>Chart Shows</th></tr><tr><td><code>count</code></td><td>Number of events per time bucket</td></tr><tr><td><code>dc(field)</code></td><td>Unique values per time bucket</td></tr><tr><td><code>sum(field)</code></td><td>Total of numeric field per bucket</td></tr><tr><td><code>avg(field)</code></td><td>Average value per bucket</td></tr><tr><td><code>max(field)</code></td><td>Maximum value per bucket</td></tr></table>"
+      },
+      {
+        "title": "Reading Time Charts",
+        "body": "<h4>What to Look For</h4><ul><li><strong>Spikes</strong>: Sudden increases may indicate attacks, outages, or batch jobs</li><li><strong>Drops</strong>: Sudden decreases may indicate logging failures or network issues</li><li><strong>Patterns</strong>: Regular cycles often reflect business hours or scheduled tasks</li><li><strong>Trends</strong>: Gradual increases may indicate growing problems</li><li><strong>Flat lines</strong>: No activity—could be normal or could be a problem</li></ul><h4>Example Interpretations</h4><table><tr><th>Pattern</th><th>Possible Meaning</th></tr><tr><td>Spike in errors at 3 AM</td><td>Batch job failure, backup issues</td></tr><tr><td>Regular spikes every hour</td><td>Scheduled task running</td></tr><tr><td>Gradual increase over days</td><td>Growing system load, potential issue</td></tr><tr><td>Errors only during business hours</td><td>User-triggered issues</td></tr><tr><td>Sudden drop to zero</td><td>Logging stopped, investigate immediately</td></tr></table>"
+      },
+      {
+        "title": "Visualization Options",
+        "body": "<p>After running a timechart, click the <strong>Visualization</strong> tab to see your chart. You can change chart types:</p><h4>Chart Types</h4><ul><li><strong>Line</strong>: Best for trends over time (default)</li><li><strong>Area</strong>: Like line, but filled—good for showing volume</li><li><strong>Column</strong>: Vertical bars—good for comparing discrete time periods</li><li><strong>Stacked</strong>: Shows composition—how parts make up the whole</li></ul><h4>Formatting Tips</h4><ul><li>Click the paintbrush icon to access format options</li><li>Add axis labels for clarity</li><li>Adjust colors for better distinction</li><li>Enable data labels if exact values matter</li></ul>"
+      },
+      {
+        "title": "Practical Examples",
+        "body": "<h4>Example 1: Error Trend</h4>",
+        "example": {
+          "description": "Errors over the last 24 hours",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-24h\n| timechart span=1h count as errors"
+        },
+        "example2_title": "Example 2: Compare Log Levels",
+        "example2": {
+          "description": "Log level distribution over time",
+          "spl": "index=_internal sourcetype=splunkd earliest=-4h\n| timechart span=15m count by log_level"
+        },
+        "example3_title": "Example 3: Unique Components Active",
+        "example3": {
+          "description": "How many components are generating logs?",
+          "spl": "index=_internal sourcetype=splunkd earliest=-24h\n| timechart span=1h dc(component) as active_components"
+        }
+      },
+      {
+        "title": "Timechart vs Stats",
+        "body": "<p>When to use each:</p><table><tr><th>Use timechart</th><th>Use stats</th></tr><tr><td>You want to see trends over time</td><td>You want totals regardless of time</td></tr><tr><td>Creating line/area charts</td><td>Creating summary tables</td></tr><tr><td>Monitoring activity patterns</td><td>Answering \"how many total\" questions</td></tr></table><h4>Same Question, Different Approach</h4><p>\"How many errors?\"</p>",
+        "example": {
+          "description": "Stats: single total",
+          "spl": "index=_internal log_level=ERROR\n| stats count"
+        },
+        "example2": {
+          "description": "Timechart: errors over time",
+          "spl": "index=_internal log_level=ERROR\n| timechart count"
+        },
+        "explanation": "<p>Stats gives you one number. Timechart shows when those errors happened.</p>"
+      },
+      {
+        "title": "Practice Exercises",
+        "body": "<p>Practice creating time visualizations.</p><h4>Exercise 1: Basic Timechart</h4><p>Create a timechart showing event count over the last hour:</p>",
+        "example": {
+          "description": "Exercise 1 solution",
+          "spl": "index=_internal sourcetype=splunkd earliest=-1h\n| timechart span=5m count"
+        },
+        "exercises": [
+          {
+            "title": "Exercise 2: Custom Span",
+            "prompt": "Chart errors over the last 24 hours with 1-hour buckets",
+            "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-24h\n| timechart span=1h count"
+          },
+          {
+            "title": "Exercise 3: Split by Field",
+            "prompt": "Chart event count by log_level over the last 4 hours",
+            "solution": "index=_internal sourcetype=splunkd earliest=-4h\n| timechart span=15m count by log_level"
+          },
+          {
+            "title": "Exercise 4: Top Components",
+            "prompt": "Chart the top 5 most active components over time",
+            "solution": "index=_internal sourcetype=splunkd earliest=-4h\n| timechart span=15m count by component limit=5"
+          },
+          {
+            "title": "Exercise 5: Unique Count Over Time",
+            "prompt": "Show how many unique hosts are active each hour over the last day",
+            "solution": "index=_internal sourcetype=splunkd earliest=-24h\n| timechart span=1h dc(host) as unique_hosts"
+          }
+        ]
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><code>timechart</code> creates time-series visualizations</li><li>Use <code>span</code> to control time bucket size (1m, 5m, 1h, 1d)</li><li>Match span to your time range for readable charts</li><li>Use <code>by field</code> to split into multiple series</li><li><code>limit=N</code> restricts to top N values when splitting</li><li>Look for spikes, drops, patterns, and trends in your charts</li><li>Results appear in the Visualization tab—click to see the chart</li><li>Change chart types (line, area, column) to best represent your data</li></ul>"
+  }
+}

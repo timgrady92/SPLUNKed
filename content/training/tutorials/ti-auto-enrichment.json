@@ -1,0 +1,60 @@
+{
+  "id": "ti-auto-enrichment",
+  "type": "tutorial",
+  "title": "Automatic Lookup Enrichment",
+  "description": "Configure automatic lookups to transparently enrich events with threat intelligence at search time, including field aliasing, performance implications, and best practices.",
+  "category": "threat-intel",
+  "difficulty": "advanced",
+  "duration": "20 min",
+  "tags": ["threat-intel", "automatic-lookup", "enrichment", "advanced"],
+  "objectives": [
+    "Configure automatic lookups for transparent TI enrichment",
+    "Use field aliasing for consistent data normalization",
+    "Understand performance implications of automatic enrichment",
+    "Design effective automatic enrichment strategies"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "What Are Automatic Lookups?",
+        "body": "<p>Automatic lookups run transparently at search time, enriching events without explicit lookup commands in your SPL.</p><h4>Manual vs Automatic Lookup</h4><p><strong>Manual:</strong></p><pre><code>index=firewall\n| lookup threat_intel indicator as dest_ip OUTPUT threat_type</code></pre><p><strong>Automatic:</strong></p><pre><code>index=firewall</code></pre><p>With automatic lookup configured, <code>threat_type</code> field appears automatically.</p><h4>Benefits</h4><ul><li>Consistent enrichment across all searches</li><li>No need to remember lookup syntax</li><li>Works in dashboards, reports, and ad-hoc searches</li><li>Reduces query complexity</li></ul><h4>Considerations</h4><ul><li>Performance overhead on every search</li><li>May enrich data you don't need</li><li>Requires careful configuration</li></ul>"
+      },
+      {
+        "title": "Configuring Automatic Lookups",
+        "body": "<h4>Via Splunk Web</h4><ol><li>Settings → Lookups → Automatic lookups</li><li>Click \"Add New\"</li><li>Configure the settings</li></ol><h4>Configuration Options</h4><table><tr><th>Setting</th><th>Description</th></tr><tr><td>Name</td><td>Unique identifier for this automatic lookup</td></tr><tr><td>Lookup table</td><td>The lookup definition to use</td></tr><tr><td>Apply to</td><td>sourcetype, source, or host</td></tr><tr><td>named</td><td>Specific value (e.g., sourcetype=firewall)</td></tr><tr><td>Lookup input fields</td><td>Event field → Lookup field mapping</td></tr><tr><td>Lookup output fields</td><td>Lookup field → Event field mapping</td></tr></table><h4>Via props.conf</h4><pre><code>[firewall]\nLOOKUP-threat_enrichment = threat_intel indicator AS dest_ip OUTPUT threat_type, confidence, category</code></pre><h4>Multiple Automatic Lookups</h4><pre><code>[firewall]\nLOOKUP-threat_dest = threat_intel indicator AS dest_ip OUTPUTNEW threat_type AS dest_threat\nLOOKUP-threat_src = threat_intel indicator AS src_ip OUTPUTNEW threat_type AS src_threat\nLOOKUP-geoip = geoip ip AS src_ip OUTPUTNEW country, city</code></pre>"
+      },
+      {
+        "title": "Field Aliasing for Normalization",
+        "body": "<p>Field aliases standardize field names before lookups run.</p><h4>The Problem</h4><p>Different sources use different field names:</p><ul><li>Firewall: <code>dest_ip</code></li><li>Proxy: <code>server_ip</code></li><li>DNS: <code>answer</code></li></ul><h4>Field Alias Configuration</h4><p>In props.conf:</p><pre><code>[proxy]\nFIELDALIAS-dest = server_ip AS dest_ip\n\n[dns]\nFIELDALIAS-dest = answer AS dest_ip</code></pre><h4>Now One Lookup Works Everywhere</h4><pre><code>[firewall]\nLOOKUP-threat = threat_intel indicator AS dest_ip OUTPUT threat_type\n\n[proxy]\nFIELDALIAS-dest = server_ip AS dest_ip\nLOOKUP-threat = threat_intel indicator AS dest_ip OUTPUT threat_type\n\n[dns]\nFIELDALIAS-dest = answer AS dest_ip\nLOOKUP-threat = threat_intel indicator AS dest_ip OUTPUT threat_type</code></pre><h4>CIM-Based Aliasing</h4><p>Use Common Information Model field names:</p><pre><code>FIELDALIAS-cim_dest = server_ip AS dest\nFIELDALIAS-cim_src = client_ip AS src</code></pre>"
+      },
+      {
+        "title": "OUTPUT vs OUTPUTNEW",
+        "body": "<h4>OUTPUT</h4><p>Overwrites existing field values:</p><pre><code>LOOKUP-threat = threat_intel indicator AS dest_ip OUTPUT threat_type</code></pre><p>If <code>threat_type</code> already exists in the event, it will be replaced.</p><h4>OUTPUTNEW</h4><p>Only writes if field doesn't exist:</p><pre><code>LOOKUP-threat = threat_intel indicator AS dest_ip OUTPUTNEW threat_type</code></pre><p>Preserves existing <code>threat_type</code> values.</p><h4>When to Use Each</h4><table><tr><th>Scenario</th><th>Use</th></tr><tr><td>TI enrichment (new fields)</td><td>OUTPUTNEW</td></tr><tr><td>Override with authoritative data</td><td>OUTPUT</td></tr><tr><td>Multiple enrichment sources</td><td>OUTPUTNEW with different field names</td></tr></table><h4>Multiple Source Priority</h4><pre><code>LOOKUP-threat_internal = internal_iocs indicator AS dest_ip OUTPUTNEW threat_type AS internal_threat\nLOOKUP-threat_external = external_iocs indicator AS dest_ip OUTPUTNEW threat_type AS external_threat</code></pre>"
+      },
+      {
+        "title": "Selective Automatic Enrichment",
+        "body": "<h4>Enrich Specific Sourcetypes Only</h4><pre><code>[firewall]\nLOOKUP-threat = threat_intel indicator AS dest_ip OUTPUT threat_type\n\n[access_combined]\n# No automatic lookup - too high volume</code></pre><h4>Enrich Specific Sources</h4><pre><code>[source::.../firewall/blocked.log]\nLOOKUP-threat = threat_intel indicator AS dest_ip OUTPUT threat_type</code></pre><h4>Conditional Enrichment via Transforms</h4><p>Use calculated fields to control when enrichment applies:</p><pre><code>[firewall]\nEVAL-should_enrich = if(action=\"allowed\", dest_ip, null())\nLOOKUP-threat = threat_intel indicator AS should_enrich OUTPUT threat_type</code></pre><p>Only enriches allowed connections.</p>"
+      },
+      {
+        "title": "Performance Optimization",
+        "body": "<h4>Performance Impact</h4><p>Automatic lookups run on every search against that sourcetype. Consider:</p><ul><li>Lookup file size</li><li>Number of lookups per sourcetype</li><li>Search volume against that sourcetype</li></ul><h4>Optimization Strategies</h4><h5>1. Limit Lookup Scope</h5><p>Only configure automatic lookups on sourcetypes where needed:</p><pre><code># Good: Specific sourcetype\n[palo_alto_firewall]\nLOOKUP-threat = ...\n\n# Avoid: Broad sourcetype\n[source]\nLOOKUP-threat = ...</code></pre><h5>2. Use Indexed Lookups</h5><p>Enable lookup indexing for large IOC files in transforms.conf.</p><h5>3. Minimize Output Fields</h5><pre><code># Bad: Output all fields\nLOOKUP-threat = threat_intel indicator AS dest_ip OUTPUT threat_type, confidence, category, source, campaign, actor, first_seen, last_seen\n\n# Good: Only essential fields\nLOOKUP-threat = threat_intel indicator AS dest_ip OUTPUT threat_type, confidence</code></pre><h5>4. Consider Search-Time vs. Index-Time</h5><p>For very high-volume data, consider index-time enrichment instead.</p>"
+      },
+      {
+        "title": "GeoIP Auto-Enrichment",
+        "body": "<h4>Standard GeoIP Configuration</h4><pre><code>[firewall]\nLOOKUP-geoip_src = geoip ip AS src_ip OUTPUTNEW src_country, src_city, src_lat, src_lon\nLOOKUP-geoip_dest = geoip ip AS dest_ip OUTPUTNEW dest_country, dest_city, dest_lat, dest_lon</code></pre><h4>Combined TI and GeoIP</h4><pre><code>[firewall]\nLOOKUP-threat = threat_intel indicator AS dest_ip OUTPUTNEW threat_type, threat_confidence\nLOOKUP-geoip = geoip ip AS dest_ip OUTPUTNEW country, city\nLOOKUP-asn = asn_lookup ip AS dest_ip OUTPUTNEW asn, org_name</code></pre><h4>Query Without Explicit Lookups</h4><pre><code>index=firewall action=blocked\n| where isnotnull(threat_type)\n| stats count by dest_ip, threat_type, country, org_name</code></pre><p>All fields populated automatically.</p>"
+      },
+      {
+        "title": "Troubleshooting Automatic Lookups",
+        "body": "<h4>Verify Lookup is Configured</h4><pre><code>| rest /services/data/props/lookup\n| search title=\"*threat*\"\n| table title, stanza, transform</code></pre><h4>Test Lookup Manually</h4><pre><code>index=firewall earliest=-1h\n| head 10\n| lookup threat_intel indicator AS dest_ip OUTPUT threat_type\n| table dest_ip, threat_type</code></pre><h4>Check Field Extraction</h4><pre><code>index=firewall earliest=-1h\n| head 1\n| fieldsummary\n| search field=dest_ip OR field=threat_type</code></pre><h4>Common Issues</h4><table><tr><th>Problem</th><th>Cause</th><th>Solution</th></tr><tr><td>No enrichment</td><td>Wrong field mapping</td><td>Verify field names match exactly</td></tr><tr><td>Partial enrichment</td><td>Case mismatch</td><td>Use case-insensitive lookup or normalize</td></tr><tr><td>Performance issues</td><td>Large lookup, high volume</td><td>Index lookup, filter sourcetype</td></tr><tr><td>Wrong values</td><td>OUTPUT vs OUTPUTNEW</td><td>Check if field exists before lookup</td></tr></table>"
+      },
+      {
+        "title": "Best Practices",
+        "body": "<h4>Naming Conventions</h4><pre><code>LOOKUP-ti_dest_ip = ...     # Threat intel by dest IP\nLOOKUP-geo_src = ...        # GeoIP by source\nLOOKUP-asset_dest = ...     # Asset info by destination</code></pre><h4>Document Your Enrichments</h4><p>Maintain documentation of what automatic lookups exist:</p><pre><code># Automatic Enrichment Matrix\n| Sourcetype | Lookup | Input | Outputs |\n|------------|--------|-------|----------|\n| firewall | threat_intel | dest_ip | threat_type, confidence |\n| firewall | geoip | src_ip | country, city |\n| dns | threat_domains | query | threat_type |</code></pre><h4>Version Control Configuration</h4><p>Keep props.conf and transforms.conf in version control to track changes.</p><h4>Test Before Production</h4><ol><li>Test lookup manually first</li><li>Deploy to test environment</li><li>Verify performance impact</li><li>Deploy to production</li></ol>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key automatic lookup concepts:</p><ul><li><strong>Configuration</strong>: Via Splunk Web or props.conf LOOKUP directives</li><li><strong>Field aliasing</strong>: Normalize fields before lookup runs</li><li><strong>OUTPUT vs OUTPUTNEW</strong>: Control field overwriting behavior</li><li><strong>Performance</strong>: Limit scope, use indexed lookups, minimize outputs</li><li><strong>Multiple sources</strong>: Combine TI, GeoIP, ASN, and asset lookups</li><li><strong>Troubleshooting</strong>: Verify field names, test manually, check case sensitivity</li></ul><p>Automatic lookups provide seamless enrichment but require careful planning to avoid performance impact.</p>"
+      }
+    ]
+  }
+}

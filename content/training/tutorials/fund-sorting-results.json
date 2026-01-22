@@ -1,0 +1,180 @@
+{
+  "id": "fund-sorting-results",
+  "type": "tutorial",
+  "title": "Sorting and Limiting Results",
+  "description": "Learn to control how results are ordered and how many results to display using sort, head, tail, and dedup commands.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "12 min",
+  "tags": ["fundamentals", "sort", "head", "tail", "dedup", "beginner", "spl"],
+  "objectives": [
+    "Sort results by any field in ascending or descending order",
+    "Limit results to a specific number using head and tail",
+    "Remove duplicate events with dedup",
+    "Combine these commands for effective result management"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Sorting and Limiting Matter",
+        "body": "<p>Raw search results often need organization:</p><ul><li>Events might not be in the order you need</li><li>You might only need the top 10 or most recent 100</li><li>Duplicate entries might clutter your results</li></ul><p>Three essential commands help:</p><table><tr><th>Command</th><th>Purpose</th></tr><tr><td><code>sort</code></td><td>Order results by field values</td></tr><tr><td><code>head</code> / <code>tail</code></td><td>Limit to first/last N results</td></tr><tr><td><code>dedup</code></td><td>Remove duplicate values</td></tr></table>"
+      },
+      {
+        "title": "The sort Command",
+        "body": "<p>The <code>sort</code> command orders your results by one or more fields.</p><h4>Ascending Order (Default)</h4>",
+        "example": {
+          "description": "Sort by a field in ascending order",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| table _time, host, component, message\n| sort host"
+        },
+        "explanation": "<p>Results are sorted alphabetically by host (A to Z).</p><h4>Descending Order</h4>",
+        "example2": {
+          "description": "Sort in descending order",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| table _time, host, component, message\n| sort - host"
+        },
+        "explanation2": "<p>The minus sign (<code>-</code>) before the field name sorts in descending order (Z to A, or highest to lowest for numbers).</p>"
+      },
+      {
+        "title": "Sorting by Multiple Fields",
+        "body": "<p>Sort by multiple fields for more control.</p>",
+        "example": {
+          "description": "Sort by multiple fields",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| table _time, host, component, message\n| sort host, - _time"
+        },
+        "explanation": "<p>This sorts by <code>host</code> ascending, then within each host, by <code>_time</code> descending (newest first).</p><p>You can mix ascending and descending:</p><ul><li><code>sort host, component</code> - both ascending</li><li><code>sort - host, component</code> - host descending, component ascending</li><li><code>sort - host, - component</code> - both descending</li></ul>"
+      },
+      {
+        "title": "Sorting Numbers",
+        "body": "<p>Splunk automatically detects numeric fields and sorts them correctly.</p>",
+        "example": {
+          "description": "Sort by numeric field",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count by component\n| sort - count"
+        },
+        "explanation": "<p>This counts events by component and sorts by count, highest first. The most active components appear at the top.</p>"
+      },
+      {
+        "title": "The head Command",
+        "body": "<p>The <code>head</code> command returns only the first N results.</p>",
+        "example": {
+          "description": "Get first 10 results",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| table _time, host, component, message\n| head 10"
+        },
+        "explanation": "<p>Returns only the first 10 events. Useful for:</p><ul><li>Quick sampling of data</li><li>Limiting large result sets</li><li>Testing searches without processing everything</li></ul><h4>Common Pattern: Sort + Head</h4>",
+        "example2": {
+          "description": "Top 10 by count",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count by component\n| sort - count\n| head 10"
+        },
+        "explanation2": "<p>Shows the top 10 components by event count.</p>"
+      },
+      {
+        "title": "The tail Command",
+        "body": "<p>The <code>tail</code> command returns the last N results.</p>",
+        "example": {
+          "description": "Get last 10 results",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| table _time, host, component, message\n| tail 10"
+        },
+        "explanation": "<p>Returns the last 10 events in the result set.</p><h4>Common Pattern: Sort + Tail</h4>",
+        "example2": {
+          "description": "Bottom 5 by count",
+          "spl": "index=_internal sourcetype=splunkd\n| stats count by component\n| sort - count\n| tail 5"
+        },
+        "explanation2": "<p>After sorting highest to lowest, <code>tail</code> gives you the bottom 5 (least active components).</p>"
+      },
+      {
+        "title": "The dedup Command",
+        "body": "<p>The <code>dedup</code> command removes events with duplicate field values.</p>",
+        "example": {
+          "description": "Keep only unique hosts",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| dedup host\n| table _time, host, component, message"
+        },
+        "explanation": "<p>This keeps only the first event for each unique <code>host</code> value. If you have 100 events from server01 and 50 from server02, you get just 2 events—one per host.</p>"
+      },
+      {
+        "title": "dedup with Multiple Fields",
+        "body": "<p>Deduplicate based on combinations of fields.</p>",
+        "example": {
+          "description": "Unique combinations",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| dedup host, component\n| table _time, host, component, message"
+        },
+        "explanation": "<p>This keeps one event for each unique combination of host AND component. So server01/IndexProcessor, server01/Scheduler, and server02/IndexProcessor would all be kept.</p>"
+      },
+      {
+        "title": "dedup Options",
+        "body": "<h4>Keep Multiple</h4><p>Keep more than one of each unique value:</p>",
+        "example": {
+          "description": "Keep 3 events per host",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| dedup 3 host\n| table _time, host, component, message"
+        },
+        "explanation": "<p><code>dedup 3 host</code> keeps up to 3 events for each unique host.</p><h4>Keep Last Instead of First</h4>",
+        "example2": {
+          "description": "Keep the most recent per host",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| sort - _time\n| dedup host\n| table _time, host, component, message"
+        },
+        "explanation2": "<p>By sorting by time descending before dedup, you keep the most recent event for each host instead of the first one in the results.</p>"
+      },
+      {
+        "title": "Combining Commands",
+        "body": "<p>These commands work well together for common patterns.</p><h4>Pattern 1: Top N Unique Items</h4>",
+        "example": {
+          "description": "Top 5 hosts by error count",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| stats count by host\n| sort - count\n| head 5"
+        },
+        "example2_title": "Pattern 2: Recent Unique Events",
+        "example2": {
+          "description": "Most recent error per component",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| sort - _time\n| dedup component\n| table _time, host, component, message"
+        },
+        "example3_title": "Pattern 3: Sample Data",
+        "example3": {
+          "description": "Quick data sample",
+          "spl": "index=_internal sourcetype=splunkd\n| head 100\n| table _time, host, log_level, component"
+        },
+        "explanation3": "<p>This is great for quickly examining what data looks like without processing everything.</p>"
+      },
+      {
+        "title": "Performance Tips",
+        "body": "<h4>Use head Early for Testing</h4><p>When developing a search, add <code>| head 100</code> early to work with a sample:</p>",
+        "example": {
+          "description": "Test with limited data",
+          "spl": "index=_internal sourcetype=splunkd\n| head 100\n| stats count by log_level"
+        },
+        "explanation": "<p>This runs stats on just 100 events—much faster for testing your search logic.</p><h4>Sort Limits</h4><p>By default, <code>sort</code> returns up to 10,000 results. For more, specify a limit:</p>",
+        "example2": {
+          "description": "Sort with explicit limit",
+          "spl": "index=_internal sourcetype=splunkd\n| sort 50000 _time"
+        },
+        "explanation2": "<p><code>sort 0 _time</code> removes the limit entirely (use carefully with large datasets).</p>"
+      },
+      {
+        "title": "Practice Exercises",
+        "body": "<p>Practice with these exercises.</p><h4>Exercise 1: Basic Sort</h4><p>Sort _internal events by time, newest first:</p>",
+        "example": {
+          "description": "Exercise 1 solution",
+          "spl": "index=_internal sourcetype=splunkd\n| table _time, host, log_level, message\n| sort - _time\n| head 20"
+        },
+        "exercises": [
+          {
+            "title": "Exercise 2: Top Components",
+            "prompt": "Find the top 5 components by event count",
+            "solution": "index=_internal sourcetype=splunkd\n| stats count by component\n| sort - count\n| head 5"
+          },
+          {
+            "title": "Exercise 3: Unique Hosts",
+            "prompt": "List unique hosts that have ERROR events",
+            "solution": "index=_internal sourcetype=splunkd log_level=ERROR\n| dedup host\n| table host"
+          },
+          {
+            "title": "Exercise 4: Recent Per Host",
+            "prompt": "Show the most recent ERROR for each host",
+            "solution": "index=_internal sourcetype=splunkd log_level=ERROR\n| sort - _time\n| dedup host\n| table _time, host, component, message"
+          },
+          {
+            "title": "Exercise 5: Bottom 3",
+            "prompt": "Find the 3 least active components",
+            "solution": "index=_internal sourcetype=splunkd\n| stats count by component\n| sort count\n| head 3"
+          }
+        ]
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><code>sort</code> orders results by field values (ascending by default, <code>-</code> for descending)</li><li><code>head N</code> returns the first N results</li><li><code>tail N</code> returns the last N results</li><li><code>dedup field</code> keeps only unique values for a field</li><li>Combine <code>sort</code> + <code>head</code> for \"top N\" queries</li><li>Sort before dedup to control which event is kept</li><li>Use <code>head</code> early when testing searches to improve speed</li></ul>"
+  }
+}

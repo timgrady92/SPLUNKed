@@ -1,0 +1,64 @@
+{
+  "id": "spl-subsearches",
+  "type": "tutorial",
+  "title": "Subsearches and Correlation",
+  "description": "Filter with dynamic lists, correlate across indexes, understand subsearch performance considerations, and explore alternatives like join and lookup.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["spl", "subsearch", "correlation", "join", "intermediate"],
+  "objectives": [
+    "Use subsearches to create dynamic filter lists",
+    "Correlate events across different indexes",
+    "Understand subsearch limits and performance implications",
+    "Choose between subsearch, join, and lookup approaches"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "What is a Subsearch?",
+        "body": "<p>A subsearch is a search within square brackets that runs first and passes its results to the outer search:</p><pre><code>index=security action=failure\n    [search index=threats | fields ip | rename ip as src_ip]</code></pre><p>This finds security events where src_ip matches IPs from the threats index.</p><h4>How It Works</h4><ol><li>Subsearch runs first: finds IPs in threats index</li><li>Results are converted to filter terms: <code>(src_ip=\"1.2.3.4\" OR src_ip=\"5.6.7.8\" ...)</code></li><li>Outer search runs with those filter terms</li></ol>"
+      },
+      {
+        "title": "Basic Subsearch Syntax",
+        "body": "<p>The subsearch must produce fields that match the outer search:</p><pre><code>index=main\n    [search index=watchlist | fields user]</code></pre><p>The watchlist produces users; the main search filters to those users.</p><h4>Renaming for Correlation</h4><p>When field names don't match, use <code>rename</code>:</p><pre><code>index=network\n    [search index=malware_iocs | fields indicator | rename indicator as dest_ip]</code></pre><p>The IOC field \"indicator\" becomes \"dest_ip\" to match the network data.</p><h4>The return Command</h4><p><code>return</code> provides precise control over subsearch output:</p><pre><code>index=security\n    [search index=admins | return 100 user]</code></pre><p>Returns up to 100 values of the user field.</p>"
+      },
+      {
+        "title": "The format Command",
+        "body": "<p>By default, Splunk auto-formats subsearch results. For explicit control, use <code>format</code>:</p><pre><code>index=security\n    [search index=threats | fields src_ip, dest_ip | format]</code></pre><p><code>format</code> creates a combined OR expression:</p><pre><code>( ( src_ip=\"1.1.1.1\" AND dest_ip=\"2.2.2.2\" ) OR ( src_ip=\"3.3.3.3\" AND dest_ip=\"4.4.4.4\" ) )</code></pre><h4>Format Parameters</h4><pre><code>| format maxresults=50 \"(\" \"(\" \"AND\" \")\" \"OR\" \")\"</code></pre><ul><li>maxresults - Limit number of results</li><li>The quoted strings control output structure</li></ul>"
+      },
+      {
+        "title": "Subsearch Limits",
+        "body": "<p>Subsearches have important limitations:</p><h4>Time Limit: 60 seconds (default)</h4><p>Subsearch must complete within this time or it's killed.</p><h4>Result Limit: 10,000 results (default)</h4><p>Only the first 10,000 results are used.</p><h4>Output Size: 10,000 characters</h4><p>The formatted output is truncated at this limit.</p><h4>Checking If Limits Were Hit</h4><p>Look for messages in Job Inspector or results that seem incomplete.</p><h4>Adjusting Limits</h4><p>In limits.conf (admin action):</p><pre><code>[subsearch]\nmaxout = 50000\nmaxtime = 120</code></pre><p>Or use <code>return</code> to explicitly limit:</p><pre><code>[search index=big | head 1000 | return 1000 user]</code></pre>"
+      },
+      {
+        "title": "Correlation Across Indexes",
+        "body": "<h4>Pattern: Find Related Events</h4><pre><code>index=firewall action=blocked\n    [search index=authentication action=failure earliest=-1h\n    | stats count by src_ip\n    | where count > 10\n    | fields src_ip]</code></pre><p>Find blocked firewall events from IPs that had many auth failures.</p><h4>Pattern: Threat Intel Matching</h4><pre><code>index=proxy\n    [search index=threat_intel category=\"malware\"\n    | fields domain\n    | rename domain as dest_domain]</code></pre><p>Find proxy events involving known malware domains.</p><h4>Pattern: User Activity Correlation</h4><pre><code>index=vpn action=connect\n    [search index=terminated_users\n    | fields username\n    | rename username as user]</code></pre><p>Find VPN connections from terminated users.</p>"
+      },
+      {
+        "title": "Alternative: The join Command",
+        "body": "<p><code>join</code> is like SQL JOIN - combines events based on matching fields:</p><pre><code>index=security sourcetype=auth\n| join user\n    [search index=hr_data | fields user, department, manager]</code></pre><p>Each auth event is enriched with HR data for that user.</p><h4>Join Types</h4><pre><code>| join type=left user [search ...]</code></pre><ul><li><code>inner</code> (default) - Only matching events</li><li><code>left</code> - All from main search, matching from subsearch</li><li><code>outer</code> - All from both (full outer join)</li></ul><h4>When to Use Join</h4><ul><li>Enriching events with context from another source</li><li>When you need all fields from both searches</li><li>When subsearch would exceed limits</li></ul><h4>Join Limitations</h4><ul><li>Memory intensive - loads subsearch results into memory</li><li>Limited to 50,000 subsearch results by default</li><li>Can be slow with large datasets</li></ul>"
+      },
+      {
+        "title": "Alternative: Lookups",
+        "body": "<p>For stable reference data, lookups are more efficient than subsearches:</p><h4>Create a Lookup</h4><p>Upload CSV or use <code>outputlookup</code>:</p><pre><code>index=threat_intel\n| stats latest(score) as score by indicator\n| outputlookup threat_indicators.csv</code></pre><h4>Use the Lookup</h4><pre><code>index=network\n| lookup threat_indicators.csv indicator as dest_ip OUTPUT score\n| where isnotnull(score)</code></pre><h4>When to Use Lookups</h4><ul><li>Reference data that doesn't change frequently</li><li>Large correlation sets (no result limits)</li><li>Performance-critical searches</li><li>Reusable across multiple searches</li></ul>"
+      },
+      {
+        "title": "Choosing the Right Approach",
+        "body": "<h4>Use Subsearch When:</h4><ul><li>Dynamic filter list < 10,000 items</li><li>Simple field matching</li><li>One-time correlation</li></ul><h4>Use Join When:</h4><ul><li>Need to enrich with multiple fields</li><li>Complex matching logic</li><li>Results < 50,000 rows</li></ul><h4>Use Lookup When:</h4><ul><li>Reference data is relatively static</li><li>Large correlation sets</li><li>Reused across multiple searches</li><li>Performance is critical</li></ul><h4>Use Stats/Eventstats When:</h4><p>Data is in the same search:</p><pre><code>index=security\n| eventstats dc(src_ip) as user_source_count by user\n| where user_source_count > 10</code></pre><p>No subsearch needed when correlating within one search.</p>"
+      },
+      {
+        "title": "Advanced Patterns",
+        "body": "<h4>Nested Subsearches</h4><pre><code>index=security\n    [search index=alerts severity=critical\n        [search index=vip_users | return 1000 user]\n    | fields src_ip]</code></pre><p>Find security events from IPs that triggered critical alerts for VIP users.</p><h4>Time-Shifted Correlation</h4><pre><code>index=security earliest=-1h\n    [search index=security earliest=-2h latest=-1h action=failure\n    | stats count by src_ip\n    | where count > 100\n    | fields src_ip]</code></pre><p>Find current events from IPs that were attacking an hour ago.</p><h4>Aggregate Then Filter</h4><pre><code>index=network\n    [search index=network earliest=-24h\n    | stats sum(bytes) as total_bytes by src_ip\n    | where total_bytes > 1000000000\n    | fields src_ip]</code></pre><p>Find events from IPs that transferred > 1GB in last 24 hours.</p>"
+      },
+      {
+        "title": "Performance Optimization",
+        "body": "<h4>Keep Subsearches Fast</h4><ul><li>Use explicit time ranges in subsearch</li><li>Filter aggressively inside subsearch</li><li>Limit output with <code>head</code> or <code>return</code></li><li>Use <code>fields</code> to select only needed fields</li></ul><h4>Example: Optimized Subsearch</h4><pre><code>index=security\n    [search index=threats earliest=-24h category=malware\n    | fields indicator\n    | rename indicator as src_ip\n    | head 1000]</code></pre><h4>When Subsearch Is Too Slow</h4><p>Consider scheduled searches that populate a lookup:</p><pre><code>| outputlookup high_risk_ips.csv</code></pre><p>Then use the lookup in real-time searches:</p><pre><code>index=security\n| lookup high_risk_ips.csv src_ip OUTPUT risk_score</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key subsearch concepts:</p><ul><li><strong>Square brackets</strong> - Subsearch runs first, results become filter terms</li><li><strong>Field matching</strong> - Use <code>rename</code> to align field names</li><li><strong>return command</strong> - Precise control over subsearch output</li><li><strong>Limits</strong> - 60 seconds, 10,000 results, 10,000 characters</li><li><strong>Alternatives</strong> - Join for enrichment, lookups for stable reference data</li></ul><p>Subsearches enable powerful cross-index correlation, but be mindful of limits. For large-scale correlation, lookups are often more efficient.</p>"
+      }
+    ]
+  }
+}

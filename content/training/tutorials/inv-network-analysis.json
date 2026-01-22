@@ -1,0 +1,60 @@
+{
+  "id": "inv-network-analysis",
+  "type": "tutorial",
+  "title": "Network Connection Analysis",
+  "description": "Analyze firewall logs, DNS queries, and proxy data to identify suspicious network patterns, command-and-control communication, and data exfiltration indicators.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["investigation", "network", "firewall", "dns", "proxy", "intermediate"],
+  "objectives": [
+    "Analyze firewall connection logs for suspicious patterns",
+    "Investigate DNS queries for malicious indicators",
+    "Examine proxy logs for command-and-control traffic",
+    "Identify data exfiltration through network analysis"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Network Data Sources",
+        "body": "<p>Network investigation relies on multiple data sources:</p><h4>Firewall Logs</h4><pre><code>index=firewall\n| table _time, src_ip, src_port, dest_ip, dest_port, action, bytes_in, bytes_out</code></pre><h4>DNS Logs</h4><pre><code>index=dns\n| table _time, src_ip, query, query_type, reply_code, answer</code></pre><h4>Proxy/Web Logs</h4><pre><code>index=proxy\n| table _time, src_ip, user, dest_host, url, method, status, bytes</code></pre><h4>NetFlow/Connection Data</h4><pre><code>index=netflow\n| table _time, src_ip, dest_ip, dest_port, protocol, bytes, packets, duration</code></pre>"
+      },
+      {
+        "title": "Firewall Log Analysis",
+        "body": "<h4>Connection Summary by Destination</h4><pre><code>index=firewall action=allowed\n| stats count, sum(bytes_out) as total_bytes by dest_ip, dest_port\n| sort - count</code></pre><h4>Blocked Connection Attempts</h4><pre><code>index=firewall action=blocked\n| stats count by src_ip, dest_ip, dest_port\n| where count > 100\n| sort - count</code></pre><p>High volume of blocks may indicate scanning or misconfiguration.</p><h4>Unusual Outbound Ports</h4><pre><code>index=firewall action=allowed direction=outbound\n| where NOT dest_port IN (80, 443, 53, 25, 587, 123)\n| stats count, dc(src_ip) as unique_sources by dest_port\n| sort - count</code></pre><h4>External Connections by Internal Host</h4><pre><code>index=firewall action=allowed direction=outbound\n| stats dc(dest_ip) as unique_destinations, sum(bytes_out) as total_bytes by src_ip\n| sort - unique_destinations</code></pre>"
+      },
+      {
+        "title": "DNS Query Analysis",
+        "body": "<h4>Query Volume by Domain</h4><pre><code>index=dns query_type=A\n| rex field=query \"(?<domain>[^.]+\\.[^.]+)$\"\n| stats count by domain\n| sort - count</code></pre><h4>Suspicious Domain Patterns</h4><pre><code>index=dns\n| eval query_length = len(query)\n| eval subdomain_count = mvcount(split(query, \".\")) - 2\n| where query_length > 50 OR subdomain_count > 5\n| table _time, src_ip, query, query_length, subdomain_count</code></pre><p>Long queries or many subdomains may indicate DNS tunneling.</p><h4>NXDomain Responses (Failed Lookups)</h4><pre><code>index=dns reply_code=NXDOMAIN\n| stats count by src_ip, query\n| where count > 10\n| sort - count</code></pre><p>High NXDomain rates may indicate DGA malware.</p><h4>Query Patterns Over Time</h4><pre><code>index=dns src_ip=\"10.1.2.50\"\n| timechart span=1h count by query_type</code></pre>"
+      },
+      {
+        "title": "DNS Tunneling Detection",
+        "body": "<p>Attackers use DNS to exfiltrate data or maintain C2 channels.</p><h4>Entropy-Based Detection</h4><pre><code>index=dns query_type=TXT\n| eval query_entropy = 0\n| eval chars = split(query, \"\")\n| stats count as total by query\n| where total > 5\n| table query, total</code></pre><h4>TXT Record Abuse</h4><pre><code>index=dns query_type=TXT\n| stats count by src_ip, query\n| where count > 50\n| sort - count</code></pre><p>High volume of TXT queries to same domain is suspicious.</p><h4>Subdomain Encoding Detection</h4><pre><code>index=dns\n| rex field=query \"^(?<subdomain>[^.]+)\\..*\"\n| where match(subdomain, \"^[a-z0-9]{20,}$\")\n| stats count by query, src_ip\n| sort - count</code></pre><p>Long hex or base64-like subdomains suggest encoded data.</p>"
+      },
+      {
+        "title": "Proxy Log Analysis",
+        "body": "<h4>User Web Activity Summary</h4><pre><code>index=proxy\n| stats count, sum(bytes) as total_bytes, dc(dest_host) as unique_sites by user\n| sort - total_bytes</code></pre><h4>Suspicious URL Patterns</h4><pre><code>index=proxy\n| search url IN (\n    \"*.exe\",\n    \"*.dll\",\n    \"*.ps1\",\n    \"*.bat\",\n    \"*.vbs\"\n)\n| table _time, user, src_ip, url, status, bytes</code></pre><h4>HTTP POST to Unusual Destinations</h4><pre><code>index=proxy method=POST\n| where NOT match(dest_host, \"(google|microsoft|office365|salesforce)\")\n| stats count, sum(bytes) as data_sent by user, dest_host\n| where data_sent > 10000000\n| sort - data_sent</code></pre><h4>User Agent Analysis</h4><pre><code>index=proxy\n| stats count, dc(src_ip) as unique_sources by user_agent\n| where match(user_agent, \"(?i)(powershell|curl|wget|python)\")\n| table user_agent, count, unique_sources</code></pre><p>Scripting tools as user agents often indicate automated activity.</p>"
+      },
+      {
+        "title": "Command and Control Detection",
+        "body": "<h4>Beaconing Pattern Detection</h4><pre><code>index=firewall OR index=proxy dest_ip=\"suspicious_ip\"\n| sort _time\n| streamstats current=f last(_time) as prev_time by src_ip\n| eval interval = _time - prev_time\n| stats count, avg(interval) as avg_interval, stdev(interval) as stdev_interval by src_ip, dest_ip\n| where stdev_interval < 60 AND count > 20\n| table src_ip, dest_ip, count, avg_interval, stdev_interval</code></pre><p>Low standard deviation in intervals indicates regular beaconing.</p><h4>Connection Pattern Analysis</h4><pre><code>index=firewall action=allowed direction=outbound\n| timechart span=1h count by dest_ip limit=20\n| foreach * [eval &lt;&lt;FIELD&gt;&gt; = if(isnull(&lt;&lt;FIELD&gt;&gt;), 0, &lt;&lt;FIELD&gt;&gt;)]</code></pre><h4>Long-Duration Connections</h4><pre><code>index=firewall duration > 3600\n| stats count, sum(duration) as total_duration, sum(bytes_out) as total_bytes by src_ip, dest_ip, dest_port\n| sort - total_duration</code></pre><p>Persistent connections may indicate tunneling or C2.</p>"
+      },
+      {
+        "title": "Data Exfiltration Indicators",
+        "body": "<h4>Large Outbound Transfers</h4><pre><code>index=firewall direction=outbound\n| stats sum(bytes_out) as total_bytes by src_ip, dest_ip\n| where total_bytes > 100000000\n| eval MB = round(total_bytes / 1024 / 1024, 2)\n| sort - total_bytes\n| table src_ip, dest_ip, MB</code></pre><h4>After-Hours Data Transfer</h4><pre><code>index=firewall direction=outbound\n| eval hour = strftime(_time, \"%H\")\n| where hour < 6 OR hour > 20\n| stats sum(bytes_out) as total_bytes by src_ip\n| where total_bytes > 10000000\n| eval MB = round(total_bytes / 1024 / 1024, 2)\n| table src_ip, MB</code></pre><h4>Upload vs Download Ratio</h4><pre><code>index=firewall\n| stats sum(bytes_out) as uploaded, sum(bytes_in) as downloaded by src_ip\n| eval ratio = uploaded / downloaded\n| where ratio > 5 AND uploaded > 10000000\n| table src_ip, uploaded, downloaded, ratio</code></pre><p>Users uploading more than downloading is unusual.</p><h4>Cloud Storage Uploads</h4><pre><code>index=proxy method=POST\n| where match(dest_host, \"(dropbox|drive.google|onedrive|box.com|s3.amazonaws)\")\n| stats sum(bytes) as total_uploaded by user, dest_host\n| where total_uploaded > 50000000\n| eval MB = round(total_uploaded / 1024 / 1024, 2)\n| table user, dest_host, MB</code></pre>"
+      },
+      {
+        "title": "Network Correlation with Endpoints",
+        "body": "<h4>Process to Network Connection</h4><pre><code>index=sysmon EventCode=3 DestinationPort=443\n| lookup threat_intel dest_ip AS DestinationIp OUTPUT threat_category\n| where isnotnull(threat_category)\n| table _time, User, Image, DestinationIp, DestinationPort, threat_category</code></pre><h4>Correlate Firewall with Authentication</h4><pre><code>index=firewall src_ip=\"10.1.2.50\" dest_ip=\"suspicious_ip\"\n| join type=left src_ip [search index=security EventCode=4624 | rename src_ip as endpoint_ip | stats latest(user) as user by endpoint_ip | rename endpoint_ip as src_ip]\n| table _time, src_ip, user, dest_ip, dest_port, bytes_out</code></pre><h4>DNS Query to Connection</h4><pre><code>index=dns query=\"malicious.domain.com\"\n| rename src_ip as dns_client\n| join type=left dns_client [search index=firewall | stats count, sum(bytes_out) as bytes by src_ip, dest_ip | rename src_ip as dns_client]\n| table _time, dns_client, query, dest_ip, bytes</code></pre>"
+      },
+      {
+        "title": "Network Investigation Workflow",
+        "body": "<h4>Step 1: Identify Suspicious IP</h4><p>Start with IOC or alert:</p><pre><code>index=firewall dest_ip=\"malicious_ip\" OR src_ip=\"malicious_ip\"\n| stats count, sum(bytes_in) as in_bytes, sum(bytes_out) as out_bytes by src_ip, dest_ip, dest_port\n| sort - count</code></pre><h4>Step 2: Timeline the Connection</h4><pre><code>index=firewall (dest_ip=\"malicious_ip\" OR src_ip=\"malicious_ip\")\n| table _time, src_ip, dest_ip, dest_port, action, bytes_in, bytes_out\n| sort _time</code></pre><h4>Step 3: Identify Affected Hosts</h4><pre><code>index=firewall dest_ip=\"malicious_ip\"\n| stats count, sum(bytes_out) as data_sent, min(_time) as first_seen, max(_time) as last_seen by src_ip\n| eval duration = last_seen - first_seen\n| table src_ip, count, data_sent, first_seen, last_seen, duration</code></pre><h4>Step 4: Check DNS Resolution</h4><pre><code>index=dns answer=\"malicious_ip\"\n| stats count, values(query) as domains_resolving by src_ip\n| table src_ip, count, domains_resolving</code></pre><h4>Step 5: Correlate with Endpoint Activity</h4><pre><code>index=sysmon EventCode IN (1, 3) DestinationIp=\"malicious_ip\"\n| table _time, ComputerName, User, Image, CommandLine, DestinationIp, DestinationPort</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key network analysis techniques:</p><ul><li><strong>Firewall analysis</strong> - Connection patterns, blocked attempts, unusual ports</li><li><strong>DNS investigation</strong> - Query patterns, NXDomain, tunneling detection</li><li><strong>Proxy analysis</strong> - User activity, suspicious downloads, POST data</li><li><strong>C2 detection</strong> - Beaconing patterns, long connections, regular intervals</li><li><strong>Exfiltration detection</strong> - Large transfers, unusual ratios, after-hours activity</li><li><strong>Correlation</strong> - Link network data to endpoint and authentication events</li></ul><p>Network data reveals attacker infrastructure and data movement that endpoint data alone cannot show.</p>"
+      }
+    ]
+  }
+}

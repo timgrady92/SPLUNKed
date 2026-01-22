@@ -1,0 +1,143 @@
+{
+  "id": "inv-challenge",
+  "type": "challenge",
+  "title": "Complete Security Investigation Challenge",
+  "description": "Conduct a full end-to-end investigation from alert to documented findings, applying methodology, correlation, timeline building, and proper evidence collection across multiple data sources.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "40 min",
+  "tags": ["investigation", "challenge", "methodology", "correlation"],
+  "objectives": [
+    "Apply structured investigation methodology",
+    "Correlate events across multiple data sources",
+    "Build comprehensive attack timeline",
+    "Document findings with proper evidence"
+  ],
+  "content": {
+    "problem_statement": {
+      "title": "Challenge: Ransomware Precursor Investigation",
+      "description": "Your SOC received an alert at 14:45 UTC: 'Suspicious Scheduled Task Created' on server APP-SERVER-03. The task name is 'WindowsUpdate' but it points to a PowerShell script in C:\\ProgramData. This pattern matches known ransomware precursor activity. Conduct a complete investigation to determine: Was this system compromised? If so, how did the attacker gain access? What other systems may be affected? What is the attacker's objective?",
+      "requirements": [
+        "Determine when the compromise began (not just when the alert fired)",
+        "Identify the initial access vector",
+        "Trace any lateral movement to other systems",
+        "Identify all persistence mechanisms installed",
+        "Determine if data was accessed or exfiltrated",
+        "Document your investigation with reproducible queries",
+        "Provide a timeline of attack progression",
+        "List all compromised accounts and systems"
+      ],
+      "data_context": "Available data sources: index=security (Windows Security events on all systems), index=sysmon (endpoint telemetry on servers), index=proxy (web proxy logs), index=firewall (perimeter and internal firewall), index=email (email gateway logs). Alert details: Host APP-SERVER-03 (10.2.3.100), Alert time 2024-01-15 14:45 UTC, Task name 'WindowsUpdate' pointing to 'C:\\ProgramData\\update.ps1'."
+    },
+    "constraints": [
+      "You must demonstrate proper investigation methodology",
+      "All queries must be documented with context",
+      "Timeline must span from initial access to alert",
+      "You must investigate at least 3 data sources",
+      "Evidence must include both positive findings and negative results (what you didn't find)"
+    ],
+    "hints": [
+      {
+        "id": 1,
+        "title": "Finding Initial Access",
+        "content": "Work backwards from the known compromise. If a scheduled task was created at 14:45, what happened before? Check for: authentication events, process execution, or network connections to APP-SERVER-03 before the alert time. Use: index=security OR index=sysmon host=\"APP-SERVER-03\" earliest=-24h latest=\"01/15/2024:14:45:00\" | sort - _time"
+      },
+      {
+        "id": 2,
+        "title": "Tracing Source System",
+        "content": "If you find authentication from another system, that system may be the initial compromise point. Trace the chain: Phishing usually hits workstations first, which then pivot to servers. Look for the first compromised workstation."
+      },
+      {
+        "id": 3,
+        "title": "Correlation Key",
+        "content": "Link events by: user account (who authenticated), source IP (where connections came from), and timing (what happened before and after known events). Use transaction or streamstats to connect related events."
+      },
+      {
+        "id": 4,
+        "title": "Checking Email for Initial Vector",
+        "content": "Ransomware often starts with phishing. If you identify a compromised user, check their email: index=email recipient=\"user@domain\" earliest=-7d | search (attachment=\"*.exe\" OR attachment=\"*.zip\" OR attachment=\"*.doc*\" OR url=\"*\") | table _time, sender, subject, attachment, url"
+      },
+      {
+        "id": 5,
+        "title": "Data Exfiltration Check",
+        "content": "Before ransomware deployment, attackers often exfiltrate data. Check for: large outbound transfers, connections to cloud storage, or unusual upload volumes. Use proxy and firewall logs."
+      }
+    ],
+    "solution": {
+      "title": "Reference Investigation Approach",
+      "description": "This outlines one systematic approach. Your investigation may follow a different path while still meeting requirements.",
+      "panels": [
+        {
+          "title": "Phase 1: Understand the Alert",
+          "purpose": "Confirm and analyze the alert details",
+          "spl": "index=security EventCode=4698 host=\"APP-SERVER-03\" TaskName=\"WindowsUpdate\"\n| table _time, SubjectUserName, TaskName, TaskContent",
+          "notes": "Confirms the scheduled task creation. Note the user who created it and examine TaskContent for the malicious command."
+        },
+        {
+          "title": "Phase 2: Establish Attack Window",
+          "purpose": "Find when the compromise actually began",
+          "spl": "index=security OR index=sysmon host=\"APP-SERVER-03\" earliest=-24h latest=\"01/15/2024:14:45:00\"\n| search EventCode IN (4624, 4625, 1, 3)\n| stats min(_time) as first_event, max(_time) as last_event, dc(EventCode) as event_types by src_ip, user\n| sort first_event",
+          "notes": "Look for the earliest suspicious activity. Unusual source IPs or users indicate when compromise began."
+        },
+        {
+          "title": "Phase 3: Trace Authentication Chain",
+          "purpose": "Identify how attacker reached APP-SERVER-03",
+          "spl": "index=security EventCode=4624 dest=\"APP-SERVER-03\" earliest=-24h latest=\"01/15/2024:14:45:00\"\n| lookup asset_inventory ip as src_ip OUTPUT hostname as source_host\n| table _time, user, src_ip, source_host, Logon_Type\n| sort _time",
+          "notes": "The source system of authentication to APP-SERVER-03 may be the earlier compromise point."
+        },
+        {
+          "title": "Phase 4: Investigate Source Workstation",
+          "purpose": "Find initial access vector",
+          "spl": "index=sysmon host=\"$source_workstation$\" EventCode=1 earliest=-24h\n| search ParentImage IN (\"*\\\\OUTLOOK.EXE\", \"*\\\\WINWORD.EXE\", \"*\\\\EXCEL.EXE\")\n| table _time, User, ParentImage, Image, CommandLine\n| sort _time",
+          "notes": "Office applications spawning executables suggests malicious document/email attachment."
+        },
+        {
+          "title": "Phase 5: Find Phishing Email",
+          "purpose": "Identify initial delivery mechanism",
+          "spl": "index=email recipient=\"$compromised_user$\" earliest=-7d\n| search attachment!=\"\" OR url!=\"\"\n| eval suspicious = if(match(attachment, \"\\.(exe|zip|doc|xls|js|vbs|hta)$\") OR match(url, \"http[^s]\"), \"Yes\", \"No\")\n| where suspicious=\"Yes\"\n| table _time, sender, subject, attachment, url",
+          "notes": "Look for the email that delivered the initial payload."
+        },
+        {
+          "title": "Phase 6: Check Lateral Movement",
+          "purpose": "Identify other affected systems",
+          "spl": "index=security EventCode=4624 Logon_Type=3\n| where src_ip IN (\"$compromised_workstation_ip$\", \"10.2.3.100\")\n| where dest NOT IN (\"$compromised_workstation$\", \"APP-SERVER-03\")\n| stats count, min(_time) as first_access by user, dest\n| lookup asset_inventory hostname as dest OUTPUT asset_type, criticality\n| sort first_access",
+          "notes": "List all systems accessed from known compromised systems."
+        },
+        {
+          "title": "Phase 7: Find All Persistence",
+          "purpose": "Identify persistence mechanisms across all compromised systems",
+          "spl": "index=security OR index=sysmon EventCode IN (4697, 4698, 13)\n| search host IN ($compromised_systems$)\n| eval persistence_type = case(\n    EventCode=4697, \"Service\",\n    EventCode=4698, \"ScheduledTask\",\n    EventCode=13, \"Registry\")\n| table _time, host, persistence_type, ServiceName, TaskName, TargetObject\n| sort _time",
+          "notes": "Document all persistence for removal during remediation."
+        },
+        {
+          "title": "Phase 8: Check Data Access/Exfiltration",
+          "purpose": "Determine if data was accessed or stolen",
+          "spl": "index=proxy src_ip IN ($compromised_ips$) earliest=-24h\n| search method IN (\"POST\", \"PUT\") OR dest IN (\"*drive.google*\", \"*dropbox*\", \"*onedrive*\", \"*pastebin*\")\n| stats sum(bytes) as total_uploaded by src_ip, dest\n| where total_uploaded > 10000000\n| eval MB = round(total_uploaded / 1024 / 1024, 2)\n| table src_ip, dest, MB",
+          "notes": "Large uploads or cloud storage access may indicate data theft."
+        },
+        {
+          "title": "Phase 9: Build Complete Timeline",
+          "purpose": "Create chronological attack narrative",
+          "spl": "index=* earliest=\"$attack_start$\" latest=\"$alert_time$+1h\"\n| search host IN ($all_compromised$) OR src_ip IN ($compromised_ips$)\n| eval phase = case(\n    sourcetype=\"email\", \"1-Delivery\",\n    match(_raw, \"(?i)outlook|winword\"), \"2-Execution\",\n    match(_raw, \"whoami|net user\"), \"3-Discovery\",\n    EventCode IN (4624) AND Logon_Type=3, \"4-Lateral Movement\",\n    EventCode IN (4697, 4698, 13), \"5-Persistence\",\n    true(), \"Other\")\n| table _time, phase, host, user, EventCode, description\n| sort _time",
+          "notes": "Complete timeline from phishing to persistence for incident report."
+        }
+      ],
+      "performance_notes": "Investigation should identify: 1) Initial phishing email, 2) First compromised workstation, 3) Credential theft method, 4) Path to APP-SERVER-03, 5) All persistence mechanisms, 6) Any data access/exfiltration. Document each with query and screenshot."
+    },
+    "acceptance_criteria": [
+      "Initial access vector identified (how did attacker get in)",
+      "Complete attack timeline from first compromise to alert",
+      "All compromised systems identified and documented",
+      "All compromised credentials identified",
+      "All persistence mechanisms found",
+      "Data access/exfiltration assessment completed",
+      "Investigation documented with reproducible queries",
+      "Findings include negative results (what was checked and not found)"
+    ],
+    "evaluation_rubric": {
+      "meets_requirements": "Investigation identifies initial access, traces lateral movement to APP-SERVER-03, documents persistence, and provides timeline with supporting queries",
+      "exceeds_requirements": "Investigation discovers all compromise points, correlates across 4+ data sources, includes proactive hunting for additional indicators, and provides actionable remediation list",
+      "exceptional": "Investigation demonstrates sophisticated correlation, identifies subtle attack indicators, provides complete chain of custody documentation, and includes strategic recommendations for prevention"
+    }
+  }
+}

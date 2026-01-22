@@ -1,0 +1,119 @@
+{
+  "id": "fund-working-with-fields",
+  "type": "tutorial",
+  "title": "Working with Fields",
+  "description": "Learn to use fields effectively—the key to precise, powerful searches. Master field selection, the fields command, and the table command.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "15 min",
+  "tags": ["fundamentals", "fields", "table", "beginner", "spl"],
+  "objectives": [
+    "Understand the difference between default and extracted fields",
+    "Use the field sidebar to explore available fields",
+    "Select specific fields with the fields command",
+    "Create clean output tables with the table command"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Fields Matter",
+        "body": "<p>Raw log events are just text. Fields turn that text into structured, searchable data.</p><p>Consider this raw event:</p><pre><code>Jan 15 10:23:45 server01 sshd[12345]: Accepted password for admin from 192.168.1.50 port 52431</code></pre><p>As text, you can search for \"admin\" or \"192.168.1.50\", but you can't easily:</p><ul><li>Find all events from IP 192.168.1.50 without matching other numbers</li><li>Count logins per user</li><li>Compare login patterns across time</li></ul><p>With fields extracted:</p><table><tr><th>Field</th><th>Value</th></tr><tr><td>user</td><td>admin</td></tr><tr><td>src_ip</td><td>192.168.1.50</td></tr><tr><td>src_port</td><td>52431</td></tr><tr><td>action</td><td>Accepted</td></tr><tr><td>host</td><td>server01</td></tr></table><p>Now you can write precise searches and aggregate data meaningfully.</p>"
+      },
+      {
+        "title": "Finding Available Fields",
+        "body": "<p>The field sidebar (left side of results) shows all fields Splunk found in your results.</p><h4>Field Categories</h4><ul><li><strong>Selected Fields</strong>: Fields shown in your results view (host, source, sourcetype by default)</li><li><strong>Interesting Fields</strong>: Fields present in at least 20% of your events</li></ul><h4>Exploring a Field</h4><p>Click any field name to see:</p><ul><li><strong>Top 10 values</strong>: Most common values</li><li><strong>Count</strong>: How many events have each value</li><li><strong>%</strong>: Percentage of events with that value</li></ul><h4>All Fields</h4><p>Click <strong>All Fields</strong> at the bottom to see every extracted field, including:</p><ul><li>Fields that appear in fewer than 20% of events</li><li>Internal fields (starting with underscore)</li></ul>",
+        "example": {
+          "description": "Run a search to explore fields",
+          "spl": "index=_internal sourcetype=splunkd | head 100"
+        },
+        "explanation": "<p>After running this search, use the field sidebar to explore available fields like <code>component</code>, <code>log_level</code>, and <code>message</code>.</p>"
+      },
+      {
+        "title": "The fields Command",
+        "body": "<p>The <code>fields</code> command controls which fields are available in your search results.</p><h4>Keeping Only Specific Fields</h4>",
+        "example": {
+          "description": "Keep only specified fields",
+          "spl": "index=_internal sourcetype=splunkd\n| fields _time, host, log_level, message"
+        },
+        "explanation": "<p>This removes all fields except <code>_time</code>, <code>host</code>, <code>log_level</code>, and <code>message</code>. Benefits:</p><ul><li>Cleaner results</li><li>Faster processing (less data to handle)</li><li>Focus on what matters</li></ul><h4>Removing Specific Fields</h4>",
+        "example2": {
+          "description": "Remove unwanted fields",
+          "spl": "index=_internal sourcetype=splunkd\n| fields - _raw, punct, linecount"
+        },
+        "explanation2": "<p>The minus sign removes fields. Useful when you want most fields but need to hide a few.</p>"
+      },
+      {
+        "title": "The table Command",
+        "body": "<p>The <code>table</code> command creates a clean table with just the fields you specify.</p>",
+        "example": {
+          "description": "Create a simple results table",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| table _time, host, component, message"
+        },
+        "explanation": "<p><code>table</code> displays results as a clean table with columns for each field. Key points:</p><ul><li>Fields appear in the order you list them</li><li>Only events with at least one of the fields appear</li><li>Results show in the <strong>Statistics</strong> tab</li></ul><h4>fields vs table</h4><table><tr><th>Command</th><th>Purpose</th><th>Output</th></tr><tr><td><code>fields</code></td><td>Control which fields exist in the pipeline</td><td>Still in Events tab</td></tr><tr><td><code>table</code></td><td>Create formatted tabular output</td><td>Switches to Statistics tab</td></tr></table><p>Use <code>fields</code> mid-search to slim down data; use <code>table</code> at the end to format output.</p>"
+      },
+      {
+        "title": "Renaming Fields",
+        "body": "<p>The <code>rename</code> command gives fields more readable names.</p>",
+        "example": {
+          "description": "Rename fields for clarity",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR\n| table _time, host, component, message\n| rename _time as \"Time\", host as \"Server\", component as \"Component\", message as \"Error Message\""
+        },
+        "explanation": "<p>This creates a table with cleaner column headers. Useful for:</p><ul><li>Reports that others will read</li><li>Dashboard panels</li><li>Exports to CSV</li></ul><p>Note: Use quotes around names with spaces.</p>"
+      },
+      {
+        "title": "Default Fields",
+        "body": "<p>Every event has these default fields automatically:</p><table><tr><th>Field</th><th>Description</th><th>Example</th></tr><tr><td><code>_time</code></td><td>Event timestamp (epoch)</td><td>1705320225</td></tr><tr><td><code>_raw</code></td><td>Original event text</td><td>The full log line</td></tr><tr><td><code>host</code></td><td>Source system</td><td>server01</td></tr><tr><td><code>source</code></td><td>File or input path</td><td>/var/log/auth.log</td></tr><tr><td><code>sourcetype</code></td><td>Data format type</td><td>linux_secure</td></tr><tr><td><code>index</code></td><td>Which index stores this</td><td>linux</td></tr></table><p>These are always available without configuration.</p>"
+      },
+      {
+        "title": "Internal Fields",
+        "body": "<p>Fields starting with underscore (<code>_</code>) are internal Splunk fields.</p><table><tr><th>Field</th><th>Description</th></tr><tr><td><code>_time</code></td><td>Event timestamp</td></tr><tr><td><code>_raw</code></td><td>Original event text</td></tr><tr><td><code>_indextime</code></td><td>When Splunk indexed the event</td></tr><tr><td><code>_bkt</code></td><td>Bucket (storage location)</td></tr><tr><td><code>_serial</code></td><td>Event sequence number</td></tr></table><p>The two you'll use most are <code>_time</code> (always include in tables) and <code>_raw</code> (the original event).</p>"
+      },
+      {
+        "title": "Practical Examples",
+        "body": "<h4>Example 1: Simple Event Listing</h4><p>List errors with key fields:</p>",
+        "example": {
+          "description": "Error listing with relevant fields",
+          "spl": "index=_internal log_level=ERROR\n| table _time, host, sourcetype, message\n| head 20"
+        },
+        "example2_title": "Example 2: Field Exploration",
+        "example2": {
+          "description": "See what a field contains",
+          "spl": "index=_internal sourcetype=splunkd\n| top component"
+        },
+        "explanation2": "<p>The <code>top</code> command shows the most common values for a field—great for exploration.</p>",
+        "example3_title": "Example 3: Selecting for Performance",
+        "example3": {
+          "description": "Early field selection improves performance",
+          "spl": "index=_internal sourcetype=splunkd\n| fields _time, host, log_level, component, message\n| search log_level=ERROR\n| table _time, host, component, message"
+        },
+        "explanation3": "<p>Adding <code>fields</code> early in your search reduces the data Splunk processes, making subsequent commands faster.</p>"
+      },
+      {
+        "title": "Practice Exercises",
+        "body": "<p>Try these exercises to practice working with fields.</p><h4>Exercise 1: Basic Table</h4><p>Create a table showing time, host, and log_level from _internal:</p>",
+        "example": {
+          "description": "Exercise 1 solution",
+          "spl": "index=_internal sourcetype=splunkd\n| table _time, host, log_level\n| head 50"
+        },
+        "exercises": [
+          {
+            "title": "Exercise 2: Rename Fields",
+            "prompt": "Create the same table but rename log_level to 'Severity'",
+            "solution": "index=_internal sourcetype=splunkd\n| table _time, host, log_level\n| rename log_level as Severity\n| head 50"
+          },
+          {
+            "title": "Exercise 3: Field Removal",
+            "prompt": "Run a search and remove the _raw field to see just extracted fields",
+            "solution": "index=_internal sourcetype=splunkd\n| fields - _raw\n| head 20"
+          },
+          {
+            "title": "Exercise 4: Explore with top",
+            "prompt": "Find the top 10 components in splunkd logs",
+            "solution": "index=_internal sourcetype=splunkd\n| top 10 component"
+          }
+        ]
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><strong>Fields</strong> turn unstructured logs into searchable, analyzable data</li><li>Use the <strong>field sidebar</strong> to discover available fields</li><li><code>fields</code> controls which fields exist in your search pipeline</li><li><code>table</code> creates clean tabular output from your results</li><li><code>rename</code> gives fields more readable names</li><li>Default fields (<code>_time</code>, <code>host</code>, <code>source</code>, etc.) are always available</li><li>Always include <code>_time</code> in tables to show when events occurred</li></ul>"
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "id": "onb-field-extraction",
+  "type": "tutorial",
+  "title": "Field Extraction Methods",
+  "description": "Create search-time and index-time field extractions using props.conf and transforms.conf. Learn regex patterns, delimited extraction, and the Field Extractor UI.",
+  "category": "data-onboarding",
+  "difficulty": "intermediate",
+  "duration": "30 min",
+  "tags": ["data-onboarding", "field-extraction", "props.conf", "transforms.conf", "regex", "EXTRACT", "REPORT"],
+  "objectives": [
+    "Create inline field extractions with EXTRACT",
+    "Build reusable extractions with transforms.conf",
+    "Handle delimited data formats",
+    "Use the Field Extractor for interactive extraction",
+    "Choose between search-time and index-time extraction"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Field Extraction Overview",
+        "body": "<p>Field extraction transforms raw log text into structured, searchable fields. Well-designed extractions enable:</p><ul><li>Filtering events by specific values (<code>user=admin</code>)</li><li>Aggregating data (<code>stats count by status</code>)</li><li>Correlation across data sources</li><li>Dashboard visualizations</li></ul><h4>Extraction Methods</h4><table class=\"reference-table\"><tr><th>Method</th><th>Configuration</th><th>Use Case</th></tr><tr><td>Inline EXTRACT</td><td>props.conf only</td><td>Simple, single-sourcetype extractions</td></tr><tr><td>REPORT transform</td><td>props.conf + transforms.conf</td><td>Reusable or complex extractions</td></tr><tr><td>Field Extractor UI</td><td>Generates props/transforms</td><td>Interactive development</td></tr><tr><td>Index-time TRANSFORMS</td><td>props.conf + transforms.conf</td><td>High-volume filtering fields</td></tr></table>"
+      },
+      {
+        "title": "Inline EXTRACT Syntax",
+        "body": "<p>The simplest extraction method uses <code>EXTRACT-&lt;name&gt;</code> directly in props.conf with a named capture group regex.</p><h4>Basic Syntax</h4>",
+        "example": {
+          "description": "Inline extraction syntax",
+          "spl": "[your_sourcetype]\nEXTRACT-fieldname = (?<fieldname>pattern)"
+        },
+        "explanation": "<p>The <code>(?&lt;fieldname&gt;...)</code> syntax creates a named capture group. Whatever the pattern matches becomes the field value.</p><h4>Extract User from Log</h4>",
+        "example2": {
+          "description": "Extract username after 'user=' prefix",
+          "spl": "[app:auth]\nEXTRACT-user = user=(?<user>\\w+)"
+        }
+      },
+      {
+        "title": "Multiple Field Extraction",
+        "body": "<p>Extract multiple fields from a single pattern using multiple named capture groups.</p>",
+        "example": {
+          "description": "Extract user, action, and result from auth log",
+          "spl": "[app:auth]\nEXTRACT-auth_fields = user=(?<user>\\w+)\\s+action=(?<action>\\w+)\\s+result=(?<result>\\w+)"
+        },
+        "explanation": "<p>Sample log: <code>user=jsmith action=login result=success</code></p><p>Extracted fields:</p><ul><li><code>user = jsmith</code></li><li><code>action = login</code></li><li><code>result = success</code></li></ul><h4>Handling Optional Fields</h4>",
+        "example2": {
+          "description": "Make fields optional with (?:...)?",
+          "spl": "[app:auth]\nEXTRACT-auth_fields = user=(?<user>\\w+)(?:\\s+action=(?<action>\\w+))?(?:\\s+result=(?<result>\\w+))?"
+        }
+      },
+      {
+        "title": "Using Transforms for Reusable Extractions",
+        "body": "<p>For complex patterns or extractions shared across multiple sourcetypes, use transforms.conf.</p><h4>props.conf Reference</h4>",
+        "example": {
+          "description": "Reference a transform in props.conf",
+          "spl": "[app:auth]\nREPORT-auth_fields = extract_auth_fields"
+        },
+        "explanation": "<p>The <code>REPORT-&lt;class&gt;</code> attribute references a stanza in transforms.conf.</p><h4>transforms.conf Definition</h4>",
+        "example2": {
+          "description": "Define the extraction in transforms.conf",
+          "spl": "[extract_auth_fields]\nREGEX = user=(?<user>\\w+)\\s+action=(?<action>\\w+)\\s+result=(?<result>\\w+)"
+        }
+      },
+      {
+        "title": "Transforms with SOURCE_KEY",
+        "body": "<p>By default, extractions run against <code>_raw</code>. Use <code>SOURCE_KEY</code> to extract from a specific field.</p>",
+        "example": {
+          "description": "Extract from a specific field",
+          "spl": "[extract_url_parts]\nSOURCE_KEY = url\nREGEX = https?://(?<domain>[^/]+)(?<path>/[^?]*)?(?:\\?(?<query>.*))?",
+          "explanation": "Extracts domain, path, and query from a url field"
+        },
+        "explanation": "<p>This is useful for:</p><ul><li>Extracting from JSON fields after KV_MODE parsing</li><li>Secondary extractions from already-extracted fields</li><li>Extracting from specific portions of complex logs</li></ul><h4>Using MetaField as Source</h4>",
+        "example2": {
+          "description": "Extract from source path",
+          "spl": "[extract_app_from_source]\nSOURCE_KEY = MetaData:Source\nREGEX = /var/log/(?<app_name>\\w+)/"
+        }
+      },
+      {
+        "title": "Delimited Data Extraction",
+        "body": "<p>For consistently delimited data (CSV, TSV, pipe-delimited), use delimiter-based extraction instead of regex.</p><h4>Using DELIMS</h4>",
+        "example": {
+          "description": "Extract pipe-delimited fields",
+          "spl": "[extract_delimited]\nDELIMS = \"|\"\nFIELDS = timestamp, severity, component, message"
+        },
+        "explanation": "<p>Sample log: <code>2024-03-15|ERROR|Database|Connection failed</code></p><p>Extracted fields:</p><ul><li><code>timestamp = 2024-03-15</code></li><li><code>severity = ERROR</code></li><li><code>component = Database</code></li><li><code>message = Connection failed</code></li></ul><h4>Multiple Delimiters</h4>",
+        "example2": {
+          "description": "Handle multiple delimiter types",
+          "spl": "[extract_complex_delimited]\nDELIMS = \"|,\"\nFIELDS = field1, field2, field3, field4"
+        }
+      },
+      {
+        "title": "Key-Value Extraction",
+        "body": "<p>Many log formats use key=value pairs. Splunk can extract these automatically.</p><h4>Automatic KV Extraction</h4>",
+        "example": {
+          "description": "Enable automatic key-value extraction",
+          "spl": "[app:structured]\nKV_MODE = auto"
+        },
+        "explanation": "<p>KV_MODE options:</p><ul><li><code>auto</code> - Automatically find key=value pairs</li><li><code>json</code> - Parse JSON and extract fields</li><li><code>xml</code> - Parse XML and extract fields</li><li><code>none</code> - Disable automatic extraction</li></ul><h4>JSON Extraction</h4>",
+        "example2": {
+          "description": "Parse JSON logs",
+          "spl": "[app:json_logs]\nKV_MODE = json\nTIME_PREFIX = \"timestamp\":\\s*\"\nTIME_FORMAT = %Y-%m-%dT%H:%M:%S.%fZ"
+        }
+      },
+      {
+        "title": "Regex Patterns for Common Formats",
+        "body": "<p>Reference patterns for frequently encountered data formats.</p><h4>IP Addresses</h4>",
+        "example": {
+          "description": "Extract IPv4 addresses",
+          "spl": "[network:logs]\nEXTRACT-src_ip = src[_]?ip[=:]\\s*(?<src_ip>\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})\nEXTRACT-dest_ip = dst[_]?ip[=:]\\s*(?<dest_ip>\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})"
+        },
+        "explanation": "<p>These patterns handle common variations like <code>src_ip=</code>, <code>srcip:</code>, etc.</p><h4>Email Addresses</h4>",
+        "example2": {
+          "description": "Extract email addresses",
+          "spl": "[mail:logs]\nEXTRACT-email = (?<email>[\\w.+-]+@[\\w.-]+\\.[a-zA-Z]{2,})"
+        }
+      },
+      {
+        "title": "More Common Patterns",
+        "body": "<h4>URLs</h4>",
+        "example": {
+          "description": "Extract full URLs",
+          "spl": "[web:logs]\nEXTRACT-url = (?<url>https?://[^\\s\"'<>]+)"
+        },
+        "explanation": "<p>For URL parsing into components, use a transform with SOURCE_KEY on the extracted URL field.</p><h4>File Hashes</h4>",
+        "example2": {
+          "description": "Extract common hash formats",
+          "spl": "[security:logs]\nEXTRACT-md5 = [Mm][Dd]5[=:]\\s*(?<md5>[a-fA-F0-9]{32})\nEXTRACT-sha256 = [Ss][Hh][Aa]256[=:]\\s*(?<sha256>[a-fA-F0-9]{64})"
+        }
+      },
+      {
+        "title": "The Field Extractor UI",
+        "body": "<p>Splunk's Field Extractor provides an interactive way to build extractions without writing regex manually.</p><h4>Accessing Field Extractor</h4><ol><li>Run a search that returns events for your sourcetype</li><li>Click the arrow next to a field value in an event</li><li>Select <strong>Extract New Fields</strong></li><li>Choose <strong>Regular Expression</strong> or <strong>Delimiter</strong> method</li></ol><h4>Workflow</h4><ol><li>Highlight the value you want to extract</li><li>Name the field</li><li>Review matches across sample events</li><li>Add more examples if needed to refine the pattern</li><li>Save to create props.conf/transforms.conf entries</li></ol><p>The UI generates configuration you can then export and deploy to your apps.</p>"
+      },
+      {
+        "title": "Index-Time vs Search-Time Extraction",
+        "body": "<p>Most extractions should be search-time. Use index-time only when you have specific requirements.</p><h4>When to Use Index-Time</h4><ul><li>Field is used to filter in virtually every search</li><li>Massive data volumes where search-time extraction is too slow</li><li>Field is needed for data routing to different indexes</li></ul><h4>Index-Time Configuration</h4>",
+        "example": {
+          "description": "Index-time field extraction",
+          "spl": "[high_volume_logs]\nTRANSFORMS-extract = index_time_extract"
+        },
+        "explanation": "<p>In transforms.conf:</p>",
+        "example2": {
+          "description": "Transform with WRITE_META",
+          "spl": "[index_time_extract]\nREGEX = severity=(?<severity>\\w+)\nFORMAT = severity::$1\nWRITE_META = true"
+        }
+      },
+      {
+        "title": "Extraction Troubleshooting",
+        "body": "<p>When extractions don't work as expected, use these debugging approaches.</p><h4>Test Regex with rex</h4>",
+        "example": {
+          "description": "Test extraction pattern in search",
+          "spl": "index=your_index sourcetype=your_sourcetype\n| head 100\n| rex field=_raw \"user=(?<test_user>\\w+)\"\n| table _raw, test_user"
+        },
+        "explanation": "<p>The <code>rex</code> command lets you test patterns interactively before committing to props.conf.</p><h4>Verify Configuration Applied</h4>",
+        "example2": {
+          "description": "Check extractions with btool",
+          "spl": "./splunk btool props list your_sourcetype --debug | grep -i extract"
+        }
+      },
+      {
+        "title": "Field Extraction Best Practices",
+        "body": "<h4>Naming Conventions</h4><ul><li>Use lowercase with underscores: <code>src_ip</code>, <code>user_name</code></li><li>Be consistent across sourcetypes</li><li>Align with CIM field names when applicable</li><li>Avoid generic names like <code>data</code> or <code>value</code></li></ul><h4>Performance Tips</h4><ul><li>Anchor patterns with <code>^</code> or known prefixes when possible</li><li>Avoid excessive backtracking with <code>.*</code></li><li>Use non-capturing groups <code>(?:...)</code> for parts you don't need</li><li>Test on large datasets before production deployment</li></ul><h4>Maintenance</h4><ul><li>Document what each extraction captures</li><li>Version control your configuration files</li><li>Test extractions when log formats change</li></ul>"
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><strong>EXTRACT:</strong> Inline in props.conf for simple, single-use patterns</li><li><strong>REPORT:</strong> Reference transforms.conf for reusable or complex extractions</li><li><strong>KV_MODE:</strong> Use <code>auto</code>, <code>json</code>, or <code>xml</code> for structured formats</li><li><strong>DELIMS:</strong> Efficient extraction for consistently delimited data</li><li><strong>Field Extractor:</strong> UI tool for interactive pattern building</li><li><strong>Search-time by default:</strong> Only use index-time for documented performance needs</li><li><strong>Test with rex:</strong> Validate patterns before deploying to configuration</li></ul>"
+  }
+}

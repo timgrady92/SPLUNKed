@@ -1,0 +1,119 @@
+{
+  "id": "spl-correlation-scenario",
+  "type": "scenario",
+  "title": "Correlation Investigation: Account Compromise Across Data Sources",
+  "description": "Investigate a potential account compromise by correlating VPN, authentication, and email access logs using subsearches, lookups, and cross-index analysis.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["spl", "correlation", "subsearch", "lookup", "scenario", "compromise"],
+  "objectives": [
+    "Correlate events across multiple data sources",
+    "Use subsearches for dynamic filtering",
+    "Apply lookups for enrichment during investigation",
+    "Identify suspicious authentication sequences"
+  ],
+  "content": {
+    "situation": {
+      "title": "Scenario Setup",
+      "description": "Your SIEM generated an alert: 'VPN login from unusual location for user mgarcia.' The user normally connects from the US, but there was a login from Eastern Europe. Your task is to determine if this is a compromised account by correlating activity across VPN, domain authentication, and email systems.",
+      "environment": "Available data sources: index=vpn (VPN connection logs with user, src_ip, country, action), index=security sourcetype=wineventlog (Windows authentication with user, src_ip, dest, EventCode), index=email (email access logs with user, src_ip, action, subject). User directory is in a lookup: user_directory.csv with fields user, department, manager, location."
+    },
+    "steps": [
+      {
+        "id": 1,
+        "title": "Confirm the Alert",
+        "question": "First, verify the alert details. Find mgarcia's VPN connections in the last 48 hours and identify the anomalous login.",
+        "spl": "index=vpn user=mgarcia action=success earliest=-48h\n| lookup geoip src_ip OUTPUT country, city\n| table _time, user, src_ip, country, city\n| sort - _time",
+        "explanation": "This shows mgarcia's successful VPN connections with geographic context. Look for the connection from an unusual location among their normal login pattern.",
+        "validation": "You should see mostly US-based logins with one or more from Eastern Europe (e.g., Romania, Ukraine) that triggered the alert."
+      },
+      {
+        "id": 2,
+        "title": "Establish Normal Behavior",
+        "question": "What does mgarcia's typical login pattern look like? Check their VPN history over the past 30 days.",
+        "spl": "index=vpn user=mgarcia action=success earliest=-30d\n| lookup geoip src_ip OUTPUT country\n| stats count as logins, dc(src_ip) as unique_ips, values(country) as countries by user\n| mvexpand countries\n| stats count as times_seen by countries\n| sort - times_seen",
+        "explanation": "This reveals mgarcia's normal connection countries. If they always connect from the US, a connection from Romania is highly suspicious. If they travel internationally, it might be legitimate.",
+        "validation": "Note the countries mgarcia normally connects from. A user who has only ever connected from the US suddenly connecting from Eastern Europe is a strong indicator of compromise."
+      },
+      {
+        "id": 3,
+        "title": "Timeline: What Happened After the VPN Login?",
+        "question": "The suspicious VPN login occurred from IP 91.234.x.x at a specific time. What activity happened from that IP after the VPN connection? Use the VPN login time to scope your search.",
+        "spl": "index=vpn user=mgarcia src_ip=\"91.234.*\" earliest=-48h\n| head 1\n| map search=\"index=security OR index=email src_ip=$src_ip$ earliest=$_time$ latest=+4h\"\n| table _time, index, sourcetype, user, src_ip, dest, action, EventCode, subject\n| sort _time",
+        "explanation": "This correlates VPN login with subsequent activity from the same IP. We look for authentication events and email access in the 4 hours following the VPN connection.",
+        "validation": "A compromised account often shows: VPN login → domain authentication → mailbox access, all from the same foreign IP."
+      },
+      {
+        "id": 4,
+        "title": "Pivot: Check Windows Authentication",
+        "question": "Look at Windows authentication events for mgarcia during the suspicious session. Were there unusual domain logon patterns?",
+        "pivot_step": true,
+        "spl": "index=security sourcetype=wineventlog user=mgarcia earliest=-48h\n| search EventCode IN (4624, 4625, 4648)\n| lookup geoip src_ip OUTPUT country\n| stats count by EventCode, country\n| lookup windows_events EventCode OUTPUT description\n| table EventCode, description, country, count",
+        "explanation": "EventCode 4624 is successful logon, 4625 is failed logon, 4648 is explicit credential use (pass-the-hash indicator). Look for successful logons from the foreign country or multiple failures followed by success.",
+        "validation": "Red flags: 4624 (success) from Eastern Europe, 4648 events (credential reuse), or a burst of 4625 (failures) followed by 4624 (success)."
+      },
+      {
+        "id": 5,
+        "title": "Reasoning Checkpoint: Suspicious Sequence?",
+        "question": "You found: VPN login from Romania at 02:15 UTC, followed by domain authentication at 02:17 UTC, then email access at 02:20 UTC - all from the same foreign IP. mgarcia's profile shows they are based in Chicago (UTC-6). What makes this authentication sequence suspicious?",
+        "reasoning_checkpoint": true,
+        "expected_answer": "This sequence is suspicious because: 1) The timing - 02:15 UTC is 8:15 PM Chicago time, plausible but late for a Monday. However, if mgarcia has no history of travel to Romania, legitimate access is unlikely. 2) The speed - 5 minutes from VPN to email access suggests automated or prepared access, not a user fumbling with a new connection. 3) The pattern - VPN → domain auth → email is classic credential theft workflow: establish access, authenticate to domain, access high-value target (email). 4) The location - Romania is a common source of credential attacks. 5) No corresponding legitimate activity - if this were mgarcia traveling, you'd expect prior travel bookings, expense reports, or communication about being abroad."
+      },
+      {
+        "id": 6,
+        "title": "Check Email Activity",
+        "question": "What did the attacker do in mgarcia's mailbox? Look for suspicious email activity during the session.",
+        "spl": "index=email user=mgarcia earliest=-48h\n| lookup geoip src_ip OUTPUT country\n| where country!=\"US\"\n| stats count by action, subject\n| sort - count",
+        "explanation": "Email actions from the foreign IP reveal attacker intent. Common attack patterns: reading executive emails, searching for financial data, setting forwarding rules, or sending phishing emails.",
+        "validation": "Suspicious actions: creating inbox rules (forwarding), searching/reading sensitive threads, or sending emails to external addresses."
+      },
+      {
+        "id": 7,
+        "title": "Check for Persistence",
+        "question": "Attackers often establish persistence after gaining access. Use a subsearch to find if any mail forwarding rules were created during the suspicious session.",
+        "spl": "index=email user=mgarcia action=\"rule_created\" earliest=-48h\n| eval rule_details = coalesce(rule_name, subject)\n| table _time, user, action, rule_details, src_ip\n| lookup geoip src_ip OUTPUT country\n| where country!=\"US\"",
+        "explanation": "Inbox rules that forward email to external addresses are a classic persistence mechanism - the attacker continues receiving email even after the password is changed.",
+        "validation": "Any rule created from the foreign IP is almost certainly malicious and should be removed immediately."
+      },
+      {
+        "id": 8,
+        "title": "Correlate: Was mgarcia Active Elsewhere?",
+        "question": "Check if mgarcia was legitimately active from the US at the same time as the foreign login (impossible travel).",
+        "spl": "index=* user=mgarcia earliest=-48h\n| lookup geoip src_ip OUTPUT country, city, lat, lon\n| bin _time span=1h\n| stats dc(country) as countries_this_hour, values(country) as country_list, values(city) as cities by _time\n| where countries_this_hour > 1\n| table _time, countries_this_hour, country_list, cities",
+        "explanation": "If mgarcia appeared in both Chicago and Romania within the same hour, that's physically impossible - definitive proof of compromise.",
+        "validation": "Finding US and Romania activity in the same hour confirms account compromise (unless mgarcia is using a VPN to Eastern Europe, which would be unusual)."
+      },
+      {
+        "id": 9,
+        "title": "Build Investigation Summary",
+        "question": "Use correlation to build a complete timeline of the compromise. Create a unified view of all mgarcia's activity from the suspicious IP.",
+        "spl": "index=vpn OR index=security OR index=email user=mgarcia src_ip=\"91.234.*\" earliest=-48h\n| eval event_type = case(\n    index=\"vpn\", \"VPN\",\n    index=\"security\", \"Auth\",\n    index=\"email\", \"Email\",\n    true(), \"Other\")\n| eval detail = coalesce(action, tostring(EventCode), subject)\n| table _time, event_type, detail, dest, src_ip\n| sort _time",
+        "explanation": "This unified timeline shows the complete attack sequence from initial VPN access through all subsequent activity, making it easy to document and report.",
+        "validation": "The timeline should clearly show: VPN connect → domain auth → email access → any persistence mechanisms or data access."
+      },
+      {
+        "id": 10,
+        "title": "Response Recommendations",
+        "question": "Based on your investigation, what are your recommended immediate response actions?",
+        "expected_answer": "Immediate actions: 1) Reset mgarcia's password immediately, 2) Terminate all active sessions (VPN, O365, domain), 3) Remove any inbox rules created during the suspicious session, 4) Block the attacking IP at perimeter firewall, 5) Enable MFA if not already required, 6) Search for similar attacks on other users from the same IP or IP range. Investigation follow-up: 1) Determine how credentials were compromised (phishing? breach?), 2) Review what data was accessed in email, 3) Check if attacker accessed other systems via domain auth, 4) Notify mgarcia and their manager, 5) Document for incident report. Longer-term: 1) Consider conditional access policies requiring US location, 2) Implement impossible travel detection as automated alert."
+      }
+    ],
+    "conclusion": {
+      "title": "Scenario Complete",
+      "summary": "You investigated a potential account compromise by correlating VPN, Windows authentication, and email logs. Using lookups for geographic enrichment and cross-index correlation, you confirmed the compromise and identified the attacker's actions.",
+      "key_takeaways": [
+        "Correlation across data sources tells the complete story",
+        "Geographic lookups add critical context for access investigations",
+        "Impossible travel (same user in two countries simultaneously) is definitive proof of compromise",
+        "Timeline reconstruction reveals attack patterns and intent",
+        "Persistence mechanisms (mail rules) extend attacker access beyond password resets"
+      ],
+      "next_steps": [
+        "Convert this investigation into a scheduled impossible travel detection",
+        "Build a dashboard for geographic login anomalies",
+        "Practice the SPL Mastery Challenge to apply all learned techniques"
+      ]
+    }
+  }
+}

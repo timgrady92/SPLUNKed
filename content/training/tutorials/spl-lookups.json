@@ -1,0 +1,65 @@
+{
+  "id": "spl-lookups",
+  "type": "tutorial",
+  "title": "Lookups for Enrichment",
+  "description": "Use CSV lookups for data enrichment, configure lookup definitions, handle default values, output to lookups, and implement threat intel matching patterns.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["spl", "lookup", "enrichment", "intermediate"],
+  "objectives": [
+    "Create and use CSV lookups for field enrichment",
+    "Configure lookup definitions with proper field matching",
+    "Handle missing matches with default values",
+    "Output search results to lookup tables",
+    "Implement threat intelligence matching patterns"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Lookups?",
+        "body": "<p>Lookups add context to your events from external reference data:</p><ul><li>Map IP addresses to hostnames or locations</li><li>Enrich user IDs with department and manager</li><li>Add threat intel scores to indicators</li><li>Translate codes to human-readable descriptions</li></ul><p>Unlike subsearches, lookups have no result limits and are much faster for large reference datasets.</p>"
+      },
+      {
+        "title": "Basic Lookup Usage",
+        "body": "<h4>The lookup Command</h4><pre><code>index=security\n| lookup user_info.csv user OUTPUT department, manager</code></pre><p>For each event, this finds the matching row in user_info.csv and adds department and manager fields.</p><h4>Lookup Syntax</h4><pre><code>| lookup &lt;lookup_name&gt; &lt;input_field&gt; [AS &lt;lookup_field&gt;] OUTPUT &lt;output_fields&gt;</code></pre><h4>Field Mapping</h4><p>When field names differ:</p><pre><code>| lookup user_info.csv username AS user OUTPUT dept AS department</code></pre><p>This maps your event's <code>user</code> field to the lookup's <code>username</code> column.</p>"
+      },
+      {
+        "title": "Creating Lookup Tables",
+        "body": "<h4>CSV File Upload</h4><p>Settings → Lookups → Lookup table files → Add new</p><p>Upload a CSV with headers:</p><pre><code>ip,country,city,isp\n1.2.3.4,US,New York,Comcast\n5.6.7.8,UK,London,BT</code></pre><h4>Lookup Definition</h4><p>Create a definition (Settings → Lookups → Lookup definitions):</p><ul><li>Name: geo_lookup</li><li>Type: File-based</li><li>Lookup file: geo_data.csv</li></ul><h4>Using the Defined Lookup</h4><pre><code>| lookup geo_lookup ip AS src_ip OUTPUT country, city</code></pre>"
+      },
+      {
+        "title": "inputlookup: Reading Entire Lookups",
+        "body": "<p>Read a lookup table directly as search results:</p><pre><code>| inputlookup user_info.csv\n| search department=\"Engineering\"</code></pre><h4>Use Cases</h4><ul><li>Browse lookup contents</li><li>Generate reports from reference data</li><li>Starting point for lookup maintenance</li></ul><h4>With Where Clause</h4><pre><code>| inputlookup threat_intel.csv\n| where score > 80\n| table indicator, category, score</code></pre><h4>Append to Search</h4><pre><code>| inputlookup append=t additional_data.csv</code></pre>"
+      },
+      {
+        "title": "outputlookup: Writing to Lookups",
+        "body": "<p>Save search results as a lookup table:</p><pre><code>index=threats\n| stats latest(score) as score, latest(category) as category by indicator\n| outputlookup threat_indicators.csv</code></pre><h4>Append Mode</h4><pre><code>| outputlookup append=t threat_indicators.csv</code></pre><p>Adds to existing lookup rather than replacing.</p><h4>Scheduled Lookup Updates</h4><p>Create a scheduled search to keep lookups current:</p><pre><code>index=hr_system\n| stats latest(department) as department, latest(manager) as manager by employee_id\n| outputlookup user_info.csv</code></pre><p>Run daily to maintain updated user information.</p>"
+      },
+      {
+        "title": "Handling Missing Matches",
+        "body": "<h4>Default Behavior</h4><p>When no match is found, OUTPUT fields are empty (null).</p><h4>OUTPUTNEW vs OUTPUT</h4><pre><code>| lookup geo_lookup ip AS src_ip OUTPUTNEW country</code></pre><p><code>OUTPUTNEW</code> only writes if the field doesn't already exist. <code>OUTPUT</code> always overwrites.</p><h4>Default Values with coalesce</h4><pre><code>| lookup geo_lookup ip AS src_ip OUTPUT country\n| eval country = coalesce(country, \"Unknown\")</code></pre><h4>Filtering Unmatched</h4><pre><code>| lookup threat_intel indicator AS src_ip OUTPUT score\n| where isnotnull(score)</code></pre><p>Only keep events that matched the threat intel.</p>"
+      },
+      {
+        "title": "Automatic Lookups",
+        "body": "<p>Configure lookups to run automatically at search time:</p><h4>Setting Up Automatic Lookup</h4><p>Settings → Lookups → Automatic lookups → Add new</p><ul><li>Name: auto_geo_enrichment</li><li>Lookup: geo_lookup</li><li>Apply to: sourcetype (firewall)</li><li>Lookup input: src_ip</li><li>Lookup output: country, city</li></ul><h4>Result</h4><p>Every search on that sourcetype automatically has country and city fields.</p><h4>When to Use</h4><ul><li>Universal enrichment (all searches need this data)</li><li>Consistent field availability</li><li>Transparent to search authors</li></ul><h4>Performance Consideration</h4><p>Automatic lookups add overhead to every search. Use selectively.</p>"
+      },
+      {
+        "title": "Threat Intelligence Matching",
+        "body": "<h4>Basic IOC Lookup</h4><pre><code>index=proxy\n| lookup threat_iocs.csv indicator AS dest_domain OUTPUT category, score\n| where isnotnull(score)\n| table _time, user, dest_domain, category, score</code></pre><h4>Multi-Field Matching</h4><p>Check multiple fields against the same lookup:</p><pre><code>index=network\n| lookup threat_iocs.csv indicator AS src_ip OUTPUT category as src_category, score as src_score\n| lookup threat_iocs.csv indicator AS dest_ip OUTPUT category as dest_category, score as dest_score\n| where isnotnull(src_score) OR isnotnull(dest_score)</code></pre><h4>IOC Lookup Table Structure</h4><pre><code>indicator,type,category,score,source,last_seen\n1.2.3.4,ip,c2,90,abuse_ch,2024-01-15\nevil.com,domain,phishing,85,phishtank,2024-01-14</code></pre>"
+      },
+      {
+        "title": "Lookup Performance Tips",
+        "body": "<h4>Indexing Lookups</h4><p>For large lookups (>100K rows), enable indexing in the lookup definition.</p><h4>Optimize CSV Structure</h4><ul><li>Put the match field first</li><li>Remove unnecessary columns</li><li>Use consistent data types</li></ul><h4>Filter Before Lookup</h4><pre><code>index=proxy action=blocked\n| lookup threat_intel indicator AS dest_domain OUTPUT score</code></pre><p>Filter to blocked events first, then enrich - fewer lookup operations.</p><h4>Cidr Matching for IPs</h4><pre><code>| lookup cidr_lookup cidr AS src_ip OUTPUT network_name</code></pre><p>Configure the lookup to use CIDR matching for IP ranges.</p>"
+      },
+      {
+        "title": "Common Patterns",
+        "body": "<h4>User Enrichment</h4><pre><code>index=security\n| lookup user_directory.csv username AS user OUTPUT email, department, manager, is_privileged\n| where is_privileged=\"true\" AND action=\"failure\"</code></pre><h4>Asset Enrichment</h4><pre><code>index=network\n| lookup asset_inventory.csv ip AS dest_ip OUTPUT hostname, asset_type, criticality, owner\n| where criticality=\"high\"</code></pre><h4>Code Translation</h4><pre><code>index=windows sourcetype=wineventlog\n| lookup windows_events.csv EventCode OUTPUT description\n| stats count by EventCode, description</code></pre><h4>GeoIP Enrichment</h4><pre><code>index=firewall\n| lookup geoip.csv ip AS src_ip OUTPUT country, latitude, longitude\n| where country!=\"US\"\n| stats count by country</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key lookup capabilities:</p><ul><li><strong>lookup command</strong> - Add fields from reference data</li><li><strong>inputlookup</strong> - Read lookup as search results</li><li><strong>outputlookup</strong> - Save results to lookup table</li><li><strong>Automatic lookups</strong> - Transparent enrichment for all searches</li><li><strong>OUTPUTNEW vs OUTPUT</strong> - Control field overwriting</li><li><strong>Threat intel pattern</strong> - Match IOCs across multiple fields</li></ul><p>Lookups are essential for contextual enrichment. Unlike subsearches, they scale to millions of rows and perform consistently.</p>"
+      }
+    ]
+  }
+}

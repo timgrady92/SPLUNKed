@@ -1,0 +1,87 @@
+{
+  "id": "ti-ioc-matching-scenario",
+  "type": "scenario",
+  "title": "IOC Sweep: Network Traffic Analysis",
+  "description": "A new threat report has surfaced containing IOCs associated with an active APT campaign. Your task is to sweep your network data for matches and assess potential compromise.",
+  "category": "threat-intel",
+  "difficulty": "advanced",
+  "duration": "25 min",
+  "tags": ["threat-intel", "ioc", "matching", "network", "investigation", "advanced"],
+  "objectives": [
+    "Import and normalize external threat intelligence",
+    "Match IOCs across multiple network data sources",
+    "Prioritize findings based on confidence and context",
+    "Document potential compromise indicators"
+  ],
+  "content": {
+    "background": "<p>Your threat intelligence team has received a new report from a trusted ISAC containing IOCs linked to APT-NIGHTFALL, a threat actor targeting organizations in your sector. The report includes:</p><ul><li>15 IP addresses (command and control infrastructure)</li><li>8 domains (staging servers and exfiltration points)</li><li>3 file hashes (malware variants)</li></ul><p>Leadership wants an immediate assessment: <strong>Have any of these indicators appeared in our environment?</strong></p><h4>Available Data Sources</h4><table><tr><th>Index</th><th>Data Type</th><th>Relevant Fields</th></tr><tr><td>firewall</td><td>Perimeter logs</td><td>src_ip, dest_ip, dest_port, action, bytes_out</td></tr><tr><td>dns</td><td>DNS queries</td><td>src_ip, query, answer, record_type</td></tr><tr><td>proxy</td><td>Web traffic</td><td>src_ip, dest, url, user, bytes</td></tr><tr><td>endpoint</td><td>Host telemetry</td><td>host, user, file_hash, file_path, process</td></tr></table><h4>Threat Intelligence Provided</h4><pre><code>indicator,type,confidence,category,description\n185.234.72.14,ip,high,c2,\"Primary C2 server\"\n103.27.108.99,ip,high,c2,\"Backup C2 server\"\n45.77.65.211,ip,medium,staging,\"Payload staging\"\n91.219.236.166,ip,medium,c2,\"Secondary C2\"\n194.36.191.227,ip,high,exfil,\"Data exfiltration endpoint\"\nnightfall-update.com,domain,high,c2,\"C2 domain\"\ncdn-secure-check.net,domain,high,staging,\"Malware delivery\"\napi-telemetry.org,domain,medium,c2,\"Beacon domain\"\nsecure-sync-service.com,domain,high,exfil,\"Exfil domain\"\na1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4,hash,high,malware,\"NIGHTFALL dropper\"\nf7e8d9c0b1a2f7e8d9c0b1a2f7e8d9c0,hash,high,malware,\"NIGHTFALL beacon\"\n9a8b7c6d5e4f9a8b7c6d5e4f9a8b7c6d,hash,medium,malware,\"Related tool\"</code></pre>",
+    "steps": [
+      {
+        "title": "Step 1: Load Threat Intelligence",
+        "type": "pivot",
+        "content": "<p>First, load the threat intelligence into a lookup that you can use for matching. In a real environment, this would be pre-loaded; here we'll simulate the process.</p><h4>Task</h4><p>Create a search that loads the IOC data and prepares it for matching across your network data.</p><h4>Approach</h4><ul><li>Use <code>makeresults</code> with <code>mvexpand</code> to simulate loaded IOCs</li><li>Separate IOCs by type for targeted matching</li><li>Consider which data sources are relevant for each IOC type</li></ul>",
+        "hint": "Use makeresults to create the IOC list, then separate by type. IP IOCs match against firewall and DNS answer fields. Domain IOCs match against DNS query and proxy dest fields.",
+        "solution": "| makeresults\n| eval raw = \"185.234.72.14,ip,high,c2;103.27.108.99,ip,high,c2;45.77.65.211,ip,medium,staging;91.219.236.166,ip,medium,c2;194.36.191.227,ip,high,exfil;nightfall-update.com,domain,high,c2;cdn-secure-check.net,domain,high,staging;api-telemetry.org,domain,medium,c2;secure-sync-service.com,domain,high,exfil;a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4,hash,high,malware;f7e8d9c0b1a2f7e8d9c0b1a2f7e8d9c0,hash,high,malware;9a8b7c6d5e4f9a8b7c6d5e4f9a8b7c6d,hash,medium,malware\"\n| makemv delim=\";\" raw\n| mvexpand raw\n| rex field=raw \"(?<indicator>[^,]+),(?<type>[^,]+),(?<confidence>[^,]+),(?<category>.+)\"\n| table indicator, type, confidence, category\n| outputlookup apt_nightfall_iocs.csv"
+      },
+      {
+        "title": "Step 2: Sweep Firewall Logs for IP Matches",
+        "type": "pivot",
+        "content": "<p>Check your firewall logs for any communication with the known malicious IP addresses.</p><h4>Task</h4><p>Search firewall data for connections to or from the threat actor's infrastructure.</p><h4>Considerations</h4><ul><li>Check both <code>dest_ip</code> (outbound to C2) and <code>src_ip</code> (inbound attacks)</li><li>Prioritize by confidence level</li><li>Note the volume and timing of any matches</li></ul>",
+        "hint": "Use lookup to match both src_ip and dest_ip against your IOC list. Filter for ip type only. Include confidence in your output to prioritize.",
+        "solution": "index=firewall earliest=-7d\n| lookup apt_nightfall_iocs.csv indicator as dest_ip OUTPUT type as dest_type, confidence as dest_confidence, category as dest_category\n| lookup apt_nightfall_iocs.csv indicator as src_ip OUTPUT type as src_type, confidence as src_confidence, category as src_category\n| where (dest_type=\"ip\" OR src_type=\"ip\")\n| eval match_direction = case(\n    isnotnull(dest_type), \"outbound_to_threat\",\n    isnotnull(src_type), \"inbound_from_threat\")\n| eval matched_ip = coalesce(if(isnotnull(dest_type), dest_ip, null()), if(isnotnull(src_type), src_ip, null()))\n| eval confidence = coalesce(dest_confidence, src_confidence)\n| eval category = coalesce(dest_category, src_category)\n| stats count as connections, sum(bytes_out) as total_bytes, dc(src_ip) as unique_internal_hosts, min(_time) as first_seen, max(_time) as last_seen by matched_ip, match_direction, confidence, category\n| sort - confidence, - connections"
+      },
+      {
+        "title": "Step 3: DNS Query Analysis",
+        "type": "pivot",
+        "content": "<p>DNS is often the first indicator of compromise - systems must resolve C2 domains before connecting.</p><h4>Task</h4><p>Search DNS logs for queries to malicious domains AND responses resolving to malicious IPs.</p><h4>Why Both?</h4><ul><li><strong>Query matches</strong>: Direct lookup of known-bad domain</li><li><strong>Answer matches</strong>: Legitimate-looking domain resolving to malicious IP (potential fast-flux or domain fronting)</li></ul>",
+        "hint": "Perform two lookups: one matching query against domain IOCs, another matching answer against IP IOCs. Domains resolving to malicious IPs are especially interesting.",
+        "solution": "index=dns earliest=-7d\n| lookup apt_nightfall_iocs.csv indicator as query OUTPUT type as query_type, confidence as query_confidence, category as query_category\n| lookup apt_nightfall_iocs.csv indicator as answer OUTPUT type as answer_type, confidence as answer_confidence, category as answer_category\n| where query_type=\"domain\" OR answer_type=\"ip\"\n| eval match_type = case(\n    isnotnull(query_type) AND isnotnull(answer_type), \"domain_and_ip_match\",\n    isnotnull(query_type), \"malicious_domain_query\",\n    isnotnull(answer_type), \"resolves_to_malicious_ip\")\n| eval priority = case(\n    match_type=\"domain_and_ip_match\", \"critical\",\n    query_confidence=\"high\" OR answer_confidence=\"high\", \"high\",\n    true(), \"medium\")\n| stats count as queries, dc(src_ip) as querying_hosts, values(src_ip) as affected_hosts, min(_time) as first_query, max(_time) as last_query by query, answer, match_type, priority\n| sort - priority, - queries"
+      },
+      {
+        "title": "Reasoning Checkpoint: Assess Initial Findings",
+        "type": "reasoning",
+        "content": "<p>Before continuing, assess what the network matches tell you.</p><h4>Questions to Consider</h4><ol><li>Did you find any matches? If so, how many unique internal hosts are affected?</li><li>What's the timeline of the matches? Recent or historical?</li><li>Are the matches concentrated on specific hosts or distributed?</li><li>Which IOC categories were matched (C2, staging, exfil)?</li></ol><h4>Interpretation Guide</h4><table><tr><th>Finding</th><th>Implication</th></tr><tr><td>High-confidence C2 matches</td><td>Likely active compromise - escalate immediately</td></tr><tr><td>Staging server matches only</td><td>May indicate infection attempt - check for follow-on C2</td></tr><tr><td>Exfil server matches</td><td>Data loss may have occurred - scope the affected data</td></tr><tr><td>Single host, recent matches</td><td>Potentially active incident in progress</td></tr><tr><td>Multiple hosts, historical</td><td>May indicate widespread compromise over time</td></tr></table>",
+        "question": "Based on your firewall and DNS findings, what is your initial assessment of potential compromise?",
+        "options": [
+          "No matches found - environment appears clean against these IOCs",
+          "Low confidence matches only - requires validation before escalation",
+          "High confidence matches on limited hosts - likely targeted compromise",
+          "Widespread matches across multiple hosts - significant incident scope"
+        ]
+      },
+      {
+        "title": "Step 4: Proxy Log Deep Dive",
+        "type": "pivot",
+        "content": "<p>Proxy logs provide URL-level visibility and user attribution that firewall logs lack.</p><h4>Task</h4><p>For any hosts that matched in previous steps, examine their proxy activity for additional context.</p><h4>Look For</h4><ul><li>Connections to matched domains with full URL paths</li><li>User agents that may indicate malware beaconing</li><li>Data transfer volumes that suggest exfiltration</li><li>Timing patterns (regular intervals = beaconing)</li></ul>",
+        "hint": "Use the affected hosts from previous searches as a filter. Look for patterns in URL paths, unusual user agents, or large data transfers. Calculate time between requests to identify beaconing.",
+        "solution": "index=proxy src_ip IN (\"10.1.2.50\", \"10.1.3.25\") earliest=-7d\n| lookup apt_nightfall_iocs.csv indicator as dest OUTPUT type, confidence, category\n| where isnotnull(type) OR match(url, \"(?i)(update|sync|telemetry|cdn|api)\")\n| eval suspicious_ua = if(match(user_agent, \"(?i)(curl|wget|python|powershell|^$)\"), \"yes\", \"no\")\n| eval url_path = urldecode(url)\n| rex field=url_path \"/(?<path_pattern>[^?]+)\"\n| stats count as requests, sum(bytes) as total_bytes, dc(url) as unique_urls, values(user_agent) as user_agents, values(user) as users by src_ip, dest, category, suspicious_ua\n| eval bytes_mb = round(total_bytes/1024/1024, 2)\n| sort - bytes_mb"
+      },
+      {
+        "title": "Step 5: Endpoint Hash Matching",
+        "type": "pivot",
+        "content": "<p>File hash matches provide definitive evidence of malware presence.</p><h4>Task</h4><p>Search endpoint telemetry for the malware hashes associated with APT-NIGHTFALL.</p><h4>Note</h4><p>Hash matches are high-fidelity indicators. A match means the exact malicious file was present on the endpoint.</p>",
+        "hint": "Match file_hash against your IOC lookup. Include file path, process name, and user context. A hash match is strong evidence of compromise.",
+        "solution": "index=endpoint earliest=-30d\n| lookup apt_nightfall_iocs.csv indicator as file_hash OUTPUT type, confidence, category\n| where type=\"hash\"\n| stats count as instances, values(file_path) as file_paths, values(process) as processes, values(user) as users, min(_time) as first_seen, max(_time) as last_seen by host, file_hash, confidence\n| lookup apt_nightfall_iocs.csv indicator as file_hash OUTPUT category as malware_category\n| table host, file_hash, malware_category, confidence, file_paths, processes, users, first_seen, last_seen, instances"
+      },
+      {
+        "title": "Step 6: Correlate Across Sources",
+        "type": "pivot",
+        "content": "<p>Now correlate your findings to build a complete picture of affected assets.</p><h4>Task</h4><p>Create a summary showing all hosts with IOC matches across any data source, with match details.</p><h4>Goal</h4><p>A single view that leadership can use to understand scope and prioritize response.</p>",
+        "hint": "Use append to combine results from each data source. Normalize the host identifier field. Use stats to aggregate by host showing which IOC types matched.",
+        "solution": "| append [\n    search index=firewall earliest=-7d\n    | lookup apt_nightfall_iocs.csv indicator as dest_ip OUTPUT type, confidence\n    | where type=\"ip\"\n    | rename src_ip as host\n    | stats count as fw_matches, values(dest_ip) as matched_ips by host\n    | eval data_source=\"firewall\"\n]\n| append [\n    search index=dns earliest=-7d\n    | lookup apt_nightfall_iocs.csv indicator as query OUTPUT type, confidence\n    | where type=\"domain\"\n    | rename src_ip as host\n    | stats count as dns_matches, values(query) as matched_domains by host\n    | eval data_source=\"dns\"\n]\n| append [\n    search index=endpoint earliest=-30d\n    | lookup apt_nightfall_iocs.csv indicator as file_hash OUTPUT type, confidence\n    | where type=\"hash\"\n    | stats count as endpoint_matches, values(file_hash) as matched_hashes by host\n    | eval data_source=\"endpoint\"\n]\n| stats values(data_source) as data_sources, sum(fw_matches) as firewall_hits, sum(dns_matches) as dns_hits, sum(endpoint_matches) as endpoint_hits, values(matched_ips) as matched_ips, values(matched_domains) as matched_domains, values(matched_hashes) as matched_hashes by host\n| eval total_matches = coalesce(firewall_hits, 0) + coalesce(dns_hits, 0) + coalesce(endpoint_hits, 0)\n| eval priority = case(\n    isnotnull(matched_hashes), \"critical\",\n    mvcount(data_sources) >= 2, \"high\",\n    true(), \"medium\")\n| sort - priority, - total_matches"
+      },
+      {
+        "title": "Final Assessment",
+        "type": "reasoning",
+        "content": "<p>You've completed a comprehensive IOC sweep. Now document your findings.</p><h4>Summary Report Template</h4><pre><code>APT-NIGHTFALL IOC Sweep Results\n================================\nTime Period Analyzed: [dates]\nIOCs Checked: 15 IPs, 8 domains, 3 hashes\n\nFindings Summary:\n- Total hosts with matches: [count]\n- Critical (hash matches): [count]\n- High (multi-source matches): [count]\n- Medium (single-source matches): [count]\n\nAffected Hosts:\n[list hosts with priority and match types]\n\nRecommended Actions:\n1. [immediate actions]\n2. [containment steps]\n3. [further investigation]\n</code></pre><h4>Documentation Checklist</h4><ul><li>Preserve all search queries used</li><li>Export raw match data for forensics</li><li>Note any gaps in visibility (missing data sources)</li><li>Record confidence levels and caveats</li></ul>",
+        "question": "What would be your recommended immediate action based on the sweep results?",
+        "options": [
+          "No action needed - no matches found",
+          "Continue monitoring - low confidence matches require validation",
+          "Isolate affected hosts and begin incident response",
+          "Escalate to executive leadership - significant breach indicators"
+        ]
+      }
+    ]
+  }
+}

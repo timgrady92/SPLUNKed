@@ -1,0 +1,129 @@
+{
+  "id": "inv-lateral-movement-scenario",
+  "type": "scenario",
+  "title": "Lateral Movement Investigation",
+  "description": "Track attacker movement through your network after initial compromise, identifying pivot points, compromised systems, and techniques used for persistence and credential theft.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "30 min",
+  "tags": ["investigation", "lateral-movement", "persistence", "scenario"],
+  "objectives": [
+    "Track attacker movement between systems",
+    "Identify credential theft techniques",
+    "Detect persistence mechanisms installed",
+    "Map the full scope of compromise"
+  ],
+  "content": {
+    "situation": {
+      "title": "Scenario Setup",
+      "description": "Your EDR solution detected suspicious PowerShell activity on workstation WKS-FINANCE-01 (10.1.5.50). The alert shows encoded PowerShell execution by user 'rbrown'. Initial triage confirmed the workstation was compromised via a phishing email. Your task is to determine how far the attacker has moved through the network since initial access.",
+      "environment": "Data sources: index=security (Windows events), index=sysmon (endpoint telemetry), index=firewall (network connections). Asset inventory in asset_inventory.csv. Initial compromise: WKS-FINANCE-01, User: rbrown, Time: 2024-01-15 09:30 UTC."
+    },
+    "steps": [
+      {
+        "id": 1,
+        "title": "Establish Initial Compromise Timeline",
+        "question": "Confirm the initial compromise. What malicious activity occurred on WKS-FINANCE-01 around 09:30?",
+        "spl": "index=sysmon host=\"WKS-FINANCE-01\" EventCode=1 earliest=\"01/15/2024:09:00:00\" latest=\"01/15/2024:10:00:00\"\n| search CommandLine IN (\"*powershell*-enc*\", \"*cmd*/c*\", \"*wscript*\", \"*mshta*\")\n| table _time, User, ParentImage, Image, CommandLine\n| sort _time",
+        "explanation": "We start by understanding the initial compromise - what executed and how. This establishes our starting point.",
+        "validation": "Look for: suspicious parent processes (outlook, winword), encoded commands, or script execution."
+      },
+      {
+        "id": 2,
+        "title": "Identify Initial Foothold Activities",
+        "question": "What discovery commands did the attacker run after initial access? Look for reconnaissance activity.",
+        "spl": "index=sysmon host=\"WKS-FINANCE-01\" EventCode=1 User=\"*rbrown*\" earliest=\"01/15/2024:09:30:00\" latest=\"01/15/2024:11:00:00\"\n| search CommandLine IN (\n    \"*whoami*\", \"*hostname*\", \"*ipconfig*\", \"*net user*\", \n    \"*net group*\", \"*net localgroup*\", \"*systeminfo*\", \n    \"*tasklist*\", \"*quser*\", \"*nltest*\"\n)\n| table _time, Image, CommandLine\n| sort _time",
+        "explanation": "Attackers typically run discovery commands to understand the environment before moving laterally.",
+        "validation": "Sequence of discovery commands confirms attacker establishing situational awareness."
+      },
+      {
+        "id": 3,
+        "title": "Check for Credential Theft",
+        "question": "Did the attacker attempt to dump credentials from the compromised workstation?",
+        "spl": "index=sysmon host=\"WKS-FINANCE-01\" earliest=\"01/15/2024:09:30:00\"\n| search CommandLine IN (\n    \"*mimikatz*\", \"*sekurlsa*\", \"*lsass*\", \n    \"*procdump*\", \"*comsvcs*MiniDump*\",\n    \"*reg save*SAM*\", \"*reg save*SYSTEM*\"\n) OR (EventCode=10 TargetImage=\"*lsass.exe*\")\n| table _time, EventCode, Image, TargetImage, CommandLine\n| sort _time",
+        "explanation": "Credential dumping from memory or registry is essential for lateral movement. LSASS access (Sysmon Event 10) or known credential tool usage indicates this activity.",
+        "validation": "Any hits indicate credential theft. Even failed attempts suggest attacker intent."
+      },
+      {
+        "id": 4,
+        "title": "Track Network Movement",
+        "question": "From WKS-FINANCE-01, which other systems did the attacker connect to?",
+        "pivot_step": true,
+        "spl": "index=sysmon host=\"WKS-FINANCE-01\" EventCode=3 earliest=\"01/15/2024:09:30:00\"\n| search DestinationPort IN (445, 135, 3389, 5985, 5986, 22)\n| stats count, min(_time) as first_connection by DestinationIp, DestinationPort, Image\n| lookup asset_inventory.csv ip as DestinationIp OUTPUT hostname, asset_type\n| sort first_connection",
+        "explanation": "Network connections on key ports reveal lateral movement: 445 (SMB), 135 (RPC), 3389 (RDP), 5985/5986 (WinRM), 22 (SSH).",
+        "validation": "List the systems connected to - these are potential pivot points requiring investigation."
+      },
+      {
+        "id": 5,
+        "title": "Confirm Lateral Movement",
+        "question": "Verify if rbrown (or credentials from WKS-FINANCE-01) authenticated to other systems.",
+        "spl": "index=security EventCode=4624 earliest=\"01/15/2024:09:30:00\"\n| where src_ip=\"10.1.5.50\" OR user=\"rbrown\"\n| where dest!=\"WKS-FINANCE-01\"\n| stats count, min(_time) as first_access, values(Logon_Type) as logon_types by user, src_ip, dest\n| lookup asset_inventory.csv hostname as dest OUTPUT asset_type, criticality\n| sort first_access",
+        "explanation": "Authentication events from the compromised workstation or user to other systems confirm lateral movement.",
+        "validation": "Multiple destinations confirm lateral movement. Note logon types - Type 3 (network) vs Type 10 (RDP)."
+      },
+      {
+        "id": 6,
+        "title": "Reasoning Checkpoint",
+        "question": "You found that from WKS-FINANCE-01, the attacker connected to: FILE-SERVER-01 (via SMB), DC-01 (via RPC), and SQLDB-PROD-01 (via SMB). The attacker used both rbrown's credentials and a new account 'svc_sql' that rbrown shouldn't have access to. What does this tell you about the attack progression?",
+        "reasoning_checkpoint": true,
+        "expected_answer": "This pattern reveals significant attack progression: 1) Credential theft confirmed - the attacker obtained svc_sql credentials, likely from credential dumping on WKS-FINANCE-01 or from FILE-SERVER-01, 2) High-value targeting - connecting to Domain Controller (DC-01) suggests attempt to escalate domain privileges or dump additional credentials, 3) Database targeting - SQLDB-PROD-01 access may indicate data exfiltration objective, 4) Multiple credential sets - using different accounts makes detection harder and indicates sophistication, 5) Critical risk - DC access means potential domain compromise. Priorities: 1) Check DC-01 for credential theft (DCSync, NTDS.dit), 2) Investigate svc_sql origin and permissions, 3) Check SQLDB-PROD-01 for data access, 4) Determine if svc_sql has domain admin privileges."
+      },
+      {
+        "id": 7,
+        "title": "Check Domain Controller Activity",
+        "question": "What did the attacker do on DC-01? Look for credential theft or privilege escalation.",
+        "spl": "index=security dest=\"DC-01\" earliest=\"01/15/2024:09:30:00\"\n| search EventCode IN (4624, 4662, 4672, 4768, 4769)\n| where src_ip=\"10.1.5.50\" OR user IN (\"rbrown\", \"svc_sql\")\n| eval activity = case(\n    EventCode=4624, \"Logon\",\n    EventCode=4662 AND match(Properties, \"(?i)replication\"), \"DCSync\",\n    EventCode=4672, \"Admin Privileges\",\n    EventCode=4768, \"TGT Request\",\n    EventCode=4769, \"Service Ticket\",\n    true(), EventCode)\n| table _time, user, src_ip, activity, ObjectName\n| sort _time",
+        "explanation": "DCSync (replication requests) allows attackers to dump all domain credentials. Admin privilege events (4672) confirm elevated access.",
+        "validation": "DCSync activity or admin privilege assignment indicates domain compromise."
+      },
+      {
+        "id": 8,
+        "title": "Check for Persistence",
+        "question": "Has the attacker established persistence on any compromised systems?",
+        "spl": "index=security OR index=sysmon earliest=\"01/15/2024:09:30:00\"\n| search host IN (\"WKS-FINANCE-01\", \"FILE-SERVER-01\", \"DC-01\", \"SQLDB-PROD-01\")\n| search EventCode IN (4697, 4698, 13)\n| eval persistence = case(\n    EventCode=4697, \"Service: \" . ServiceName,\n    EventCode=4698, \"ScheduledTask: \" . TaskName,\n    EventCode=13, \"Registry: \" . TargetObject,\n    true(), \"Unknown\")\n| table _time, host, persistence, User\n| sort _time",
+        "explanation": "Services, scheduled tasks, and registry run keys are common persistence mechanisms.",
+        "validation": "Any new services, tasks, or run keys created during the attack window should be documented and removed."
+      },
+      {
+        "id": 9,
+        "title": "Investigate Data Access",
+        "question": "What data did the attacker access on SQLDB-PROD-01?",
+        "spl": "index=sysmon host=\"SQLDB-PROD-01\" EventCode IN (1, 3, 11) earliest=\"01/15/2024:09:30:00\"\n| search User IN (\"*rbrown*\", \"*svc_sql*\")\n| eval activity = case(\n    EventCode=1, \"Process: \" . Image,\n    EventCode=3, \"Network: \" . DestinationIp . \":\" . DestinationPort,\n    EventCode=11, \"FileCreate: \" . TargetFilename,\n    true(), EventCode)\n| table _time, User, activity\n| sort _time",
+        "explanation": "File access, process execution, and outbound connections reveal what the attacker did on the database server.",
+        "validation": "Look for: SQL tools, bulk export utilities, compressed files, or outbound network connections."
+      },
+      {
+        "id": 10,
+        "title": "Map Full Attack Scope",
+        "question": "Build a complete map of compromised systems and credentials.",
+        "spl": "index=security EventCode=4624 earliest=\"01/15/2024:09:30:00\"\n| where src_ip IN (\"10.1.5.50\") OR user IN (\"rbrown\", \"svc_sql\")\n| stats \n    dc(dest) as systems_compromised,\n    dc(user) as credentials_used,\n    values(dest) as compromised_systems,\n    values(user) as compromised_accounts,\n    min(_time) as attack_start,\n    max(_time) as last_activity\n| eval attack_duration_hours = round((last_activity - attack_start) / 3600, 2)",
+        "explanation": "This summary provides the full scope for incident response and remediation planning.",
+        "validation": "Document all compromised systems and credentials for remediation."
+      },
+      {
+        "id": 11,
+        "title": "Create Attack Timeline",
+        "question": "Build a chronological timeline of the attack for documentation.",
+        "spl": "index=security OR index=sysmon earliest=\"01/15/2024:09:30:00\" latest=\"01/15/2024:18:00:00\"\n| search host IN (\"WKS-FINANCE-01\", \"FILE-SERVER-01\", \"DC-01\", \"SQLDB-PROD-01\") user IN (\"rbrown\", \"svc_sql\", \"SYSTEM\")\n| eval event_type = case(\n    EventCode=4624, \"Login\",\n    EventCode=4625, \"Failed Login\",\n    EventCode=1, \"Process Execution\",\n    EventCode=3, \"Network Connection\",\n    EventCode=4697, \"Service Install\",\n    EventCode=4698, \"Task Created\",\n    true(), \"Event \" . EventCode)\n| eval description = coalesce(substr(CommandLine, 1, 80), ServiceName, TaskName, dest)\n| table _time, host, user, event_type, description\n| sort _time",
+        "explanation": "A chronological timeline tells the complete attack story for incident documentation.",
+        "validation": "Timeline should show: initial access -> discovery -> credential theft -> lateral movement -> persistence -> objective."
+      }
+    ],
+    "conclusion": {
+      "title": "Scenario Complete",
+      "summary": "You tracked an attacker from initial phishing compromise through lateral movement to multiple systems including a domain controller. You identified credential theft, persistence mechanisms, and potential data access.",
+      "key_takeaways": [
+        "Initial compromise is just the beginning - always trace lateral movement",
+        "Credential theft enables movement to systems the original user couldn't access",
+        "Domain controller access is critical - indicates potential full domain compromise",
+        "Persistence mechanisms ensure attacker maintains access even after detection",
+        "Complete system and credential mapping is essential for remediation"
+      ],
+      "next_steps": [
+        "Apply multi-source correlation for deeper visibility",
+        "Practice documentation techniques for incident reports",
+        "Complete the investigation challenge to test all skills"
+      ]
+    }
+  }
+}

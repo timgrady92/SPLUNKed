@@ -1,0 +1,157 @@
+{
+  "id": "onb-event-breaking",
+  "type": "tutorial",
+  "title": "Event Breaking and Timestamp Extraction",
+  "description": "Configure props.conf to properly split raw data into events and extract accurate timestamps. Master LINE_BREAKER, SHOULD_LINEMERGE, and TIME_FORMAT.",
+  "category": "data-onboarding",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["data-onboarding", "props.conf", "event-breaking", "timestamps", "parsing", "LINE_BREAKER"],
+  "objectives": [
+    "Understand how Splunk determines event boundaries",
+    "Configure LINE_BREAKER for custom log formats",
+    "Handle multi-line events with SHOULD_LINEMERGE",
+    "Extract timestamps accurately with TIME_FORMAT",
+    "Troubleshoot common parsing issues"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Event Breaking Matters",
+        "body": "<p>Event breaking determines where one event ends and another begins. Incorrect event breaking causes:</p><ul><li>Multiple log entries merged into one event (lost visibility)</li><li>Single log entries split across multiple events (broken context)</li><li>Timestamp extraction failures (events get indexed with wrong times)</li><li>Field extraction failures (patterns don't match)</li></ul><p>Getting this right is essential before moving to field extraction.</p><h4>How Splunk Breaks Events</h4><p>Splunk uses two approaches to determine event boundaries:</p><ol><li><strong>LINE_BREAKER</strong> - Regex pattern that defines where to split</li><li><strong>SHOULD_LINEMERGE + BREAK_ONLY_BEFORE</strong> - Pattern matching to combine lines</li></ol><p>The approach you choose depends on your data format.</p>"
+      },
+      {
+        "title": "Understanding LINE_BREAKER",
+        "body": "<p>The <code>LINE_BREAKER</code> attribute uses a regex to identify event boundaries in the raw data stream. The capture group <code>([\\r\\n]+)</code> defines what gets consumed between events.</p><h4>Default Behavior</h4>",
+        "example": {
+          "description": "Default LINE_BREAKER setting",
+          "spl": "[default]\nLINE_BREAKER = ([\\r\\n]+)"
+        },
+        "explanation": "<p>By default, Splunk breaks on newlines. Each line becomes a separate event. This works for simple, single-line log formats.</p><h4>The Capture Group</h4><p>The text matched by the capture group <code>()</code> is <em>removed</em> from the data. Everything outside the capture group remains in the events. This is why you typically capture the newline characters themselves.</p>"
+      },
+      {
+        "title": "Custom LINE_BREAKER Patterns",
+        "body": "<p>When events span multiple lines or don't start with newlines, you need a custom pattern.</p><h4>Break Before Timestamp</h4><p>For logs where each event starts with a timestamp:</p>",
+        "example": {
+          "description": "Break before ISO timestamp",
+          "spl": "[my_app:logs]\nLINE_BREAKER = ([\\r\\n]+)\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}\nSHOULD_LINEMERGE = false"
+        },
+        "explanation": "<p>This pattern:</p><ul><li>Captures the newline(s) <code>([\\r\\n]+)</code></li><li>Followed by (but not capturing) the timestamp pattern</li><li>Creates a break before each timestamp</li></ul><p><strong>Important:</strong> Set <code>SHOULD_LINEMERGE = false</code> when using a custom LINE_BREAKER to prevent Splunk from trying to merge lines after breaking.</p><h4>Break Before Syslog Priority</h4>",
+        "example2": {
+          "description": "Break before syslog priority code",
+          "spl": "[syslog:custom]\nLINE_BREAKER = ([\\r\\n]+)<\\d+>\nSHOULD_LINEMERGE = false"
+        }
+      },
+      {
+        "title": "Multi-Line Events with SHOULD_LINEMERGE",
+        "body": "<p>Some log formats produce multi-line events, like Java stack traces or configuration dumps. Use <code>SHOULD_LINEMERGE</code> with break patterns to handle these.</p><h4>Java Stack Traces</h4>",
+        "example": {
+          "description": "Merge Java stack traces into single events",
+          "spl": "[java:application]\nSHOULD_LINEMERGE = true\nBREAK_ONLY_BEFORE = ^\\d{4}-\\d{2}-\\d{2}\nMAX_EVENTS = 256"
+        },
+        "explanation": "<p>Merging attributes:</p><ul><li><code>SHOULD_LINEMERGE = true</code> - Enable line merging</li><li><code>BREAK_ONLY_BEFORE</code> - Start new event when this pattern matches</li><li><code>BREAK_ONLY_AFTER</code> - Start new event after this pattern matches</li><li><code>MUST_BREAK_AFTER</code> - Always break after this pattern</li><li><code>MAX_EVENTS</code> - Maximum lines to merge (prevents runaway merging)</li></ul><h4>Example: Multi-Line JSON</h4>",
+        "example2": {
+          "description": "Merge pretty-printed JSON",
+          "spl": "[json:multiline]\nSHOULD_LINEMERGE = true\nBREAK_ONLY_BEFORE = ^\\{\nMAX_EVENTS = 100"
+        }
+      },
+      {
+        "title": "Timestamp Extraction Basics",
+        "body": "<p>After event breaking, Splunk extracts the timestamp to set <code>_time</code>. Accurate timestamps are critical for:</p><ul><li>Time-based searching and correlation</li><li>Event ordering within searches</li><li>Time-series visualizations</li><li>Bucket organization in indexes</li></ul><h4>Key Timestamp Attributes</h4><table class=\"reference-table\"><tr><th>Attribute</th><th>Purpose</th></tr><tr><td><code>TIME_PREFIX</code></td><td>Text that appears before the timestamp</td></tr><tr><td><code>TIME_FORMAT</code></td><td>strptime format string for parsing</td></tr><tr><td><code>MAX_TIMESTAMP_LOOKAHEAD</code></td><td>Characters to search for timestamp</td></tr><tr><td><code>TZ</code></td><td>Timezone if not in the timestamp</td></tr></table>"
+      },
+      {
+        "title": "TIME_FORMAT Syntax",
+        "body": "<p>The <code>TIME_FORMAT</code> attribute uses strptime format codes to parse timestamps.</p><h4>Common Format Codes</h4><table class=\"reference-table\"><tr><th>Code</th><th>Meaning</th><th>Example</th></tr><tr><td><code>%Y</code></td><td>4-digit year</td><td>2024</td></tr><tr><td><code>%m</code></td><td>Month (01-12)</td><td>03</td></tr><tr><td><code>%d</code></td><td>Day (01-31)</td><td>15</td></tr><tr><td><code>%H</code></td><td>Hour 24h (00-23)</td><td>14</td></tr><tr><td><code>%M</code></td><td>Minute (00-59)</td><td>30</td></tr><tr><td><code>%S</code></td><td>Second (00-59)</td><td>45</td></tr><tr><td><code>%f</code></td><td>Microseconds</td><td>123456</td></tr><tr><td><code>%z</code></td><td>Timezone offset</td><td>+0000</td></tr><tr><td><code>%Z</code></td><td>Timezone name</td><td>UTC</td></tr><tr><td><code>%b</code></td><td>Month abbreviation</td><td>Mar</td></tr><tr><td><code>%B</code></td><td>Month full name</td><td>March</td></tr></table>"
+      },
+      {
+        "title": "Common Timestamp Configurations",
+        "body": "<p>Here are configurations for frequently encountered timestamp formats.</p><h4>ISO 8601 Format</h4>",
+        "example": {
+          "description": "Parse ISO 8601 timestamps",
+          "spl": "[iso_logs]\nTIME_PREFIX = ^\\[\nTIME_FORMAT = %Y-%m-%dT%H:%M:%S.%f%z\nMAX_TIMESTAMP_LOOKAHEAD = 35"
+        },
+        "explanation": "<p>Matches: <code>[2024-03-15T14:30:45.123456+0000]</code></p><h4>Syslog Format (BSD)</h4>",
+        "example2": {
+          "description": "Parse BSD syslog timestamps",
+          "spl": "[syslog:bsd]\nTIME_FORMAT = %b %d %H:%M:%S\nMAX_TIMESTAMP_LOOKAHEAD = 20"
+        }
+      },
+      {
+        "title": "More Timestamp Examples",
+        "body": "<h4>Apache Combined Log Format</h4>",
+        "example": {
+          "description": "Parse Apache access log timestamps",
+          "spl": "[apache:access]\nTIME_PREFIX = \\[\nTIME_FORMAT = %d/%b/%Y:%H:%M:%S %z\nMAX_TIMESTAMP_LOOKAHEAD = 30"
+        },
+        "explanation": "<p>Matches: <code>[15/Mar/2024:14:30:45 +0000]</code></p><h4>Windows Event Log Format</h4>",
+        "example2": {
+          "description": "Parse Windows timestamp format",
+          "spl": "[windows:events]\nTIME_FORMAT = %m/%d/%Y %H:%M:%S %p\nMAX_TIMESTAMP_LOOKAHEAD = 25"
+        }
+      },
+      {
+        "title": "Epoch Timestamps",
+        "body": "<p>Some systems log timestamps as Unix epoch (seconds since 1970-01-01).</p><h4>Epoch Seconds</h4>",
+        "example": {
+          "description": "Parse epoch timestamp",
+          "spl": "[epoch_logs]\nTIME_PREFIX = \"timestamp\":\\s*\nTIME_FORMAT = %s\nMAX_TIMESTAMP_LOOKAHEAD = 15"
+        },
+        "explanation": "<p>The <code>%s</code> format code parses Unix epoch seconds.</p><h4>Epoch with Milliseconds</h4>",
+        "example2": {
+          "description": "Parse epoch milliseconds",
+          "spl": "[epoch_ms_logs]\nTIME_PREFIX = \"ts\":\\s*\nTIME_FORMAT = %s%3N\nMAX_TIMESTAMP_LOOKAHEAD = 20"
+        }
+      },
+      {
+        "title": "Timezone Handling",
+        "body": "<p>When timestamps don't include timezone information, Splunk assumes the indexer's local timezone. This can cause problems with distributed data collection.</p><h4>Set Explicit Timezone</h4>",
+        "example": {
+          "description": "Force UTC timezone",
+          "spl": "[remote_logs]\nTIME_FORMAT = %Y-%m-%d %H:%M:%S\nTZ = UTC"
+        },
+        "explanation": "<p>Common timezone values:</p><ul><li><code>UTC</code> or <code>GMT</code> - Coordinated Universal Time</li><li><code>America/New_York</code> - US Eastern</li><li><code>America/Los_Angeles</code> - US Pacific</li><li><code>Europe/London</code> - UK</li></ul><p>Use Olson timezone names for accuracy with daylight saving time.</p><h4>Timezone in Source</h4><p>If your logs include timezone but in a non-standard format:</p>",
+        "example2": {
+          "description": "Extract timezone from log",
+          "spl": "[custom_tz_logs]\nTIME_PREFIX = \\[\nTIME_FORMAT = %Y-%m-%d %H:%M:%S\nTZ_ALIAS = EST = America/New_York, PST = America/Los_Angeles"
+        }
+      },
+      {
+        "title": "Complete props.conf Example",
+        "body": "<p>Here's a complete example for a custom application log format.</p><h4>Sample Log Format</h4><pre><code>2024-03-15T14:30:45.123Z [INFO] [RequestHandler] Processing request id=12345\n    User: jsmith\n    Action: login\n    Result: success\n2024-03-15T14:30:46.456Z [ERROR] [DatabasePool] Connection timeout\n    java.sql.SQLException: Connection timed out\n        at com.example.db.Pool.getConnection(Pool.java:123)\n        at com.example.handler.Request.process(Request.java:456)</code></pre>",
+        "example": {
+          "description": "Complete props.conf for this format",
+          "spl": "[app:custom]\nSHOULD_LINEMERGE = true\nBREAK_ONLY_BEFORE = ^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\nTIME_PREFIX = ^\nTIME_FORMAT = %Y-%m-%dT%H:%M:%S.%3N%Z\nMAX_TIMESTAMP_LOOKAHEAD = 30\nTRUNCATE = 50000\nMAX_EVENTS = 200"
+        },
+        "explanation": "<p>This configuration:</p><ol><li>Merges lines until a new timestamp appears</li><li>Extracts ISO 8601 timestamp with milliseconds</li><li>Handles multi-line stack traces (up to 200 lines)</li><li>Truncates extremely long events at 50KB</li></ol>"
+      },
+      {
+        "title": "Troubleshooting Event Breaking",
+        "body": "<p>When events aren't breaking correctly, use these techniques to diagnose the issue.</p><h4>Check Raw Data</h4>",
+        "example": {
+          "description": "View raw events to check breaking",
+          "spl": "index=your_index sourcetype=your_sourcetype\n| head 10\n| table _raw"
+        },
+        "explanation": "<p>Look for:</p><ul><li>Multiple log entries in one <code>_raw</code> field (under-breaking)</li><li>Partial log entries (over-breaking)</li><li>Missing data at event boundaries</li></ul><h4>Use the Data Preview Tool</h4><p>Before deploying to production, use <strong>Settings > Source Types > New Source Type</strong> and paste sample data to test your parsing configuration interactively.</p>"
+      },
+      {
+        "title": "Troubleshooting Timestamps",
+        "body": "<h4>Check Timestamp Extraction</h4>",
+        "example": {
+          "description": "Compare extracted time to index time",
+          "spl": "index=your_index sourcetype=your_sourcetype\n| eval time_diff = abs(_indextime - _time)\n| where time_diff > 60\n| table _time, _indextime, time_diff, _raw"
+        },
+        "explanation": "<p>Large differences between <code>_time</code> (extracted) and <code>_indextime</code> (when indexed) indicate timestamp parsing problems.</p><h4>Events with Current Time</h4><p>If <code>_time</code> equals <code>_indextime</code> for all events, Splunk couldn't find a timestamp and used the current time. Check:</p><ul><li><code>TIME_PREFIX</code> matches text before the timestamp</li><li><code>TIME_FORMAT</code> exactly matches the timestamp format</li><li><code>MAX_TIMESTAMP_LOOKAHEAD</code> is large enough to reach the timestamp</li></ul>"
+      },
+      {
+        "title": "Testing with btool",
+        "body": "<p>Use btool to verify your configurations are applied correctly.</p>",
+        "example": {
+          "description": "Check effective props.conf settings",
+          "spl": "./splunk btool props list your_sourcetype --debug"
+        },
+        "explanation": "<p>This shows the effective configuration for a sourcetype and which file each setting comes from. Look for:</p><ul><li>Your settings appearing in the output</li><li>Unexpected overrides from other apps</li><li>Default values that might conflict</li></ul><h4>Common Issues Found with btool</h4><ul><li>Settings in wrong stanza (typo in sourcetype name)</li><li>Settings overridden by another app with higher precedence</li><li>Missing app directory structure</li></ul>"
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><strong>LINE_BREAKER:</strong> Regex with capture group defining what to remove between events</li><li><strong>SHOULD_LINEMERGE:</strong> Enable for multi-line events; use BREAK_ONLY_BEFORE for patterns</li><li><strong>TIME_FORMAT:</strong> Uses strptime codes; must exactly match your timestamp format</li><li><strong>TIME_PREFIX:</strong> Helps Splunk find the timestamp in the event</li><li><strong>Always test:</strong> Use Data Preview before production deployment</li><li><strong>Verify with btool:</strong> Confirm configurations are applied as expected</li></ul>"
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "id": "inv-windows-events",
+  "type": "tutorial",
+  "title": "Windows Security Events 101",
+  "description": "Understand critical Windows Security event IDs, what each reveals during investigations, and common patterns that indicate suspicious activity.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["investigation", "windows", "events", "intermediate"],
+  "objectives": [
+    "Identify critical Windows Security event IDs",
+    "Understand what each event type reveals",
+    "Recognize common attack patterns in event logs",
+    "Build effective queries for Windows event analysis"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Windows Security Event Basics",
+        "body": "<p>Windows Security logs are often your primary evidence source. Understanding event IDs and their fields is fundamental to investigation.</p><h4>Where Windows Events Live</h4><pre><code>index=security sourcetype=wineventlog</code></pre><p>Or with specific event log:</p><pre><code>index=security source=\"WinEventLog:Security\"</code></pre><h4>Key Fields</h4><ul><li><strong>EventCode</strong> - The event ID number</li><li><strong>EventType</strong> - Success/failure audit</li><li><strong>ComputerName</strong> - Where event occurred</li><li><strong>Account_Name / user</strong> - Associated user</li><li><strong>Keywords</strong> - Audit success or failure</li></ul>"
+      },
+      {
+        "title": "Authentication Events",
+        "body": "<h4>Event 4624: Successful Logon</h4><p>Someone successfully authenticated.</p><pre><code>index=security EventCode=4624\n| table _time, user, src_ip, dest, Logon_Type, Authentication_Package</code></pre><p>Key fields: <code>Logon_Type</code> (how), <code>IpAddress</code> (from where), <code>TargetUserName</code> (who).</p><h4>Event 4625: Failed Logon</h4><p>Authentication attempt failed.</p><pre><code>index=security EventCode=4625\n| table _time, user, src_ip, dest, Logon_Type, SubStatus</code></pre><p>Key field: <code>SubStatus</code> tells you WHY it failed (bad password, disabled account, etc.).</p><h4>Event 4648: Explicit Credential Logon</h4><p>Someone used credentials different from their session - RunAs or pass-the-hash.</p><pre><code>index=security EventCode=4648\n| table _time, SubjectUserName, TargetUserName, TargetServerName</code></pre><p>Suspicious if: User A using User B's credentials unexpectedly.</p>"
+      },
+      {
+        "title": "Privilege and Access Events",
+        "body": "<h4>Event 4672: Special Privileges Assigned</h4><p>Admin-level privileges granted at logon.</p><pre><code>index=security EventCode=4672\n| stats count by user, ComputerName\n| sort - count</code></pre><p>Useful for: Tracking admin account usage.</p><h4>Event 4673: Privileged Service Called</h4><p>Sensitive API called (e.g., debug programs, impersonate).</p><pre><code>index=security EventCode=4673 Keywords=\"Audit Failure\"\n| stats count by user, Service</code></pre><p>Investigate failures - may indicate privilege escalation attempts.</p><h4>Event 4674: Privileged Object Operation</h4><p>Operation attempted on privileged object.</p><pre><code>index=security EventCode=4674\n| table _time, user, ObjectName, ObjectType</code></pre>"
+      },
+      {
+        "title": "Process Events",
+        "body": "<h4>Event 4688: Process Creation</h4><p>A new process was created. Essential for tracking execution.</p><pre><code>index=security EventCode=4688\n| table _time, user, Creator_Process_Name, New_Process_Name, Process_Command_Line</code></pre><p><strong>Important:</strong> Command line logging must be enabled via GPO to see <code>Process_Command_Line</code>.</p><h4>Suspicious Process Patterns</h4><pre><code>index=security EventCode=4688\n| search Process_Command_Line IN (\"*powershell*-enc*\", \"*cmd*whoami*\", \"*certutil*-urlcache*\")\n| table _time, user, New_Process_Name, Process_Command_Line</code></pre><p>Look for: Encoded commands, reconnaissance commands, living-off-the-land binaries.</p><h4>Event 4689: Process Termination</h4><p>Process ended. Useful for correlating process lifetimes.</p><pre><code>index=security EventCode IN (4688, 4689) Process_Name=\"*suspicious*\"\n| transaction Process_ID maxspan=1h\n| eval duration = duration</code></pre>"
+      },
+      {
+        "title": "Account Management Events",
+        "body": "<h4>Event 4720: User Account Created</h4><p>New account created - could be legitimate or attacker persistence.</p><pre><code>index=security EventCode=4720\n| table _time, SubjectUserName, TargetUserName, dest</code></pre><h4>Event 4726: User Account Deleted</h4><p>Account removed - attackers may delete accounts they created.</p><pre><code>index=security EventCode=4726\n| table _time, SubjectUserName, TargetUserName</code></pre><h4>Event 4738: User Account Changed</h4><p>Account properties modified.</p><pre><code>index=security EventCode=4738\n| table _time, SubjectUserName, TargetUserName</code></pre><h4>Event 4732/4733: Member Added/Removed from Group</h4><p>Group membership changes - watch for additions to privileged groups.</p><pre><code>index=security EventCode=4732 TargetUserName IN (\"Domain Admins\", \"Administrators\", \"Enterprise Admins\")\n| table _time, SubjectUserName, MemberName, TargetUserName</code></pre>"
+      },
+      {
+        "title": "Service and Scheduled Task Events",
+        "body": "<h4>Event 4697: Service Installed</h4><p>New service installed - common persistence mechanism.</p><pre><code>index=security EventCode=4697\n| table _time, SubjectUserName, ServiceName, ServiceFileName</code></pre><p>Suspicious: Services pointing to unusual paths, temp directories, or with encoded commands.</p><h4>Event 4698: Scheduled Task Created</h4><p>New scheduled task - another persistence mechanism.</p><pre><code>index=security EventCode=4698\n| table _time, SubjectUserName, TaskName, TaskContent</code></pre><h4>Event 4699: Scheduled Task Deleted</h4><p>Task removed - attackers may delete tasks after execution.</p><pre><code>index=security EventCode IN (4698, 4699)\n| transaction TaskName maxspan=24h\n| where eventcount > 1\n| table TaskName, duration</code></pre><p>Short-lived tasks are suspicious.</p>"
+      },
+      {
+        "title": "Object Access Events",
+        "body": "<h4>Event 4663: Object Access Attempted</h4><p>Access to file, folder, or registry key.</p><pre><code>index=security EventCode=4663\n| table _time, user, ObjectName, ObjectType, AccessMask</code></pre><p><strong>Note:</strong> Requires object access auditing to be enabled.</p><h4>Event 5140: Network Share Accessed</h4><p>Someone accessed a network share.</p><pre><code>index=security EventCode=5140\n| stats count by user, ShareName, IpAddress\n| sort - count</code></pre><h4>Event 5145: Share Object Access Check</h4><p>Detailed access to objects in shares.</p><pre><code>index=security EventCode=5145 ShareName=\"*ADMIN$*\" OR ShareName=\"*C$*\"\n| table _time, user, src_ip, ShareName, RelativeTargetName</code></pre><p>Admin share access is suspicious from non-admin workstations.</p>"
+      },
+      {
+        "title": "Kerberos Events",
+        "body": "<h4>Event 4768: Kerberos TGT Requested</h4><p>Initial authentication to domain - Ticket Granting Ticket request.</p><pre><code>index=security EventCode=4768\n| table _time, user, src_ip, TicketEncryptionType, Result_Code</code></pre><p>Watch for: Encryption downgrades (RC4 instead of AES), failures.</p><h4>Event 4769: Kerberos Service Ticket Requested</h4><p>User requesting access to a service.</p><pre><code>index=security EventCode=4769\n| table _time, user, ServiceName, src_ip, TicketEncryptionType</code></pre><h4>Kerberoasting Detection</h4><pre><code>index=security EventCode=4769 ServiceName!=\"krbtgt\" TicketEncryptionType=0x17\n| stats count by user, ServiceName\n| where count > 5</code></pre><p>RC4 encryption (0x17) to multiple service accounts suggests Kerberoasting.</p><h4>Event 4771: Kerberos Pre-Authentication Failed</h4><pre><code>index=security EventCode=4771\n| stats count by user, src_ip, Result_Code\n| where count > 10</code></pre>"
+      },
+      {
+        "title": "Event Analysis Patterns",
+        "body": "<h4>Authentication Summary</h4><pre><code>index=security EventCode IN (4624, 4625)\n| eval outcome = if(EventCode=4624, \"success\", \"failure\")\n| stats count by user, outcome, Logon_Type\n| xyseries user outcome count</code></pre><h4>Failed Login Spike Detection</h4><pre><code>index=security EventCode=4625\n| timechart span=1h count by user\n| where count > 50</code></pre><h4>Lateral Movement Pattern</h4><pre><code>index=security EventCode=4624 Logon_Type=3\n| stats dc(dest) as systems_accessed, values(dest) as systems by user, src_ip\n| where systems_accessed > 5</code></pre><p>User accessing many systems via network logon may indicate lateral movement.</p><h4>After-Hours Activity</h4><pre><code>index=security EventCode IN (4624, 4648)\n| eval hour = strftime(_time, \"%H\")\n| where hour < 6 OR hour > 20\n| stats count by user, EventCode</code></pre>"
+      },
+      {
+        "title": "Event Reference Table",
+        "body": "<p>Quick reference for critical Windows Security events:</p><table><tr><th>ID</th><th>Event</th><th>Investigation Use</th></tr><tr><td>4624</td><td>Logon Success</td><td>Track access, lateral movement</td></tr><tr><td>4625</td><td>Logon Failure</td><td>Brute force, password spray</td></tr><tr><td>4648</td><td>Explicit Credential Use</td><td>Pass-the-hash, credential abuse</td></tr><tr><td>4672</td><td>Special Privileges</td><td>Admin activity tracking</td></tr><tr><td>4688</td><td>Process Created</td><td>Execution tracking</td></tr><tr><td>4720</td><td>Account Created</td><td>Persistence detection</td></tr><tr><td>4732</td><td>Group Membership Added</td><td>Privilege escalation</td></tr><tr><td>4697</td><td>Service Installed</td><td>Persistence detection</td></tr><tr><td>4698</td><td>Scheduled Task Created</td><td>Persistence detection</td></tr><tr><td>4768</td><td>Kerberos TGT Request</td><td>Authentication tracking</td></tr><tr><td>4769</td><td>Kerberos Service Ticket</td><td>Kerberoasting detection</td></tr><tr><td>5140</td><td>Share Access</td><td>Lateral movement, data access</td></tr></table>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key Windows Security events for investigations:</p><ul><li><strong>Authentication</strong>: 4624 (success), 4625 (failure), 4648 (explicit creds)</li><li><strong>Privilege</strong>: 4672 (admin logon), 4673/4674 (privileged operations)</li><li><strong>Execution</strong>: 4688 (process creation), 4697 (service install), 4698 (scheduled task)</li><li><strong>Account Changes</strong>: 4720 (create), 4726 (delete), 4732/4733 (group membership)</li><li><strong>Kerberos</strong>: 4768 (TGT), 4769 (service ticket), 4771 (pre-auth failure)</li><li><strong>Access</strong>: 4663 (object access), 5140/5145 (share access)</li></ul><p>Master these events and you can reconstruct most attack timelines from Windows logs alone.</p>"
+      }
+    ]
+  }
+}

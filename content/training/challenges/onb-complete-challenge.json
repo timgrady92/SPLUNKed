@@ -1,0 +1,142 @@
+{
+  "id": "onb-complete-challenge",
+  "type": "challenge",
+  "title": "Data Onboarding Challenge",
+  "description": "Demonstrate your data onboarding skills by completely configuring a new data source from scratch, including parsing, field extraction, and CIM normalization.",
+  "category": "data-onboarding",
+  "difficulty": "intermediate",
+  "duration": "35 min",
+  "tags": ["data-onboarding", "challenge", "assessment", "props.conf", "transforms.conf", "CIM"],
+  "objectives": [
+    "Configure complete data parsing from raw logs",
+    "Create field extractions for all relevant data",
+    "Normalize data to CIM standards",
+    "Validate data quality and completeness"
+  ],
+  "content": {
+    "scenario": "<p>A new endpoint detection and response (EDR) tool has been deployed, and the logs are arriving in Splunk but are completely unparsed. Your task is to create the complete configuration to make this data useful for security analysts.</p><h4>Sample Data</h4><p>The EDR generates process execution logs in this format:</p><pre><code>[2024-03-15 14:30:45.123 UTC] PROCESS_CREATE host=WORKSTATION01 user=CORP\\jsmith pid=4532 ppid=1234 process=\"C:\\Windows\\System32\\cmd.exe\" cmdline=\"cmd.exe /c whoami\" parent=\"C:\\Windows\\explorer.exe\" hash_sha256=a1b2c3d4e5f6... status=allowed</code></pre><pre><code>[2024-03-15 14:30:46.456 UTC] PROCESS_CREATE host=WORKSTATION01 user=CORP\\jsmith pid=4533 ppid=4532 process=\"C:\\Windows\\System32\\whoami.exe\" cmdline=\"whoami\" parent=\"C:\\Windows\\System32\\cmd.exe\" hash_sha256=f6e5d4c3b2a1... status=allowed</code></pre><pre><code>[2024-03-15 14:31:00.789 UTC] PROCESS_BLOCK host=SERVER02 user=NT AUTHORITY\\SYSTEM pid=0 ppid=5678 process=\"C:\\Temp\\malware.exe\" cmdline=\"malware.exe -encrypt\" parent=\"C:\\Windows\\System32\\services.exe\" hash_sha256=deadbeef... status=blocked</code></pre><h4>Data Location</h4><p>The data is in <code>index=endpoint</code> with <code>sourcetype=edr:raw</code></p><h4>Requirements</h4><p>Complete all requirements to pass this challenge. Write the full configuration that would go in props.conf (and transforms.conf if needed).</p>",
+    "requirements": [
+      {
+        "id": "req1",
+        "title": "Requirement 1: Event Breaking",
+        "description": "Configure proper event breaking so each process event is a separate Splunk event. Events start with a timestamp in square brackets.",
+        "criteria": [
+          "Each log entry becomes exactly one Splunk event",
+          "Multi-line events (if any) are properly merged",
+          "No event truncation for normal-length events"
+        ],
+        "hints": [
+          {
+            "id": "hint1-1",
+            "title": "Pattern Hint",
+            "content": "Use a LINE_BREAKER that identifies the opening bracket followed by a timestamp pattern."
+          }
+        ],
+        "solution": "[edr:raw]\nLINE_BREAKER = ([\\r\\n]+)(?=\\[\\d{4}-\\d{2}-\\d{2})\nSHOULD_LINEMERGE = false\nTRUNCATE = 10000"
+      },
+      {
+        "id": "req2",
+        "title": "Requirement 2: Timestamp Extraction",
+        "description": "Extract the timestamp correctly. The format is [YYYY-MM-DD HH:MM:SS.mmm UTC] at the start of each event.",
+        "criteria": [
+          "TIME_PREFIX identifies text before the timestamp",
+          "TIME_FORMAT parses the complete timestamp including milliseconds",
+          "Timezone is handled correctly (UTC)"
+        ],
+        "hints": [
+          {
+            "id": "hint2-1",
+            "title": "Format Hint",
+            "content": "Use %3N for the milliseconds portion, and set TZ=UTC since the logs explicitly state UTC."
+          }
+        ],
+        "solution": "[edr:raw]\nTIME_PREFIX = ^\\[\nTIME_FORMAT = %Y-%m-%d %H:%M:%S.%3N\nMAX_TIMESTAMP_LOOKAHEAD = 30\nTZ = UTC"
+      },
+      {
+        "id": "req3",
+        "title": "Requirement 3: Core Field Extraction",
+        "description": "Extract these fields: event_type, host, user, pid, ppid, process, cmdline, parent, hash_sha256, status.",
+        "criteria": [
+          "All 10 fields are extracted",
+          "Fields with spaces or special characters are captured correctly",
+          "The user field includes the domain prefix (CORP\\jsmith)"
+        ],
+        "hints": [
+          {
+            "id": "hint3-1",
+            "title": "Pattern Strategy",
+            "content": "For fields with quoted values like process and cmdline, capture everything between the quotes. For simple fields, capture until the next space."
+          }
+        ],
+        "solution": "[edr:raw]\nEXTRACT-event_type = \\]\\s+(?<event_type>\\w+)\nEXTRACT-host = host=(?<host>\\w+)\nEXTRACT-user = user=(?<user>[^\\s]+)\nEXTRACT-pid = \\spid=(?<pid>\\d+)\nEXTRACT-ppid = ppid=(?<ppid>\\d+)\nEXTRACT-process = process=\"(?<process>[^\"]+)\"\nEXTRACT-cmdline = cmdline=\"(?<cmdline>[^\"]+)\"\nEXTRACT-parent = parent=\"(?<parent>[^\"]+)\"\nEXTRACT-hash = hash_sha256=(?<hash_sha256>\\w+)\nEXTRACT-status = status=(?<status>\\w+)"
+      },
+      {
+        "id": "req4",
+        "title": "Requirement 4: CIM Normalization",
+        "description": "Map extracted fields to CIM Endpoint data model standards. Key mappings: process -> process_name, parent -> parent_process_name, hash_sha256 -> file_hash, status -> action.",
+        "criteria": [
+          "Create field aliases for CIM field names",
+          "Normalize action to CIM values (allowed, blocked)",
+          "Add vendor_product calculated field"
+        ],
+        "hints": [
+          {
+            "id": "hint4-1",
+            "title": "Action Mapping",
+            "content": "CIM expects 'allowed' and 'blocked' as action values. Use EVAL-action with a case statement."
+          }
+        ],
+        "solution": "[edr:raw]\nFIELDALIAS-process_name = process AS process_name\nFIELDALIAS-parent_process = parent AS parent_process_name\nFIELDALIAS-file_hash = hash_sha256 AS file_hash\nFIELDALIAS-dest = host AS dest\nEVAL-action = case(status==\"allowed\", \"allowed\", status==\"blocked\", \"blocked\", 1==1, \"unknown\")\nEVAL-vendor_product = \"Custom EDR\""
+      },
+      {
+        "id": "req5",
+        "title": "Requirement 5: Validation Query",
+        "description": "Write a search that validates all fields are extracting correctly and shows a summary of the data.",
+        "criteria": [
+          "Shows count of events by event_type and action",
+          "Lists unique hosts reporting",
+          "Confirms all CIM fields are populated"
+        ],
+        "hints": [],
+        "solution": "index=endpoint sourcetype=edr:raw earliest=-1h\n| stats count by event_type, action\n| append [\n    search index=endpoint sourcetype=edr:raw earliest=-1h\n    | stats dc(dest) as unique_hosts,\n            dc(user) as unique_users,\n            dc(process_name) as unique_processes\n]"
+      }
+    ],
+    "scoring": {
+      "total_points": 100,
+      "breakdown": [
+        {"requirement": "Event Breaking", "points": 20},
+        {"requirement": "Timestamp Extraction", "points": 20},
+        {"requirement": "Core Field Extraction", "points": 25},
+        {"requirement": "CIM Normalization", "points": 25},
+        {"requirement": "Validation Query", "points": 10}
+      ],
+      "passing_score": 70
+    },
+    "bonus_challenges": [
+      {
+        "title": "Bonus 1: Process Tree Reconstruction",
+        "description": "Write a search that reconstructs the process tree using pid and ppid relationships to show parent-child process chains.",
+        "points": 15
+      },
+      {
+        "title": "Bonus 2: Suspicious Command Detection",
+        "description": "Create a search that identifies potentially suspicious process execution patterns (e.g., cmd.exe spawning recon tools, processes running from temp directories).",
+        "points": 15
+      },
+      {
+        "title": "Bonus 3: Event Type Configuration",
+        "description": "Write the eventtypes.conf and tags.conf entries needed to map this data to the Endpoint data model for ES compatibility.",
+        "points": 10
+      }
+    ],
+    "submission_checklist": [
+      "All 5 requirements have complete configurations",
+      "Event breaking produces one event per log entry",
+      "Timestamps are correctly parsed (not using current time)",
+      "All 10 core fields extract with correct values",
+      "CIM field aliases work in searches",
+      "Action field shows normalized values (allowed/blocked)",
+      "Validation query returns expected results"
+    ]
+  }
+}

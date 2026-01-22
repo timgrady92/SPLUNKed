@@ -1,0 +1,64 @@
+{
+  "id": "spl-rex-patterns",
+  "type": "tutorial",
+  "title": "Rex Pattern Extraction",
+  "description": "Extract fields from unstructured logs using regular expressions, including named capture groups, sed mode for replacement, and common security log patterns.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["spl", "rex", "regex", "extraction", "intermediate"],
+  "objectives": [
+    "Extract fields from unstructured text with rex",
+    "Use named capture groups for field creation",
+    "Apply sed mode for string replacement",
+    "Recognize and extract common security log patterns"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Rex?",
+        "body": "<p>When data doesn't have clean key-value pairs, <code>rex</code> extracts fields using regular expressions:</p><pre><code>index=security\n| rex \"User (?<username>[^\\s]+) logged in from (?<source_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)\"</code></pre><p>From <code>User admin logged in from 10.0.0.5</code>, this creates:</p><ul><li><code>username = \"admin\"</code></li><li><code>source_ip = \"10.0.0.5\"</code></li></ul><p><code>rex</code> uses Perl-compatible regular expressions (PCRE) with named capture groups to create fields.</p>"
+      },
+      {
+        "title": "Named Capture Groups",
+        "body": "<p>The syntax <code>(?&lt;fieldname&gt;pattern)</code> captures the matched text into a new field:</p><h4>Basic Pattern</h4><pre><code>(?<fieldname>regex_pattern)</code></pre><h4>Examples</h4><pre><code>| rex \"status=(?<status_code>\\d+)\"\n| rex \"user=\\\"(?<username>[^\\\"]+)\\\"\"\n| rex \"action=(?<action>\\w+)\"</code></pre><h4>Multiple Captures</h4><pre><code>| rex \"(?<method>GET|POST|PUT|DELETE) (?<path>[^\\s]+) HTTP/(?<http_version>[\\d.]+)\"</code></pre><p>From <code>GET /api/users HTTP/1.1</code>, this creates three fields.</p>"
+      },
+      {
+        "title": "Essential Regex Patterns",
+        "body": "<p>Common patterns for security data:</p><h4>IP Addresses</h4><pre><code>(?<ip_address>\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})</code></pre><h4>Email Addresses</h4><pre><code>(?<email>[\\w.+-]+@[\\w.-]+\\.[a-zA-Z]{2,})</code></pre><h4>Usernames (word characters)</h4><pre><code>(?<user>\\w+)</code></pre><h4>Quoted Strings</h4><pre><code>\"(?<value>[^\"]+)\"</code></pre><h4>Numbers</h4><pre><code>(?<count>\\d+)</code></pre><h4>Hex Values</h4><pre><code>(?<hex_value>0x[0-9a-fA-F]+)</code></pre><h4>File Paths (Unix)</h4><pre><code>(?<filepath>/[\\w./\\-]+)</code></pre><h4>Windows Paths</h4><pre><code>(?<filepath>[A-Z]:\\\\[\\w\\\\. \\-]+)</code></pre>"
+      },
+      {
+        "title": "The field Parameter",
+        "body": "<p>By default, rex operates on <code>_raw</code>. Use <code>field=</code> to extract from other fields:</p><pre><code>| rex field=url \"https?://(?<domain>[^/]+)(?<path>/[^?]*)?\"\n| rex field=user_agent \"(?<browser>Chrome|Firefox|Safari|Edge)/(?<version>[\\d.]+)\"</code></pre><h4>Extracting from Computed Fields</h4><pre><code>| eval message = subject . \" \" . body\n| rex field=message \"(?<mentioned_user>@\\w+)\"</code></pre><h4>Processing Multivalue Fields</h4><pre><code>| rex field=groups max_match=0 \"(?<admin_groups>admin\\w*)\"\n| stats values(admin_groups) as all_admin_groups by user</code></pre>"
+      },
+      {
+        "title": "max_match for Multiple Extractions",
+        "body": "<p>By default, rex extracts only the first match. Use <code>max_match</code> for more:</p><h4>Extract All Matches</h4><pre><code>| rex max_match=0 \"(?<ip>\\d+\\.\\d+\\.\\d+\\.\\d+)\"</code></pre><p>The <code>max_match=0</code> extracts all occurrences into a multivalue field.</p><h4>Specific Number of Matches</h4><pre><code>| rex max_match=5 \"(?<url>https?://[^\\s]+)\"</code></pre><p>Extract up to 5 URLs.</p><h4>Working with Multiple Matches</h4><pre><code>| rex max_match=0 \"(?<mentioned_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)\"\n| stats count, values(mentioned_ip) as all_ips by src_ip</code></pre>"
+      },
+      {
+        "title": "Sed Mode for Replacement",
+        "body": "<p>Use <code>mode=sed</code> to replace rather than extract:</p><pre><code>| rex mode=sed field=message \"s/password=[^&\\s]+/password=REDACTED/g\"</code></pre><h4>Sed Syntax</h4><p><code>s/pattern/replacement/flags</code></p><ul><li><code>s</code> - Substitute command</li><li><code>pattern</code> - What to find</li><li><code>replacement</code> - What to replace with</li><li><code>g</code> - Global (all occurrences)</li></ul><h4>Common Sed Operations</h4><pre><code>| rex mode=sed field=user \"s/DOMAIN\\\\\\\\//g\"</code></pre><p>Remove domain prefix from usernames.</p><pre><code>| rex mode=sed field=email \"s/.*@/***@/\"</code></pre><p>Mask email username.</p><pre><code>| rex mode=sed field=cc_number \"s/\\d{12}(\\d{4})/************\\1/\"</code></pre><p>Mask all but last 4 digits of credit card.</p>"
+      },
+      {
+        "title": "Common Security Log Patterns",
+        "body": "<h4>Windows Security Event</h4><pre><code>| rex \"Account Name:\\s+(?<account>[^\\s]+)\"\n| rex \"Source Network Address:\\s+(?<src_ip>[^\\s]+)\"\n| rex \"Logon Type:\\s+(?<logon_type>\\d+)\"</code></pre><h4>Apache/Nginx Access Log</h4><pre><code>| rex \"^(?<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+-\\s+(?<user>[^\\s]+)\\s+\\[(?<timestamp>[^\\]]+)\\]\\s+\\\"(?<method>\\w+)\\s+(?<uri>[^\\s]+)\\s+[^\\\"]+\\\"\\s+(?<status>\\d+)\\s+(?<bytes>\\d+)\"</code></pre><h4>Syslog</h4><pre><code>| rex \"(?<syslog_priority>\\<\\d+\\>)?(?<timestamp>\\w+\\s+\\d+\\s+[\\d:]+)\\s+(?<host>[^\\s]+)\\s+(?<process>[^\\[:]+)(?:\\[(?<pid>\\d+)\\])?:\\s+(?<message>.+)$\"</code></pre><h4>Firewall Connection</h4><pre><code>| rex \"src=(?<src_ip>[\\d.]+):(?<src_port>\\d+)\\s+dst=(?<dest_ip>[\\d.]+):(?<dest_port>\\d+)\\s+proto=(?<protocol>\\w+)\"</code></pre>"
+      },
+      {
+        "title": "Handling Edge Cases",
+        "body": "<h4>Optional Fields</h4><p>Use <code>?</code> to make parts optional:</p><pre><code>| rex \"user=(?<user>\\w+)(?:\\s+from=(?<source>[^\\s]+))?\"</code></pre><p>Extracts source only if present.</p><h4>Non-Greedy Matching</h4><pre><code>| rex \"msg=\\\"(?<message>.+?)\\\"\"</code></pre><p>The <code>?</code> after <code>+</code> makes it non-greedy, stopping at the first quote.</p><h4>Handling Varied Formats</h4><pre><code>| rex \"(user|username|account)=\\\"?(?<user>[^\\\"\\s,;]+)\\\"?\"</code></pre><p>Handles <code>user=admin</code>, <code>username=\"admin\"</code>, <code>account=admin</code>.</p><h4>Multiline Extraction</h4><pre><code>| rex \"(?s)BEGIN CERTIFICATE-----(?<cert>.+?)-----END\"</code></pre><p>The <code>(?s)</code> flag makes <code>.</code> match newlines.</p>"
+      },
+      {
+        "title": "Performance Considerations",
+        "body": "<p><code>rex</code> is relatively expensive because it applies regex to every event.</p><h4>Optimization Tips</h4><ul><li><strong>Filter first</strong> - Apply time ranges and filters before rex</li><li><strong>Use field= when possible</strong> - Extracting from a specific field is faster than _raw</li><li><strong>Anchor patterns</strong> - <code>^</code> at start, <code>$</code> at end speeds up matching</li><li><strong>Avoid .* when possible</strong> - Greedy patterns are slow</li></ul><h4>Consider Alternatives</h4><p>For structured data:</p><pre><code>| spath input=json_field</code></pre><p>For key=value pairs:</p><pre><code>| extract</code></pre><p>These are faster than rex when applicable.</p>"
+      },
+      {
+        "title": "Debugging Rex Patterns",
+        "body": "<p>When rex doesn't extract what you expect:</p><h4>Test on Sample Events</h4><pre><code>index=security earliest=-1h\n| head 10\n| rex \"(?<test_field>your_pattern)\"\n| table _raw, test_field</code></pre><h4>Check for Escaping Issues</h4><p>Special characters need escaping:</p><ul><li><code>.</code> becomes <code>\\.</code></li><li><code>[</code> becomes <code>\\[</code></li><li><code>\\</code> becomes <code>\\\\</code> (and sometimes <code>\\\\\\\\</code> in SPL strings)</li></ul><h4>Build Incrementally</h4><p>Start simple and add complexity:</p><pre><code>| rex \"user=(?<user>\\w+)\"</code></pre><p>Then:</p><pre><code>| rex \"user=(?<user>\\w+)\\s+from=(?<source>[^\\s]+)\"</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key rex capabilities:</p><ul><li><strong>Named capture groups</strong> - <code>(?&lt;fieldname&gt;pattern)</code> creates fields</li><li><strong>field= parameter</strong> - Extract from any field, not just _raw</li><li><strong>max_match=0</strong> - Extract all occurrences into multivalue field</li><li><strong>mode=sed</strong> - Replace/modify instead of extract</li><li><strong>Common patterns</strong> - IP addresses, emails, quoted strings, paths</li></ul><p>Rex is essential for handling unstructured logs. Combined with eval string functions, you can normalize almost any data format.</p>"
+      }
+    ]
+  }
+}

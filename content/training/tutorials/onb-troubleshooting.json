@@ -1,0 +1,134 @@
+{
+  "id": "onb-troubleshooting",
+  "type": "tutorial",
+  "title": "Troubleshooting Data Parsing Issues",
+  "description": "Diagnose and fix common data onboarding problems including event breaking errors, timestamp failures, missing fields, and configuration conflicts.",
+  "category": "data-onboarding",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["data-onboarding", "troubleshooting", "btool", "parsing", "debugging", "timestamps"],
+  "objectives": [
+    "Identify symptoms of common parsing problems",
+    "Use btool to verify configuration application",
+    "Debug timestamp extraction failures",
+    "Resolve event breaking issues",
+    "Fix field extraction problems"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Troubleshooting Approach",
+        "body": "<p>Data parsing issues follow a predictable pattern. Use this systematic approach:</p><ol><li><strong>Identify the symptom</strong> - What's wrong with the data?</li><li><strong>Verify configuration</strong> - Is the right config applied?</li><li><strong>Check the data</strong> - Does the data match your assumptions?</li><li><strong>Test interactively</strong> - Validate fixes before deploying</li><li><strong>Deploy and verify</strong> - Confirm the fix works in production</li></ol><h4>Common Symptom Categories</h4><table class=\"reference-table\"><tr><th>Symptom</th><th>Likely Cause</th><th>First Check</th></tr><tr><td>Events with wrong time</td><td>Timestamp extraction</td><td>TIME_FORMAT, TIME_PREFIX</td></tr><tr><td>Multiple logs in one event</td><td>Under-breaking</td><td>LINE_BREAKER, SHOULD_LINEMERGE</td></tr><tr><td>Logs split across events</td><td>Over-breaking</td><td>BREAK_ONLY_BEFORE, MAX_EVENTS</td></tr><tr><td>Missing fields</td><td>Extraction regex</td><td>EXTRACT, REPORT, KV_MODE</td></tr><tr><td>Wrong sourcetype applied</td><td>Input configuration</td><td>inputs.conf sourcetype setting</td></tr></table>"
+      },
+      {
+        "title": "Using btool",
+        "body": "<p>btool shows the effective configuration after merging all config files. It's your first stop for configuration issues.</p><h4>Check props.conf Settings</h4>",
+        "example": {
+          "description": "View all settings for a sourcetype",
+          "spl": "./splunk btool props list your_sourcetype --debug"
+        },
+        "explanation": "<p>The <code>--debug</code> flag shows which file each setting comes from. Look for:</p><ul><li>Your settings appearing in the output</li><li>Unexpected overrides from other apps</li><li>Settings from default stanzas</li></ul><h4>Check transforms.conf</h4>",
+        "example2": {
+          "description": "View transform definitions",
+          "spl": "./splunk btool transforms list your_transform_name --debug"
+        }
+      },
+      {
+        "title": "Timestamp Extraction Failures",
+        "body": "<h4>Symptom: All Events Have Current Time</h4><p>When <code>_time</code> equals <code>_indextime</code> for all events, Splunk couldn't extract the timestamp.</p>",
+        "example": {
+          "description": "Identify timestamp extraction failures",
+          "spl": "index=your_index sourcetype=your_sourcetype earliest=-1h\n| eval time_diff = _indextime - _time\n| where time_diff < 5\n| stats count\n| eval assessment = if(count > 0, \"Timestamps may be using current time\", \"Timestamps extracted correctly\")"
+        },
+        "explanation": "<h4>Common Causes</h4><ul><li><code>TIME_PREFIX</code> doesn't match text before timestamp</li><li><code>TIME_FORMAT</code> doesn't match timestamp format</li><li><code>MAX_TIMESTAMP_LOOKAHEAD</code> too short to reach timestamp</li><li>Timestamp in unexpected location in event</li></ul><h4>Debug Process</h4>",
+        "example2": {
+          "description": "View raw data to identify timestamp location",
+          "spl": "index=your_index sourcetype=your_sourcetype\n| head 5\n| eval raw_preview = substr(_raw, 1, 200)\n| table raw_preview"
+        }
+      },
+      {
+        "title": "Fixing Timestamp Issues",
+        "body": "<h4>Step 1: Identify the Pattern</h4><p>Look at your raw data and note:</p><ul><li>What text appears before the timestamp?</li><li>What exact format does the timestamp use?</li><li>How far into the event is the timestamp?</li></ul><h4>Step 2: Build TIME_FORMAT</h4>",
+        "example": {
+          "description": "Match timestamp format exactly",
+          "spl": "# If your timestamp looks like: 2024-03-15T14:30:45.123Z\nTIME_FORMAT = %Y-%m-%dT%H:%M:%S.%3NZ\n\n# If your timestamp looks like: Mar 15 14:30:45\nTIME_FORMAT = %b %d %H:%M:%S\n\n# If your timestamp looks like: 15/Mar/2024:14:30:45 +0000\nTIME_FORMAT = %d/%b/%Y:%H:%M:%S %z"
+        },
+        "explanation": "<h4>Step 3: Test with strptime</h4>",
+        "example2": {
+          "description": "Test TIME_FORMAT with strptime",
+          "spl": "| makeresults\n| eval test_time = \"2024-03-15T14:30:45.123Z\"\n| eval parsed = strptime(test_time, \"%Y-%m-%dT%H:%M:%S.%3NZ\")\n| eval formatted = strftime(parsed, \"%Y-%m-%d %H:%M:%S\")\n| table test_time, parsed, formatted"
+        }
+      },
+      {
+        "title": "Event Breaking Problems",
+        "body": "<h4>Symptom: Multiple Logs in One Event (Under-Breaking)</h4>",
+        "example": {
+          "description": "Check for merged events",
+          "spl": "index=your_index sourcetype=your_sourcetype\n| head 20\n| eval line_count = mvcount(split(_raw, \"\\n\"))\n| where line_count > 10\n| table _time, line_count, _raw"
+        },
+        "explanation": "<p>If events contain many lines when they should be single-line, Splunk isn't breaking correctly.</p><h4>Cause: LINE_BREAKER Not Matching</h4><p>The LINE_BREAKER regex isn't finding event boundaries.</p><h4>Fix:</h4>",
+        "example2": {
+          "description": "Configure LINE_BREAKER for your format",
+          "spl": "[your_sourcetype]\n# Break before each timestamp pattern\nLINE_BREAKER = ([\\r\\n]+)(?=\\d{4}-\\d{2}-\\d{2})\nSHOULD_LINEMERGE = false"
+        }
+      },
+      {
+        "title": "Multi-Line Event Problems",
+        "body": "<h4>Symptom: Stack Traces Split Across Events (Over-Breaking)</h4>",
+        "example": {
+          "description": "Find truncated events",
+          "spl": "index=your_index sourcetype=your_sourcetype\n| head 100\n| where NOT match(_raw, \"^\\d{4}-\\d{2}-\\d{2}\")\n| table _time, _raw"
+        },
+        "explanation": "<p>Events that don't start with a timestamp may be continuation lines that weren't merged.</p><h4>Fix: Enable Line Merging</h4>",
+        "example2": {
+          "description": "Configure multi-line event merging",
+          "spl": "[your_sourcetype]\nSHOULD_LINEMERGE = true\nBREAK_ONLY_BEFORE = ^\\d{4}-\\d{2}-\\d{2}\nMAX_EVENTS = 200\nTRUNCATE = 50000"
+        }
+      },
+      {
+        "title": "Field Extraction Issues",
+        "body": "<h4>Symptom: Fields Not Appearing</h4>",
+        "example": {
+          "description": "Check if field extractions are working",
+          "spl": "index=your_index sourcetype=your_sourcetype earliest=-1h\n| fieldsummary\n| search field IN (user, src_ip, action)\n| table field, count, distinct_count, is_exact"
+        },
+        "explanation": "<p>Missing fields in fieldsummary indicates extraction isn't working.</p><h4>Debug with rex</h4>",
+        "example2": {
+          "description": "Test extraction pattern interactively",
+          "spl": "index=your_index sourcetype=your_sourcetype\n| head 50\n| rex field=_raw \"user=(?<test_user>\\w+)\"\n| table _raw, test_user\n| where isnull(test_user)"
+        }
+      },
+      {
+        "title": "Configuration Conflicts",
+        "body": "<h4>Symptom: Settings Not Taking Effect</h4><p>You've added configuration but it's not being applied.</p>",
+        "example": {
+          "description": "Check for configuration conflicts",
+          "spl": "./splunk btool props list your_sourcetype --debug 2>&1 | grep -E \"(TIME_FORMAT|LINE_BREAKER|EXTRACT)\""
+        },
+        "explanation": "<h4>Common Causes</h4><ul><li><strong>Wrong stanza name:</strong> Typo in sourcetype name</li><li><strong>App precedence:</strong> Another app overriding your settings</li><li><strong>Missing restart:</strong> Some changes require restart</li><li><strong>Wrong location:</strong> Config on search head vs indexer</li></ul><h4>Check App Precedence</h4><p>Apps are evaluated in this order (last wins):</p><ol><li>system/default</li><li>apps/&lt;app&gt;/default (alphabetical by app name)</li><li>apps/&lt;app&gt;/local (alphabetical by app name)</li><li>system/local</li></ol>"
+      },
+      {
+        "title": "Using the Data Preview Tool",
+        "body": "<p>Before deploying configurations, test them interactively with Data Preview.</p><h4>Access Data Preview</h4><ol><li>Go to <strong>Settings > Source Types</strong></li><li>Click <strong>New Source Type</strong> (or edit existing)</li><li>Paste sample data in the Event Breaks tab</li><li>Configure settings and see real-time preview</li></ol><h4>What to Verify</h4><ul><li><strong>Event Breaks:</strong> Each logical event is separate</li><li><strong>Timestamps:</strong> _time shows correct values (not current time)</li><li><strong>Fields:</strong> Expected fields appear in the sidebar</li></ul><p>Once preview looks correct, export the configuration and deploy to your app.</p>"
+      },
+      {
+        "title": "Monitoring Ingestion Health",
+        "body": "<h4>Check for Parsing Queues</h4>",
+        "example": {
+          "description": "Monitor parsing pipeline health",
+          "spl": "index=_internal sourcetype=splunkd component=Metrics group=pipeline\n| timechart span=1m avg(current_size) by name"
+        },
+        "explanation": "<p>Growing queue sizes indicate parsing bottlenecks.</p><h4>Check for Timestamp Warnings</h4>",
+        "example2": {
+          "description": "Find timestamp extraction warnings",
+          "spl": "index=_internal sourcetype=splunkd log_level=WARN \"timestamp\"\n| stats count by message\n| sort - count"
+        }
+      },
+      {
+        "title": "Quick Reference: Error Messages",
+        "body": "<h4>Common Error Messages and Solutions</h4><table class=\"reference-table\"><tr><th>Message</th><th>Cause</th><th>Solution</th></tr><tr><td>\"Timestamp not found\"</td><td>TIME_FORMAT mismatch</td><td>Adjust TIME_FORMAT to match data</td></tr><tr><td>\"Truncating line\"</td><td>Event too long</td><td>Increase TRUNCATE value</td></tr><tr><td>\"Too many lines\"</td><td>Runaway merging</td><td>Adjust MAX_EVENTS or BREAK patterns</td></tr><tr><td>\"Invalid regex\"</td><td>Syntax error in pattern</td><td>Test regex separately, check escaping</td></tr><tr><td>\"Transform not found\"</td><td>Missing transforms.conf entry</td><td>Create stanza in transforms.conf</td></tr></table>"
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><strong>btool first:</strong> Always verify configuration is applied correctly</li><li><strong>Timestamps:</strong> Check TIME_FORMAT matches exactly, test with strptime</li><li><strong>Event breaking:</strong> Use LINE_BREAKER for custom formats, SHOULD_LINEMERGE for multi-line</li><li><strong>Field extraction:</strong> Test patterns with rex before deploying</li><li><strong>Data Preview:</strong> Interactive testing before production deployment</li><li><strong>Monitor health:</strong> Watch _internal for parsing warnings</li></ul>"
+  }
+}

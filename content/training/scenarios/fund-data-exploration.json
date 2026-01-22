@@ -1,0 +1,101 @@
+{
+  "id": "fund-data-exploration",
+  "type": "scenario",
+  "title": "Data Exploration: Understanding Your Logs",
+  "description": "Practice exploring an unfamiliar dataset. Learn techniques to understand what data you have, what fields are available, and what questions you can answer.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "20 min",
+  "tags": ["fundamentals", "exploration", "beginner", "hands-on"],
+  "objectives": [
+    "Explore a dataset to understand its structure",
+    "Discover available fields and their values",
+    "Form and test simple hypotheses about the data",
+    "Create a basic summary of findings"
+  ],
+  "content": {
+    "background": "<p>You've just been given access to Splunk at a new organization. Before you can investigate security incidents, you need to understand what data is available.</p><p>In this scenario, you'll explore Splunk's internal logs (<code>index=_internal</code>) as if they were an unfamiliar dataset. The techniques you learn apply to any data source.</p><h4>Your Task</h4><p>Explore the <code>_internal</code> index to answer:</p><ul><li>What types of data are in this index?</li><li>What fields are available?</li><li>What's the volume and distribution of events?</li><li>What can this data tell us about system health?</li></ul>",
+    "steps": [
+      {
+        "title": "Step 1: Get the Big Picture",
+        "type": "pivot",
+        "content": "<p>Start by understanding what sourcetypes exist in the index.</p><h4>Task</h4><p>Run a search to discover all sourcetypes in the _internal index.</p><h4>Approach</h4><ul><li>Use <code>stats</code> or <code>top</code> to count events by sourcetype</li><li>Look at the distribution—which sourcetypes have the most data?</li></ul>",
+        "hint": "Try: index=_internal | top sourcetype",
+        "solution": "index=_internal earliest=-1h\n| top sourcetype showperc=true"
+      },
+      {
+        "title": "Step 2: Understand the Main Data Type",
+        "type": "pivot",
+        "content": "<p>The <code>splunkd</code> sourcetype is usually the largest. Let's explore it.</p><h4>Task</h4><p>Look at sample events from the splunkd sourcetype to understand its structure.</p><h4>Questions to Answer</h4><ul><li>What do these events look like?</li><li>What fields are extracted?</li><li>What kind of information do they contain?</li></ul>",
+        "hint": "Run a simple search and use the field sidebar to explore: index=_internal sourcetype=splunkd | head 50",
+        "solution": "index=_internal sourcetype=splunkd earliest=-15m\n| head 50"
+      },
+      {
+        "title": "Step 3: Discover Available Fields",
+        "type": "pivot",
+        "content": "<p>Use the field sidebar to find interesting fields, then explore their values.</p><h4>Task</h4><p>Find and explore the <code>log_level</code> field. What values does it have?</p><h4>Approach</h4><ul><li>Click the field in the sidebar, or</li><li>Use <code>stats</code> to count by the field</li></ul>",
+        "hint": "Try: index=_internal sourcetype=splunkd | stats count by log_level",
+        "solution": "index=_internal sourcetype=splunkd earliest=-1h\n| stats count by log_level\n| sort - count"
+      },
+      {
+        "title": "Checkpoint: What Have You Learned?",
+        "type": "reasoning",
+        "content": "<p>Before continuing, summarize what you've discovered so far.</p><h4>Questions</h4><ol><li>What sourcetypes are present?</li><li>What does the splunkd sourcetype contain?</li><li>What log levels exist and how are they distributed?</li></ol>",
+        "question": "Based on the log_level distribution, what would you say about the health of this Splunk instance?",
+        "options": [
+          "Mostly healthy - INFO events dominate with few errors",
+          "Some concerns - significant WARN events that should be reviewed",
+          "Problems detected - high ERROR count needs investigation",
+          "Cannot determine - need more context"
+        ]
+      },
+      {
+        "title": "Step 4: Explore More Fields",
+        "type": "pivot",
+        "content": "<p>The <code>component</code> field tells you which part of Splunk generated the log.</p><h4>Task</h4><p>Find the top 10 components generating logs.</p><h4>Why This Matters</h4><p>Understanding which components are most active helps you know where to look when troubleshooting.</p>",
+        "hint": "Try: index=_internal sourcetype=splunkd | top 10 component",
+        "solution": "index=_internal sourcetype=splunkd earliest=-1h\n| top 10 component"
+      },
+      {
+        "title": "Step 5: Find the Problems",
+        "type": "pivot",
+        "content": "<p>ERROR events indicate problems. Let's investigate them.</p><h4>Task</h4><p>Find ERROR events and see which components are generating them.</p>",
+        "hint": "Filter for log_level=ERROR, then count by component",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-1h\n| stats count by component\n| sort - count"
+      },
+      {
+        "title": "Step 6: Look at Specific Errors",
+        "type": "pivot",
+        "content": "<p>Now examine the actual error messages to understand what's going wrong.</p><h4>Task</h4><p>Look at the error messages from the top error-generating component.</p>",
+        "hint": "Add a filter for the component and look at the message field",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-1h\n| table _time, host, component, message\n| head 20"
+      },
+      {
+        "title": "Step 7: Visualize Activity Over Time",
+        "type": "pivot",
+        "content": "<p>See how log volume varies over time.</p><h4>Task</h4><p>Create a timechart showing event count by log_level over the last hour.</p><h4>What to Look For</h4><ul><li>Are there spikes in errors?</li><li>Is the pattern consistent or irregular?</li></ul>",
+        "hint": "Use timechart with span and split by log_level",
+        "solution": "index=_internal sourcetype=splunkd earliest=-1h\n| timechart span=5m count by log_level"
+      },
+      {
+        "title": "Step 8: Check Multiple Hosts",
+        "type": "pivot",
+        "content": "<p>If you have multiple Splunk servers, errors might be concentrated on one.</p><h4>Task</h4><p>Count errors by host to see if problems are widespread or isolated.</p>",
+        "hint": "Stats count by host for ERROR events",
+        "solution": "index=_internal sourcetype=splunkd log_level=ERROR earliest=-1h\n| stats count by host\n| sort - count"
+      },
+      {
+        "title": "Final Summary",
+        "type": "reasoning",
+        "content": "<p>You've completed a basic data exploration. Let's summarize your findings.</p><h4>Exploration Summary Template</h4><pre><code>Data Source: index=_internal\n\nSourcetypes Found:\n- splunkd (main daemon logs)\n- splunk_web_access (web UI access logs)\n- [others you discovered]\n\nKey Fields:\n- log_level: INFO, WARN, ERROR, DEBUG\n- component: Which Splunk subsystem\n- host: Which server\n- message: The actual log message\n\nHealth Assessment:\n- Total events in last hour: [count]\n- Error percentage: [percent]\n- Top error source: [component]\n\nRecommendations:\n- [Any issues to investigate]\n</code></pre>",
+        "question": "What is the most valuable outcome of this exploration exercise?",
+        "options": [
+          "Knowing which sourcetypes exist in the index",
+          "Understanding the available fields for searching",
+          "Identifying potential issues to investigate",
+          "All of the above - building a mental model of the data"
+        ]
+      }
+    ]
+  }
+}

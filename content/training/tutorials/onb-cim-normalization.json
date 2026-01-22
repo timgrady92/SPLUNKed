@@ -1,0 +1,124 @@
+{
+  "id": "onb-cim-normalization",
+  "type": "tutorial",
+  "title": "CIM Compliance and Field Normalization",
+  "description": "Normalize data to the Common Information Model using field aliases, calculated fields, and event types. Enable cross-source correlation and Enterprise Security compatibility.",
+  "category": "data-onboarding",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["data-onboarding", "CIM", "normalization", "field-alias", "calculated-fields", "data-models"],
+  "objectives": [
+    "Understand the purpose and structure of the CIM",
+    "Create field aliases to map vendor fields to CIM names",
+    "Build calculated fields for derived values",
+    "Configure event types for data model membership",
+    "Validate CIM compliance with searches"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Normalize to CIM",
+        "body": "<p>The Common Information Model (CIM) provides a standardized schema for security and IT data. Normalizing your data to CIM enables:</p><ul><li><strong>Cross-source correlation:</strong> Query firewalls, proxies, and endpoints with one search</li><li><strong>Enterprise Security compatibility:</strong> Data appears in ES dashboards and correlation searches</li><li><strong>Reusable content:</strong> Searches, alerts, and dashboards work across vendors</li><li><strong>Faster onboarding:</strong> Analysts know what fields to expect</li></ul><h4>CIM Data Models</h4><p>CIM organizes fields into data models representing common data categories:</p><table class=\"reference-table\"><tr><th>Data Model</th><th>Description</th><th>Key Fields</th></tr><tr><td>Authentication</td><td>Login/logout events</td><td>user, action, src, dest, app</td></tr><tr><td>Network Traffic</td><td>Firewall, flow data</td><td>src_ip, dest_ip, dest_port, action</td></tr><tr><td>Web</td><td>Proxy, web server logs</td><td>url, http_method, status, user</td></tr><tr><td>Endpoint</td><td>Process, file, registry</td><td>process_name, user, dest, action</td></tr><tr><td>Malware</td><td>AV, EDR detections</td><td>signature, file_hash, user, dest</td></tr></table>"
+      },
+      {
+        "title": "Field Aliases",
+        "body": "<p>Field aliases map vendor-specific field names to CIM-standard names without modifying the original data.</p><h4>Alias Syntax</h4>",
+        "example": {
+          "description": "Create field aliases in props.conf",
+          "spl": "[firewall:vendor]\nFIELDALIAS-src = source_address AS src_ip\nFIELDALIAS-dest = destination_address AS dest_ip\nFIELDALIAS-port = destination_port AS dest_port\nFIELDALIAS-user = username AS user"
+        },
+        "explanation": "<p>After this configuration:</p><ul><li>Searching for <code>src_ip=10.0.0.1</code> finds events where <code>source_address=10.0.0.1</code></li><li>Both field names work in searches</li><li>Original field names remain intact in <code>_raw</code></li></ul><h4>Multiple Aliases for One CIM Field</h4>",
+        "example2": {
+          "description": "Handle vendor variations",
+          "spl": "[firewall:vendor]\nFIELDALIAS-src1 = SrcAddr AS src_ip\nFIELDALIAS-src2 = source AS src_ip\nFIELDALIAS-src3 = src AS src_ip"
+        }
+      },
+      {
+        "title": "Key CIM Field Mappings",
+        "body": "<p>Reference mappings for common CIM fields across data types.</p><h4>Authentication Fields</h4><table class=\"reference-table\"><tr><th>CIM Field</th><th>Description</th><th>Common Vendor Names</th></tr><tr><td>user</td><td>Username</td><td>username, user_name, UserName, Account_Name</td></tr><tr><td>src</td><td>Source system</td><td>source, src_host, client_ip, Workstation_Name</td></tr><tr><td>dest</td><td>Destination system</td><td>destination, dest_host, server, Computer</td></tr><tr><td>action</td><td>success/failure</td><td>result, status, outcome, Keywords</td></tr><tr><td>app</td><td>Application name</td><td>application, service, LogonProcess</td></tr></table><h4>Network Traffic Fields</h4><table class=\"reference-table\"><tr><th>CIM Field</th><th>Description</th><th>Common Vendor Names</th></tr><tr><td>src_ip</td><td>Source IP</td><td>source_ip, SrcAddr, src, client_ip</td></tr><tr><td>dest_ip</td><td>Destination IP</td><td>destination_ip, DstAddr, dst, server_ip</td></tr><tr><td>dest_port</td><td>Destination port</td><td>dst_port, DstPort, port, server_port</td></tr><tr><td>transport</td><td>Protocol</td><td>protocol, proto, Protocol</td></tr><tr><td>bytes_in</td><td>Bytes received</td><td>bytes_received, rcvd_bytes, BytesIn</td></tr><tr><td>bytes_out</td><td>Bytes sent</td><td>bytes_sent, sent_bytes, BytesOut</td></tr></table>"
+      },
+      {
+        "title": "Calculated Fields",
+        "body": "<p>Use calculated fields to derive CIM-compliant values from existing fields.</p><h4>Normalize Action Values</h4>",
+        "example": {
+          "description": "Map vendor status to CIM action",
+          "spl": "[firewall:vendor]\nEVAL-action = case(\n    status==\"ALLOW\" OR status==\"PERMIT\", \"allowed\",\n    status==\"DENY\" OR status==\"DROP\" OR status==\"BLOCK\", \"blocked\",\n    1==1, \"unknown\")"
+        },
+        "explanation": "<p>The CIM expects specific values for <code>action</code>. This calculated field normalizes vendor-specific values to CIM standard values.</p><h4>Calculate Duration</h4>",
+        "example2": {
+          "description": "Calculate session duration in seconds",
+          "spl": "[vpn:logs]\nEVAL-duration = if(isnotnull(end_time) AND isnotnull(start_time), \n    end_time - start_time, \n    null())"
+        }
+      },
+      {
+        "title": "More Calculated Field Examples",
+        "body": "<h4>Combine Fields</h4>",
+        "example": {
+          "description": "Create full username from parts",
+          "spl": "[ldap:auth]\nEVAL-user = if(isnotnull(domain), domain.\"\\\\\" user_name, user_name)"
+        },
+        "explanation": "<p>Creates <code>DOMAIN\\username</code> format when domain is present.</p><h4>Extract from Composite Fields</h4>",
+        "example2": {
+          "description": "Parse URL components",
+          "spl": "[proxy:logs]\nEVAL-url_domain = replace(url, \"^https?://([^/]+).*\", \"\\1\")\nEVAL-url_path = replace(url, \"^https?://[^/]+(/[^?]*).*\", \"\\1\")"
+        }
+      },
+      {
+        "title": "Event Types for Data Model Mapping",
+        "body": "<p>Event types categorize events for data model membership. They determine which events appear in CIM data model accelerations.</p><h4>Basic Event Type</h4>",
+        "example": {
+          "description": "eventtypes.conf for authentication events",
+          "spl": "[authentication]\nsearch = (sourcetype=windows:security EventCode IN (4624, 4625, 4634)) OR \\\n         (sourcetype=linux:auth) OR \\\n         (sourcetype=vpn:auth)"
+        },
+        "explanation": "<p>Events matching this search are tagged with the <code>authentication</code> event type.</p><h4>Tags for Data Model</h4><p>In tags.conf, associate event types with CIM tags:</p>",
+        "example2": {
+          "description": "tags.conf for authentication data model",
+          "spl": "[eventtype=authentication]\nauthentication = enabled"
+        }
+      },
+      {
+        "title": "Complete Normalization Example",
+        "body": "<p>Here's a complete example normalizing a custom firewall log to CIM.</p><h4>Sample Log Format</h4><pre><code>Mar 15 14:30:45 fw01 FIREWALL: action=PERMIT src=10.1.2.3 dst=192.168.1.100 \\\n  proto=TCP sport=54321 dport=443 bytes_sent=1500 bytes_rcvd=45000</code></pre><h4>props.conf</h4>",
+        "example": {
+          "description": "Complete CIM normalization",
+          "spl": "[firewall:custom]\n# Field Aliases\nFIELDALIAS-src_ip = src AS src_ip\nFIELDALIAS-dest_ip = dst AS dest_ip\nFIELDALIAS-src_port = sport AS src_port\nFIELDALIAS-dest_port = dport AS dest_port\nFIELDALIAS-transport = proto AS transport\nFIELDALIAS-bytes_in = bytes_rcvd AS bytes_in\nFIELDALIAS-bytes_out = bytes_sent AS bytes_out\n\n# Calculated Fields\nEVAL-action = case(action==\"PERMIT\", \"allowed\", action==\"DENY\", \"blocked\", 1==1, \"unknown\")\nEVAL-bytes = bytes_in + bytes_out\nEVAL-vendor_product = \"Custom Firewall\""
+        }
+      },
+      {
+        "title": "Validation Queries",
+        "body": "<p>After configuring normalization, verify CIM compliance with these searches.</p><h4>Check Field Presence</h4>",
+        "example": {
+          "description": "Verify CIM fields are populated",
+          "spl": "index=firewall sourcetype=firewall:custom earliest=-1h\n| stats count by src_ip, dest_ip, dest_port, action, transport\n| head 20"
+        },
+        "explanation": "<p>All CIM fields should show populated values. Empty columns indicate missing aliases or extractions.</p><h4>Compare to CIM Specification</h4>",
+        "example2": {
+          "description": "Check action field values",
+          "spl": "index=firewall sourcetype=firewall:custom earliest=-1h\n| stats count by action\n| eval cim_valid = if(action IN (\"allowed\", \"blocked\", \"unknown\"), \"yes\", \"no\")"
+        }
+      },
+      {
+        "title": "Data Model Validation",
+        "body": "<h4>Test Data Model Membership</h4>",
+        "example": {
+          "description": "Check if data appears in Network Traffic data model",
+          "spl": "| datamodel Network_Traffic All_Traffic search\n| search sourcetype=firewall:custom\n| stats count by sourcetype, src_ip, dest_ip, action"
+        },
+        "explanation": "<p>If your data appears with correct fields, CIM normalization is working.</p><h4>Use tstats for Accelerated Check</h4>",
+        "example2": {
+          "description": "Query accelerated data model",
+          "spl": "| tstats count from datamodel=Network_Traffic where sourcetype=firewall:custom \n    by All_Traffic.src_ip, All_Traffic.dest_ip, All_Traffic.action"
+        }
+      },
+      {
+        "title": "Common CIM Compliance Issues",
+        "body": "<h4>Issue: Fields Not Appearing in Data Model</h4><ul><li>Check event type search matches your events</li><li>Verify tags.conf associates event type with CIM tags</li><li>Ensure data model acceleration includes your index</li></ul><h4>Issue: Action Values Not Recognized</h4><ul><li>CIM expects specific values: allowed, blocked, deferred, dropped</li><li>Use EVAL-action to normalize vendor values</li><li>Check for case sensitivity issues</li></ul><h4>Issue: Null CIM Fields</h4><ul><li>Verify source field exists with correct name</li><li>Check for typos in FIELDALIAS configuration</li><li>Use <code>| fieldsummary</code> to see actual field names in data</li></ul>"
+      },
+      {
+        "title": "CIM Add-On Resources",
+        "body": "<p>The Splunk Common Information Model Add-on (Splunk_SA_CIM) provides:</p><ul><li>Data model definitions</li><li>Macro definitions for common lookups</li><li>Validation dashboards</li><li>Documentation for all CIM fields</li></ul><h4>CIM Validator Dashboard</h4><p>If you have the CIM add-on installed, use <strong>Apps > SA-CIM > CIM Validator</strong> to check compliance interactively.</p><h4>Reference Documentation</h4><p>The definitive CIM field reference is available in Splunk Docs. Search for \"Common Information Model Add-on\" for the complete field specifications by data model.</p>"
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li><strong>FIELDALIAS:</strong> Map vendor field names to CIM-standard names</li><li><strong>EVAL:</strong> Create calculated fields for normalized values</li><li><strong>Event Types + Tags:</strong> Enable data model membership</li><li><strong>Action values:</strong> CIM expects specific values (allowed, blocked, etc.)</li><li><strong>Validation:</strong> Test with datamodel and tstats commands</li><li><strong>Benefits:</strong> Cross-source correlation, ES compatibility, reusable content</li></ul>"
+  }
+}

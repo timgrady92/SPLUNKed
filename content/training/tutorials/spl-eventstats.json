@@ -1,0 +1,60 @@
+{
+  "id": "spl-eventstats",
+  "type": "tutorial",
+  "title": "Eventstats: Enrich Without Collapse",
+  "description": "Learn when and how to use eventstats to add aggregated values to individual events without losing detail.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["spl", "eventstats", "stats", "intermediate"],
+  "objectives": [
+    "Understand the difference between stats and eventstats",
+    "Add global context to individual events",
+    "Calculate percentage of total for each event",
+    "Identify outliers within groups"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Stats vs Eventstats: The Core Difference",
+        "body": "<p>Both commands calculate aggregations, but they produce fundamentally different outputs:</p><h4>stats: Collapses to Summary Rows</h4><pre><code>index=security sourcetype=auth\n| stats count by user</code></pre><p>Result: One row per user with their count. Original events are gone.</p><h4>eventstats: Enriches Original Events</h4><pre><code>index=security sourcetype=auth\n| eventstats count by user</code></pre><p>Result: Every original event remains, each now has a <code>count</code> field showing that user's total.</p><p>Think of <code>eventstats</code> as \"calculate stats and add them back to every event.\"</p>"
+      },
+      {
+        "title": "When to Use Eventstats",
+        "body": "<p>Use <code>eventstats</code> when you need to:</p><h4>1. Compare Individual Events to Aggregates</h4><p>\"Is this transfer larger than average for this user?\"</p><pre><code>index=network\n| eventstats avg(bytes_out) as user_avg by user\n| where bytes_out > user_avg * 3</code></pre><h4>2. Calculate Percentages of Total</h4><p>\"What percentage of total failures did this source cause?\"</p><pre><code>index=security action=failure\n| eventstats count as total_failures\n| stats count as source_failures by src_ip\n| eval pct_of_total = round((source_failures/total_failures)*100, 1)</code></pre><h4>3. Add Context for Filtering</h4><p>\"Show me events from users who have more than 1000 total events.\"</p><pre><code>index=security\n| eventstats count as user_total by user\n| where user_total > 1000</code></pre>"
+      },
+      {
+        "title": "Adding Global Context",
+        "body": "<p>Without a <code>by</code> clause, eventstats calculates across all events:</p><pre><code>index=security sourcetype=auth action=failure earliest=-24h\n| eventstats count as total_failures, dc(user) as total_users_affected</code></pre><p>Every event now has:</p><ul><li><code>total_failures</code> - The total count of all failure events</li><li><code>total_users_affected</code> - The total unique users across all events</li></ul><p>This enables calculations like:</p><pre><code>index=security sourcetype=auth action=failure earliest=-24h\n| eventstats count as total_failures\n| stats count as src_failures by src_ip\n| eval pct_of_attacks = round((src_failures/total_failures)*100, 2)\n| sort - pct_of_attacks</code></pre>"
+      },
+      {
+        "title": "Calculating Percentage of Total",
+        "body": "<p>A common pattern: what percentage of the total does each group represent?</p><h4>Method 1: Eventstats Before Stats</h4><pre><code>index=security sourcetype=auth action=failure earliest=-24h\n| eventstats count as grand_total\n| stats count as failures, first(grand_total) as total by src_ip\n| eval pct = round((failures/total)*100, 2)\n| fields src_ip, failures, pct\n| sort - pct</code></pre><h4>Method 2: Eventstats After Stats</h4><pre><code>index=security sourcetype=auth action=failure earliest=-24h\n| stats count as failures by src_ip\n| eventstats sum(failures) as total\n| eval pct = round((failures/total)*100, 2)\n| sort - pct</code></pre><p>Both methods produce the same result. Method 2 is often more efficient for large datasets.</p>"
+      },
+      {
+        "title": "Identifying Outliers Within Groups",
+        "body": "<p>Find events that deviate from their group's normal behavior:</p><h4>Above Average Detection</h4><pre><code>index=network sourcetype=firewall\n| eventstats avg(bytes_out) as group_avg, stdev(bytes_out) as group_stdev by user\n| eval z_score = (bytes_out - group_avg) / group_stdev\n| where z_score > 3</code></pre><p>This finds transfers more than 3 standard deviations above the user's average.</p><h4>Percentile-Based Outliers</h4><pre><code>index=network sourcetype=firewall\n| eventstats perc95(bytes_out) as p95 by user\n| where bytes_out > p95</code></pre><p>This finds the top 5% of transfers for each user.</p>"
+      },
+      {
+        "title": "Group Membership Context",
+        "body": "<p>Add group-level information to each event:</p><pre><code>index=security sourcetype=auth earliest=-24h\n| eventstats dc(src_ip) as user_source_count, dc(dest) as user_dest_count, count as user_event_count by user</code></pre><p>Now each event carries its user's behavioral profile:</p><ul><li>How many sources has this user authenticated from?</li><li>How many destinations has this user accessed?</li><li>How active is this user overall?</li></ul><p>This enables sophisticated filtering:</p><pre><code>| where user_source_count > 5 AND action=\"failure\"</code></pre><p>\"Show failures from users who authenticate from many sources.\"</p>"
+      },
+      {
+        "title": "Eventstats with Multiple by Fields",
+        "body": "<p>Group by multiple fields for hierarchical context:</p><pre><code>index=security sourcetype=auth\n| eventstats count as user_count by user\n| eventstats count as user_src_count by user, src_ip</code></pre><p>Each event now has:</p><ul><li><code>user_count</code> - Total events for this user</li><li><code>user_src_count</code> - Events for this user from this specific source</li></ul><p>Calculate what percentage of a user's activity comes from each source:</p><pre><code>| eval src_pct_of_user = round((user_src_count / user_count) * 100, 1)</code></pre>"
+      },
+      {
+        "title": "Performance Considerations",
+        "body": "<p><code>eventstats</code> is more expensive than <code>stats</code> because it:</p><ol><li>Calculates aggregations (like stats)</li><li>Keeps all original events in memory</li><li>Merges aggregations back to each event</li></ol><h4>Optimization Tips</h4><ul><li><strong>Filter first</strong> - Apply time ranges and filters before eventstats</li><li><strong>Limit fields</strong> - Use <code>fields</code> command to reduce data before eventstats</li><li><strong>Consider alternatives</strong> - Sometimes a subsearch or lookup achieves the same result more efficiently</li></ul><h4>When Stats + Join Might Be Better</h4><p>For very large datasets where you only need the aggregates for some events:</p><pre><code>index=security [search index=security | stats count by user | where count > 1000 | fields user]</code></pre><p>This is often more efficient than eventstats when you're ultimately filtering down significantly.</p>"
+      },
+      {
+        "title": "Common Patterns",
+        "body": "<h4>Percentage of User's Activity</h4><pre><code>index=security sourcetype=auth\n| eventstats count as user_total by user\n| eval pct_of_user = round((1/user_total)*100, 2)</code></pre><h4>Deviation from Group Average</h4><pre><code>index=network\n| eventstats avg(bytes_out) as avg_bytes, stdev(bytes_out) as stdev_bytes by user\n| eval deviation = round((bytes_out - avg_bytes) / stdev_bytes, 2)\n| where abs(deviation) > 2</code></pre><h4>First/Last Activity Context</h4><pre><code>index=security sourcetype=auth\n| eventstats earliest(_time) as first_seen, latest(_time) as last_seen by user\n| eval days_active = round((last_seen - first_seen) / 86400, 1)</code></pre><h4>Running Percentage</h4><pre><code>index=security action=failure\n| eventstats count as total_failures\n| stats count as src_failures, first(total_failures) as total by src_ip\n| sort - src_failures\n| streamstats sum(src_failures) as running_total\n| eval running_pct = round((running_total / total) * 100, 1)</code></pre><p>This shows cumulative percentage - useful for identifying that \"the top 10 IPs account for 80% of failures.\"</p>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key takeaways for eventstats:</p><ul><li><strong>Preserves events</strong> - Unlike stats, your original events remain intact</li><li><strong>Adds context</strong> - Aggregated values appear as new fields on each event</li><li><strong>Enables comparison</strong> - Compare individual events to their group's aggregate</li><li><strong>Percentage of total</strong> - The most common use case</li><li><strong>Outlier detection</strong> - Find events that deviate from group norms</li><li><strong>Performance cost</strong> - More expensive than stats; filter first</li></ul><p>In the next tutorial, you'll learn <code>streamstats</code> for running calculations and time-based analysis.</p>"
+      }
+    ]
+  }
+}

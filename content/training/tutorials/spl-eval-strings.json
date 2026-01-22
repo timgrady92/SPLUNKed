@@ -1,0 +1,65 @@
+{
+  "id": "spl-eval-strings",
+  "type": "tutorial",
+  "title": "Eval Functions: String Manipulation",
+  "description": "Master string extraction, case normalization, field splitting, multivalue handling, and building composite fields with eval string functions.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["spl", "eval", "strings", "intermediate"],
+  "objectives": [
+    "Extract substrings and manipulate string content",
+    "Normalize case for consistent analysis",
+    "Split strings into multivalue fields",
+    "Work with multivalue fields using mv functions",
+    "Build composite fields from multiple sources"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "String Basics",
+        "body": "<p>String manipulation in eval lets you normalize, extract, and transform text fields for analysis.</p><h4>String Length</h4><pre><code>| eval name_length = len(user)</code></pre><h4>String Concatenation</h4><pre><code>| eval full_name = first_name . \" \" . last_name\n| eval message = \"User \" . user . \" connected from \" . src_ip</code></pre><p>The <code>.</code> operator joins strings together.</p>"
+      },
+      {
+        "title": "Substring Extraction",
+        "body": "<p>Extract portions of strings:</p><h4>substr(string, start, length)</h4><pre><code>| eval domain = substr(email, 1, len(email))</code></pre><p>More practical - extract domain from email:</p><pre><code>| eval at_pos = mvindex(split(email, \"@\"), -1)\n| eval domain = at_pos</code></pre><h4>Positional Extraction</h4><pre><code>| eval first_char = substr(status_code, 1, 1)\n| eval status_class = case(\n    first_char=\"2\", \"success\",\n    first_char=\"3\", \"redirect\",\n    first_char=\"4\", \"client_error\",\n    first_char=\"5\", \"server_error\",\n    true(), \"unknown\")</code></pre><p>Start position is 1-based. Use negative numbers to count from the end.</p><pre><code>| eval last_3 = substr(filename, -3)</code></pre>"
+      },
+      {
+        "title": "Case Normalization",
+        "body": "<p>Standardize case for consistent matching and grouping:</p><h4>lower() and upper()</h4><pre><code>| eval user_normalized = lower(user)\n| stats count by user_normalized</code></pre><p>This ensures \"ADMIN\", \"Admin\", and \"admin\" are counted together.</p><h4>Common Pattern: Case-Insensitive Matching</h4><pre><code>| where lower(user) LIKE \"%admin%\"</code></pre><p>Instead of trying to match all case variations.</p><h4>Trim Functions</h4><pre><code>| eval clean_user = trim(user)\n| eval clean_user = ltrim(user)\n| eval clean_user = rtrim(user)</code></pre><p><code>trim()</code> removes whitespace from both ends. Use <code>ltrim()</code> or <code>rtrim()</code> for left/right only.</p><p>You can also trim specific characters:</p><pre><code>| eval cleaned = trim(value, \"\\\"\")</code></pre>"
+      },
+      {
+        "title": "Split: Creating Multivalue Fields",
+        "body": "<p>Break a string into multiple values:</p><pre><code>| eval path_parts = split(file_path, \"/\")</code></pre><p>For <code>/var/log/auth.log</code>, this creates: <code>[\"var\", \"log\", \"auth.log\"]</code></p><h4>Common Split Patterns</h4><pre><code>| eval email_parts = split(email, \"@\")\n| eval username = mvindex(email_parts, 0)\n| eval domain = mvindex(email_parts, 1)</code></pre><h4>Splitting CSV-like Fields</h4><pre><code>| eval groups = split(group_membership, \",\")</code></pre><p>User with <code>group_membership=\"admins,users,developers\"</code> now has a multivalue <code>groups</code> field.</p>"
+      },
+      {
+        "title": "Multivalue Field Functions",
+        "body": "<p>Once you have multivalue fields, these functions help you work with them:</p><h4>mvindex(): Get Specific Value</h4><pre><code>| eval first_group = mvindex(groups, 0)\n| eval last_group = mvindex(groups, -1)\n| eval second_group = mvindex(groups, 1)</code></pre><h4>mvcount(): Count Values</h4><pre><code>| eval num_groups = mvcount(groups)\n| where num_groups > 5</code></pre><p>Find users in many groups.</p><h4>mvfind(): Find Position</h4><pre><code>| eval admin_position = mvfind(groups, \"admin\")</code></pre><p>Returns index if found, null if not.</p><h4>mvfilter(): Filter Values</h4><pre><code>| eval admin_groups = mvfilter(match(groups, \"admin\"))</code></pre><p>Keep only values matching a condition.</p><h4>mvjoin(): Combine Back to String</h4><pre><code>| eval groups_display = mvjoin(groups, \"; \")</code></pre><p>Joins multivalue back to single string with separator.</p>"
+      },
+      {
+        "title": "Replace and Substitution",
+        "body": "<h4>replace(): Regex Replacement</h4><pre><code>| eval clean_path = replace(file_path, \"\\\\\\\\\", \"/\")</code></pre><p>Replace Windows backslashes with forward slashes.</p><pre><code>| eval masked_email = replace(email, \"(.+)@\", \"***@\")</code></pre><p>Mask email username while keeping domain.</p><h4>Common Replacement Patterns</h4><pre><code>| eval clean_user = replace(user, \"^DOMAIN\\\\\\\\\", \"\")</code></pre><p>Remove domain prefix from usernames.</p><pre><code>| eval normalized_host = replace(hostname, \"\\\\.company\\\\.com$\", \"\")</code></pre><p>Remove domain suffix from hostnames.</p><h4>Multiple Replacements</h4><p>Chain replacements:</p><pre><code>| eval cleaned = replace(replace(value, \"\\r\", \"\"), \"\\n\", \" \")</code></pre><p>Remove carriage returns and replace newlines with spaces.</p>"
+      },
+      {
+        "title": "Building Composite Fields",
+        "body": "<p>Create meaningful fields from multiple sources:</p><h4>Entity Identifiers</h4><pre><code>| eval entity_id = coalesce(user, src_user, \"unknown\") . \"@\" . coalesce(src_ip, \"unknown_ip\")</code></pre><p>Creates a unique identifier combining user and source.</p><h4>Formatted Messages</h4><pre><code>| eval alert_summary = \"User \" . user . \" triggered \" . tostring(count) . \" alerts from \" . src_ip</code></pre><h4>Structured Keys</h4><pre><code>| eval lookup_key = lower(trim(user)) . \"|\" . src_ip . \"|\" . dest</code></pre><p>Create consistent keys for lookup matching.</p>"
+      },
+      {
+        "title": "URL and Path Parsing",
+        "body": "<p>Extract components from URLs and paths:</p><h4>URL Domain Extraction</h4><pre><code>| eval domain = replace(url, \"^https?://([^/]+).*\", \"\\1\")</code></pre><h4>File Extension</h4><pre><code>| eval extension = replace(filename, \".*\\\\.([^.]+)$\", \"\\1\")\n| eval extension = lower(extension)</code></pre><h4>Path Components</h4><pre><code>| eval path_parts = split(file_path, \"/\")\n| eval filename = mvindex(path_parts, -1)\n| eval directory = mvindex(path_parts, -2)</code></pre><h4>Query String Parsing</h4><pre><code>| eval query = replace(url, \"^[^?]+\\\\?\", \"\")\n| eval params = split(query, \"&\")</code></pre>"
+      },
+      {
+        "title": "Working with Delimited Data",
+        "body": "<p>Handle pipe, comma, or other delimited fields:</p><h4>CSV-style Fields</h4><pre><code>| eval parts = split(delimited_field, \"|\")\n| eval field1 = mvindex(parts, 0)\n| eval field2 = mvindex(parts, 1)\n| eval field3 = mvindex(parts, 2)</code></pre><h4>Key-Value Pairs</h4><pre><code>| eval pairs = split(kv_string, \";\")\n| mvexpand pairs\n| eval key = mvindex(split(pairs, \"=\"), 0)\n| eval value = mvindex(split(pairs, \"=\"), 1)</code></pre><p>For <code>kv_string=\"name=john;role=admin;dept=IT\"</code>, this creates rows for each key-value pair.</p>"
+      },
+      {
+        "title": "Common Patterns",
+        "body": "<h4>Username Normalization</h4><pre><code>| eval normalized_user = lower(trim(replace(user, \"^.*\\\\\\\\\", \"\")))</code></pre><p>Remove domain prefix, trim whitespace, lowercase.</p><h4>Email to Username</h4><pre><code>| eval username = mvindex(split(email, \"@\"), 0)</code></pre><h4>Domain Extraction</h4><pre><code>| eval fqdn_parts = split(hostname, \".\")\n| eval short_name = mvindex(fqdn_parts, 0)\n| eval domain = mvjoin(mvfilter(NOT match(fqdn_parts, \"^\" . short_name . \"$\")), \".\")</code></pre><h4>IP Octets</h4><pre><code>| eval octets = split(src_ip, \".\")\n| eval first_octet = mvindex(octets, 0)\n| eval subnet = mvindex(octets, 0) . \".\" . mvindex(octets, 1) . \".\" . mvindex(octets, 2) . \".0/24\"</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key string manipulation capabilities:</p><ul><li><strong>len(), substr()</strong> - String length and extraction</li><li><strong>lower(), upper(), trim()</strong> - Case and whitespace normalization</li><li><strong>split()</strong> - Break strings into multivalue fields</li><li><strong>mvindex(), mvcount(), mvjoin()</strong> - Work with multivalue results</li><li><strong>replace()</strong> - Regex-based substitution</li><li><strong>Concatenation (.)</strong> - Build composite fields</li></ul><p>These functions become essential when working with unstructured or inconsistent data. Combined with rex for extraction, they handle most field transformation needs.</p>"
+      }
+    ]
+  }
+}

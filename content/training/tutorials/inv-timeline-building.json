@@ -1,0 +1,60 @@
+{
+  "id": "inv-timeline-building",
+  "type": "tutorial",
+  "title": "Timeline Building Techniques",
+  "description": "Construct chronological event sequences for incident reconstruction using transaction, bin, streamstats, and visualization techniques to tell the complete attack story.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "20 min",
+  "tags": ["investigation", "timeline", "transaction", "incident", "intermediate"],
+  "objectives": [
+    "Build chronological event timelines",
+    "Group related events into sessions",
+    "Identify gaps and patterns in event sequences",
+    "Visualize attack progression"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Why Timelines Matter",
+        "body": "<p>Timelines transform scattered events into a coherent narrative:</p><ul><li>Establish sequence of events (what happened first)</li><li>Identify cause and effect relationships</li><li>Find gaps in visibility</li><li>Support incident documentation</li><li>Reveal attack phases (recon, initial access, persistence, etc.)</li></ul><h4>Timeline Questions</h4><ul><li>When did the attack start?</li><li>What was the initial access vector?</li><li>How long before detection?</li><li>What happened between key events?</li></ul>"
+      },
+      {
+        "title": "Basic Timeline Construction",
+        "body": "<h4>Simple Event Sequence</h4><pre><code>index=* user=jsmith earliest=-24h\n| table _time, index, sourcetype, EventCode, action, src_ip, dest\n| sort _time</code></pre><h4>Filtered Timeline</h4><pre><code>index=security OR index=sysmon user=jsmith earliest=-24h\n| where EventCode IN (4624, 4625, 4648, 1, 3)\n| eval event_desc = case(\n    EventCode=4624, \"Login Success\",\n    EventCode=4625, \"Login Failed\",\n    EventCode=4648, \"Explicit Creds\",\n    EventCode=1, \"Process Created\",\n    EventCode=3, \"Network Connection\",\n    true(), EventCode)\n| table _time, event_desc, src_ip, dest, Image, CommandLine\n| sort _time</code></pre><h4>Adding Time Context</h4><pre><code>| eval time_readable = strftime(_time, \"%Y-%m-%d %H:%M:%S\")\n| eval time_relative = now() - _time\n| eval ago = case(\n    time_relative < 60, \"just now\",\n    time_relative < 3600, round(time_relative/60) . \" min ago\",\n    time_relative < 86400, round(time_relative/3600) . \" hours ago\",\n    true(), round(time_relative/86400) . \" days ago\")</code></pre>"
+      },
+      {
+        "title": "Using Transaction for Sessions",
+        "body": "<p>Transaction groups related events together.</p><h4>Basic Transaction</h4><pre><code>index=security EventCode IN (4624, 4634) user=jsmith\n| transaction user dest maxspan=8h startswith=(EventCode=4624) endswith=(EventCode=4634)\n| table _time, user, dest, duration, eventcount</code></pre><h4>Transaction Fields</h4><ul><li><strong>duration</strong> - Time span of the transaction</li><li><strong>eventcount</strong> - Number of events in transaction</li><li><strong>closed_txn</strong> - Whether transaction closed properly</li></ul><h4>Complex Transaction</h4><pre><code>index=security OR index=sysmon user=jsmith\n| eval event_type = case(\n    EventCode=4624, \"login\",\n    EventCode=4634, \"logoff\",\n    EventCode=1, \"process\",\n    EventCode=3, \"network\",\n    true(), \"other\")\n| transaction user maxspan=4h startswith=(event_type=\"login\")\n| eval session_duration = tostring(duration, \"duration\")\n| table _time, user, session_duration, eventcount</code></pre><h4>Performance Note</h4><p>Transaction is expensive. Always filter first:</p><pre><code>index=security EventCode=4624 user=jsmith dest=server01 earliest=-7d\n| transaction user dest</code></pre>"
+      },
+      {
+        "title": "Detecting Time Gaps",
+        "body": "<p>Gaps in timelines reveal missing data or dormant periods.</p><h4>Find Time Between Events</h4><pre><code>index=security EventCode=4624 user=jsmith\n| sort _time\n| streamstats current=f last(_time) as prev_time\n| eval gap_seconds = _time - prev_time\n| eval gap_minutes = round(gap_seconds / 60, 1)\n| where gap_minutes > 60\n| table _time, prev_time, gap_minutes, dest</code></pre><h4>Identify Activity Bursts</h4><pre><code>index=security user=jsmith\n| bin _time span=5m\n| stats count by _time\n| where count > 50\n| eval burst = \"High activity period\"</code></pre><h4>Dormant Periods</h4><pre><code>index=security EventCode=4624 user=jsmith earliest=-30d\n| sort _time\n| streamstats current=f last(_time) as prev_time\n| eval gap_hours = (_time - prev_time) / 3600\n| where gap_hours > 24\n| table _time, gap_hours</code></pre><p>Days without activity might indicate: vacation, account dormancy, or attack preparation period.</p>"
+      },
+      {
+        "title": "Multi-Source Timeline",
+        "body": "<h4>Unified Event View</h4><pre><code>index=security EventCode=4624 user=jsmith\n| eval source=\"auth\", event=\"login\"\n| append [search index=sysmon EventCode=1 User=\"*jsmith*\" | eval source=\"endpoint\", event=\"process\"]\n| append [search index=proxy user=jsmith | eval source=\"web\", event=\"web_access\"]\n| append [search index=firewall src_ip=\"jsmith_workstation\" | eval source=\"network\", event=\"connection\"]\n| table _time, source, event, dest, Image, url\n| sort _time</code></pre><h4>Color-Coded Timeline Data</h4><pre><code>| eval phase = case(\n    source=\"auth\", \"1-Authentication\",\n    source=\"endpoint\", \"2-Execution\",\n    source=\"web\", \"3-Web Activity\",\n    source=\"network\", \"4-Network\",\n    true(), \"5-Other\")\n| sort _time\n| table _time, phase, source, event, dest</code></pre><h4>Aligning Timestamps</h4><p>Different sources may have time skew:</p><pre><code>| eval _time = strptime(timestamp_field, \"%Y-%m-%dT%H:%M:%S.%3N%z\")\n| eval _time = _time + time_offset_seconds</code></pre>"
+      },
+      {
+        "title": "Attack Phase Mapping",
+        "body": "<p>Map events to MITRE ATT&CK phases for structured analysis.</p><h4>Phase Classification</h4><pre><code>index=security OR index=sysmon user=jsmith earliest=-24h\n| eval attack_phase = case(\n    EventCode=4625 AND count > 5, \"Initial Access - Brute Force\",\n    EventCode=4624 AND Logon_Type=10, \"Initial Access - RDP\",\n    EventCode=4624 AND Logon_Type=3, \"Lateral Movement\",\n    EventCode=4648, \"Credential Access\",\n    match(CommandLine, \"(?i)whoami|systeminfo|net user\"), \"Discovery\",\n    match(CommandLine, \"(?i)schtasks|reg.*run\"), \"Persistence\",\n    match(Image, \"(?i)powershell|cmd\"), \"Execution\",\n    true(), \"Unknown\")\n| table _time, attack_phase, EventCode, CommandLine, dest\n| sort _time</code></pre><h4>Phase Timeline Visualization</h4><pre><code>| timechart span=1h count by attack_phase</code></pre>"
+      },
+      {
+        "title": "Pivot Point Identification",
+        "body": "<p>Pivot points are moments where the attack escalated or changed direction.</p><h4>Finding Pivot Events</h4><pre><code>index=security EventCode=4624 Logon_Type=3 user=jsmith\n| sort _time\n| streamstats current=f last(dest) as prev_dest\n| where dest != prev_dest\n| eval pivot = \"Moved from \" . prev_dest . \" to \" . dest\n| table _time, pivot, src_ip</code></pre><h4>First Access to New Systems</h4><pre><code>index=security EventCode=4624 user=jsmith earliest=-1d\n| stats min(_time) as first_access by dest\n| sort first_access\n| eval sequence = tonumber(mvfind(split(\"a\", \"\"), \"a\"))\n| streamstats count as access_order\n| table access_order, first_access, dest</code></pre><h4>Privilege Escalation Moments</h4><pre><code>index=security EventCode IN (4624, 4672) user=jsmith\n| transaction user maxspan=5m\n| where eventcount > 1 AND searchmatch(\"EventCode=4672\")\n| eval pivot_moment = \"Privilege escalation detected\"\n| table _time, pivot_moment, eventcount</code></pre>"
+      },
+      {
+        "title": "Timeline Visualization",
+        "body": "<h4>Event Volume Over Time</h4><pre><code>index=* user=jsmith earliest=-24h\n| timechart span=30m count by index</code></pre><h4>Milestone Events</h4><pre><code>index=security user=jsmith earliest=-24h\n| eval milestone = case(\n    EventCode=4624 AND Logon_Type=10, \"RDP Login\",\n    EventCode=4648, \"Credential Switch\",\n    EventCode=4672, \"Admin Privileges\",\n    EventCode=4720, \"Account Created\",\n    true(), null())\n| where isnotnull(milestone)\n| table _time, milestone, dest, src_ip</code></pre><h4>Table for Documentation</h4><pre><code>index=* user=jsmith earliest=-24h\n| eval time_str = strftime(_time, \"%Y-%m-%d %H:%M:%S\")\n| eval source = index\n| eval description = coalesce(CommandLine, action, \"EventCode: \" . EventCode)\n| table time_str, source, description, dest, src_ip\n| sort time_str\n| rename time_str as \"Timestamp\", source as \"Source\", description as \"Event\", dest as \"Destination\", src_ip as \"Source IP\"</code></pre>"
+      },
+      {
+        "title": "Timeline Best Practices",
+        "body": "<h4>Start Broad, Then Focus</h4><p>Begin with wide time range, narrow as you understand the incident:</p><pre><code>earliest=-7d  (initial scope)\nearliest=-24h (after identifying relevant window)\nearliest=\"2024-01-15 14:00\" latest=\"2024-01-15 18:00\" (precise window)</code></pre><h4>Include Negative Evidence</h4><p>Document what you didn't find:</p><pre><code>| append [| makeresults | eval _time=strptime(\"2024-01-15 15:00\", \"%Y-%m-%d %H:%M\"), event=\"No activity detected between 15:00-16:00\", source=\"note\"]</code></pre><h4>Normalize Event Descriptions</h4><p>Make events human-readable:</p><pre><code>| eval event_description = case(\n    EventCode=4624 AND Logon_Type=2, user . \" logged in at console on \" . dest,\n    EventCode=4624 AND Logon_Type=10, user . \" RDP'd to \" . dest . \" from \" . src_ip,\n    EventCode=4625, \"Failed login for \" . user . \" from \" . src_ip,\n    EventCode=1, \"Process: \" . Image . \" - \" . substr(CommandLine, 1, 100),\n    true(), \"Event \" . EventCode)</code></pre><h4>Add Analyst Notes</h4><pre><code>| eval analyst_note = case(\n    EventCode=4648, \"INVESTIGATE: Possible pass-the-hash\",\n    gap_minutes > 120, \"GAP: \" . gap_minutes . \" minute gap in activity\",\n    true(), null())</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key timeline building techniques:</p><ul><li><strong>Sort by time</strong> - Foundation of all timeline analysis</li><li><strong>Transaction</strong> - Group related events into sessions</li><li><strong>Streamstats</strong> - Calculate gaps and sequences between events</li><li><strong>Multi-source union</strong> - Combine data from different indexes</li><li><strong>Phase mapping</strong> - Classify events by attack stage</li><li><strong>Pivot identification</strong> - Find moments of escalation</li><li><strong>Visualization</strong> - Timecharts for patterns, tables for documentation</li></ul><p>A well-constructed timeline transforms raw events into an investigation narrative that tells the complete story of what happened.</p>"
+      }
+    ]
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "id": "fund-first-search",
+  "type": "tutorial",
+  "title": "Your First Search",
+  "description": "Write and run your first Splunk searches. Learn basic search syntax, keywords, and how to read results.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "15 min",
+  "tags": ["fundamentals", "search", "syntax", "beginner", "spl"],
+  "objectives": [
+    "Write basic keyword searches",
+    "Use index and sourcetype to find the right data",
+    "Combine search terms with AND, OR, and NOT",
+    "Read and interpret search results"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "The Simplest Search",
+        "body": "<p>Let's start with the simplest possible search—just a keyword.</p>",
+        "example": {
+          "description": "Search for the word 'error'",
+          "spl": "error"
+        },
+        "explanation": "<p>This searches <strong>all</strong> data for events containing the word \"error\". Simple, but:</p><ul><li>It searches everything (slow)</li><li>It might return millions of results</li><li>Results come from all different data sources</li></ul><p>This works, but let's make it better.</p>"
+      },
+      {
+        "title": "Specifying an Index",
+        "body": "<p>Always start your searches by specifying which index to search. This is faster and more focused.</p>",
+        "example": {
+          "description": "Search for 'error' in a specific index",
+          "spl": "index=_internal error"
+        },
+        "explanation": "<p><code>index=_internal</code> tells Splunk to only search Splunk's internal logs. Now:</p><ul><li>Search is faster (only one index)</li><li>Results are relevant (all from same source)</li><li>You know exactly what you're looking at</li></ul><p><strong>Best Practice</strong>: Always include <code>index=</code> at the start of your searches.</p>"
+      },
+      {
+        "title": "Adding More Keywords",
+        "body": "<p>You can include multiple keywords. By default, they're combined with AND—all must be present.</p>",
+        "example": {
+          "description": "Search for events with both 'error' and 'connection'",
+          "spl": "index=_internal error connection"
+        },
+        "explanation": "<p>This finds events that contain <strong>both</strong> \"error\" AND \"connection\". The keywords can appear anywhere in the event, in any order.</p>"
+      },
+      {
+        "title": "Exact Phrases",
+        "body": "<p>Use quotes for exact phrases that must appear together.</p>",
+        "example": {
+          "description": "Search for an exact phrase",
+          "spl": "index=_internal \"connection refused\""
+        },
+        "explanation": "<p>Without quotes, <code>connection refused</code> finds events with both words anywhere.</p><p>With quotes, <code>\"connection refused\"</code> finds only events with that exact phrase.</p>"
+      },
+      {
+        "title": "Boolean Operators: OR",
+        "body": "<p>Use OR to find events with either term (or both).</p>",
+        "example": {
+          "description": "Search for events with error OR warning",
+          "spl": "index=_internal error OR warning"
+        },
+        "explanation": "<p>This returns events containing \"error\", events containing \"warning\", and events containing both.</p><p><strong>Note</strong>: OR must be uppercase. Lowercase \"or\" is treated as a search keyword.</p>"
+      },
+      {
+        "title": "Boolean Operators: NOT",
+        "body": "<p>Use NOT to exclude events containing a term.</p>",
+        "example": {
+          "description": "Search for errors that aren't about memory",
+          "spl": "index=_internal error NOT memory"
+        },
+        "explanation": "<p>This finds events with \"error\" that do NOT contain \"memory\". Useful for filtering out noise.</p><p><strong>Note</strong>: NOT must be uppercase.</p>"
+      },
+      {
+        "title": "Combining Boolean Operators",
+        "body": "<p>Use parentheses to group complex logic.</p>",
+        "example": {
+          "description": "Complex boolean search",
+          "spl": "index=_internal (error OR warning) NOT (debug OR info)"
+        },
+        "explanation": "<p>This finds events with \"error\" or \"warning\" but excludes those that also have \"debug\" or \"info\".</p><p>Parentheses work like in math—they group operations together.</p>"
+      },
+      {
+        "title": "Searching Specific Fields",
+        "body": "<p>Instead of searching everywhere, search specific fields using <code>field=value</code>.</p>",
+        "example": {
+          "description": "Search for events from a specific host",
+          "spl": "index=_internal host=myserver"
+        },
+        "explanation": "<p>This only returns events where the <code>host</code> field equals \"myserver\". Much more precise than just searching for the hostname as a keyword.</p>"
+      },
+      {
+        "title": "Wildcards",
+        "body": "<p>Use <code>*</code> as a wildcard to match partial values.</p>",
+        "example": {
+          "description": "Search for hosts starting with 'web'",
+          "spl": "index=_internal host=web*"
+        },
+        "explanation": "<p>This matches <code>web01</code>, <code>web02</code>, <code>webserver</code>, etc.—anything starting with \"web\".</p><p>Wildcards can appear anywhere: <code>*server*</code> matches \"webserver\", \"dbserver\", \"server01\", etc.</p>"
+      },
+      {
+        "title": "Comparing Values",
+        "body": "<p>For numeric fields, use comparison operators.</p>",
+        "example": {
+          "description": "Search for events with status code 400 or higher",
+          "spl": "index=web status>=400"
+        },
+        "explanation": "<p>Comparison operators:</p><table class=\"reference-table\"><tr><th>Operator</th><th>Meaning</th><th>Example</th></tr><tr><td><code>=</code></td><td>Equals</td><td><code>status=200</code></td></tr><tr><td><code>!=</code></td><td>Not equals</td><td><code>status!=200</code></td></tr><tr><td><code>&gt;</code></td><td>Greater than</td><td><code>bytes&gt;1000</code></td></tr><tr><td><code>&gt;=</code></td><td>Greater or equal</td><td><code>status&gt;=400</code></td></tr><tr><td><code>&lt;</code></td><td>Less than</td><td><code>duration&lt;5</code></td></tr><tr><td><code>&lt;=</code></td><td>Less or equal</td><td><code>bytes&lt;=100</code></td></tr></table>"
+      },
+      {
+        "title": "A Complete Search Example",
+        "body": "<p>Let's put it all together with a realistic security search.</p>",
+        "example": {
+          "description": "Search for failed login attempts",
+          "spl": "index=_internal sourcetype=splunkd log_level=ERROR (\"authentication\" OR \"login\") NOT \"success\""
+        },
+        "explanation": "<p>This search:</p><ol><li>Looks in the <code>_internal</code> index</li><li>Filters to <code>splunkd</code> sourcetype (Splunk's main daemon logs)</li><li>Finds ERROR level events</li><li>Contains \"authentication\" or \"login\"</li><li>Excludes events mentioning \"success\"</li></ol><p>Each piece narrows down the results to exactly what you need.</p>"
+      },
+      {
+        "title": "Reading Your Results",
+        "body": "<p>After running a search, understand what you're seeing.</p><h4>Results Panel</h4><ul><li><strong>Event count</strong>: Shows at top (\"X events\")</li><li><strong>Time distribution</strong>: Timeline shows when events occurred</li><li><strong>Event list</strong>: Individual events with timestamp and raw text</li></ul><h4>Each Event Shows</h4><ul><li><strong>Timestamp</strong>: When the event occurred</li><li><strong>Raw event</strong>: The original log text</li><li><strong>Field values</strong>: Click the arrow to expand and see extracted fields</li></ul><h4>Using Results</h4><ul><li><strong>Click a value</strong> in an event to add it to your search</li><li><strong>Expand events</strong> to see all extracted fields</li><li><strong>Use the timeline</strong> to zoom into specific time ranges</li></ul>"
+      },
+      {
+        "title": "Practice Exercises",
+        "body": "<p>Try these searches to practice basic syntax.</p><h4>Exercise 1: Simple Keyword</h4><p>Search for any events containing \"error\" in the _internal index with Last 15 minutes selected.</p>",
+        "example": {
+          "description": "Exercise 1 solution",
+          "spl": "index=_internal error"
+        },
+        "exercises": [
+          {
+            "title": "Exercise 2: Boolean OR",
+            "prompt": "Find events with either 'error' OR 'warn' in _internal",
+            "solution": "index=_internal error OR warn"
+          },
+          {
+            "title": "Exercise 3: Exclusion",
+            "prompt": "Find errors but exclude anything about 'scheduler'",
+            "solution": "index=_internal error NOT scheduler"
+          },
+          {
+            "title": "Exercise 4: Field Search",
+            "prompt": "Find events with log_level=ERROR in _internal",
+            "solution": "index=_internal log_level=ERROR"
+          },
+          {
+            "title": "Exercise 5: Wildcard",
+            "prompt": "Find events from any sourcetype starting with 'splunk'",
+            "solution": "index=_internal sourcetype=splunk*"
+          }
+        ]
+      }
+    ],
+    "summary": "<h4>Key Takeaways</h4><ul><li>Always start with <code>index=</code> to specify where to search</li><li>Keywords search anywhere in events; <code>field=value</code> searches specific fields</li><li>Use quotes for exact phrases: <code>\"connection refused\"</code></li><li>Boolean operators (AND, OR, NOT) combine conditions—must be uppercase</li><li>Use parentheses to group complex logic</li><li>Wildcards (<code>*</code>) match partial values</li><li>Comparison operators (<code>></code>, <code><</code>, <code>=</code>, <code>!=</code>) work with numeric fields</li></ul>"
+  }
+}

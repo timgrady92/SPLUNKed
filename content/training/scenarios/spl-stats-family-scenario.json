@@ -1,0 +1,119 @@
+{
+  "id": "spl-stats-family-scenario",
+  "type": "scenario",
+  "title": "Stats Family Practice: Data Exfiltration Investigation",
+  "description": "Apply stats, eventstats, and streamstats to investigate potential data exfiltration, calculate baselines, and identify anomalous transfers.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["spl", "stats", "eventstats", "streamstats", "scenario", "exfiltration"],
+  "objectives": [
+    "Apply the stats family to a real investigation scenario",
+    "Calculate per-user baselines for anomaly detection",
+    "Identify deviation from normal behavior",
+    "Build a comprehensive exfiltration detection query"
+  ],
+  "content": {
+    "situation": {
+      "title": "Scenario Setup",
+      "description": "Your DLP system has triggered an alert: 'Unusual outbound data transfer volume detected.' The alert identified user jsmith as potentially exfiltrating data, but the alert lacks context. Your job is to investigate using SPL's stats family to understand if this is a true positive or a false alarm.",
+      "environment": "Your network logs are in index=network with sourcetype=firewall. Key fields include: user, src_ip, dest_ip, bytes_out, bytes_in, app, action, and _time. Normal business hours are 8 AM to 6 PM. The company policy allows reasonable data transfers, but anything significantly above baseline should be investigated."
+    },
+    "steps": [
+      {
+        "id": 1,
+        "title": "Initial Assessment",
+        "question": "Start by understanding jsmith's recent transfer activity. Write a search to see their data transfer pattern over the last 7 days.",
+        "spl": "index=network sourcetype=firewall user=jsmith earliest=-7d\n| timechart span=1d sum(bytes_out) as daily_bytes_out\n| eval daily_gb = round(daily_bytes_out / 1073741824, 2)",
+        "explanation": "This shows jsmith's daily outbound data volume for the past week. Converting to GB makes the numbers easier to interpret. Look for days that stand out.",
+        "validation": "You should see relatively consistent daily volumes with one or more recent spikes that triggered the alert."
+      },
+      {
+        "id": 2,
+        "title": "Establish Baseline",
+        "question": "To know if jsmith's behavior is anomalous, you need a baseline. Calculate their average daily transfer over the past 30 days, excluding the last 24 hours (which triggered the alert).",
+        "spl": "index=network sourcetype=firewall user=jsmith earliest=-30d latest=-1d\n| timechart span=1d sum(bytes_out) as daily_bytes\n| stats avg(daily_bytes) as avg_daily, stdev(daily_bytes) as stdev_daily, perc95(daily_bytes) as p95_daily\n| eval avg_daily_gb = round(avg_daily / 1073741824, 2)\n| eval stdev_daily_gb = round(stdev_daily / 1073741824, 2)\n| eval p95_daily_gb = round(p95_daily / 1073741824, 2)",
+        "explanation": "This calculates the mean, standard deviation, and 95th percentile of jsmith's normal daily transfers. The p95 is particularly useful - anything above this is in their top 5% of days.",
+        "validation": "Note these baseline values. A typical user might show avg_daily_gb around 0.5-2 GB with similar stdev."
+      },
+      {
+        "id": 3,
+        "title": "Identify the Anomaly Magnitude",
+        "question": "Compare yesterday's transfer to the baseline. How many standard deviations above average was it?",
+        "spl": "index=network sourcetype=firewall user=jsmith earliest=-30d\n| timechart span=1d sum(bytes_out) as daily_bytes\n| eventstats avg(daily_bytes) as avg_daily, stdev(daily_bytes) as stdev_daily\n| eval z_score = round((daily_bytes - avg_daily) / stdev_daily, 2)\n| eval daily_gb = round(daily_bytes / 1073741824, 2)\n| where _time >= relative_time(now(), \"-1d@d\")\n| table _time, daily_gb, z_score",
+        "explanation": "Using eventstats, we calculate the baseline on the full 30 days and add it to each day's row. The z-score tells us how many standard deviations above average - anything above 3 is highly anomalous.",
+        "validation": "A z-score above 3 indicates the transfer was outside 99.7% of normal behavior."
+      },
+      {
+        "id": 4,
+        "title": "Pivot: Where is the data going?",
+        "question": "The magnitude confirms an anomaly. Now pivot to understand WHERE the data went. What destinations received the most data from jsmith in the last 24 hours?",
+        "pivot_step": true,
+        "spl": "index=network sourcetype=firewall user=jsmith action=allowed earliest=-24h\n| stats sum(bytes_out) as total_bytes, count as connection_count, dc(dest_port) as unique_ports, values(app) as apps by dest_ip\n| eval total_gb = round(total_bytes / 1073741824, 2)\n| sort - total_bytes\n| head 10",
+        "explanation": "This reveals the top destinations by data volume. Key signals: large transfers to unknown IPs, cloud storage services, or destinations that aren't normal business partners.",
+        "validation": "Look for destinations that don't match expected business use - personal cloud storage, foreign IPs, or unexpected services."
+      },
+      {
+        "id": 5,
+        "title": "Reasoning Checkpoint: Legitimate or Suspicious?",
+        "question": "You found that 85% of jsmith's outbound data went to IP 104.16.85.20 (which resolves to a cloud storage provider). What additional context do you need to determine if this is data exfiltration?",
+        "reasoning_checkpoint": true,
+        "expected_answer": "To determine legitimacy, consider: 1) Is this a corporate-approved cloud storage service? 2) What is jsmith's job role - do they have legitimate need for large transfers? 3) What time did the transfers occur - during business hours or at 2 AM? 4) Are there other users who transfer to this destination? 5) What specific files or data types were transferred (if DLP has this info)? 6) Has jsmith recently submitted a resignation or been put on a performance plan?"
+      },
+      {
+        "id": 6,
+        "title": "Time Pattern Analysis",
+        "question": "Check WHEN the transfers happened. Use streamstats to calculate the rate of transfer over time.",
+        "spl": "index=network sourcetype=firewall user=jsmith dest_ip=\"104.16.85.20\" earliest=-24h\n| bin _time span=1h\n| stats sum(bytes_out) as hourly_bytes, count as connections by _time\n| eval hourly_gb = round(hourly_bytes / 1073741824, 2)\n| sort _time\n| streamstats sum(hourly_bytes) as cumulative_bytes\n| eval cumulative_gb = round(cumulative_bytes / 1073741824, 2)\n| eval hour = strftime(_time, \"%H:%M\")\n| table hour, hourly_gb, cumulative_gb, connections",
+        "explanation": "This hourly breakdown shows the transfer pattern. streamstats adds a running total. Look for suspicious patterns: bulk transfers at unusual hours, steady late-night activity, or a sudden spike followed by nothing.",
+        "validation": "Transfers at 2-4 AM or outside business hours are more suspicious than transfers during normal work hours."
+      },
+      {
+        "id": 7,
+        "title": "Compare to Peers",
+        "question": "How does jsmith's behavior compare to similar users? Use eventstats to see if this volume is unusual for their peer group.",
+        "spl": "index=network sourcetype=firewall earliest=-24h\n| lookup user_directory user OUTPUT department\n| where department=\"Engineering\"\n| stats sum(bytes_out) as total_bytes by user\n| eventstats avg(total_bytes) as dept_avg, stdev(total_bytes) as dept_stdev, perc95(total_bytes) as dept_p95\n| eval z_score = round((total_bytes - dept_avg) / dept_stdev, 2)\n| eval total_gb = round(total_bytes / 1073741824, 2)\n| eval above_p95 = if(total_bytes > dept_p95, \"Yes\", \"No\")\n| sort - total_bytes\n| head 10\n| table user, total_gb, z_score, above_p95",
+        "explanation": "By comparing jsmith to their department peers, you contextualize the anomaly. If everyone in Engineering transferred 5GB yesterday, jsmith's 6GB is less concerning than if peers averaged 0.5GB.",
+        "validation": "If jsmith has a z-score much higher than peers and is the only one above p95, that strengthens the case for investigation."
+      },
+      {
+        "id": 8,
+        "title": "Detect Acceleration with Streamstats",
+        "question": "Check if jsmith's transfer rate accelerated - a sign of deliberate bulk exfiltration. Did transfers increase over the suspicious period?",
+        "spl": "index=network sourcetype=firewall user=jsmith dest_ip=\"104.16.85.20\" earliest=-24h\n| sort 0 _time\n| streamstats window=5 avg(bytes_out) as rolling_avg current=false\n| eval acceleration = round((bytes_out - rolling_avg) / rolling_avg * 100, 1)\n| where isnotnull(rolling_avg)\n| bin _time span=15m\n| stats avg(acceleration) as avg_acceleration, max(acceleration) as max_acceleration by _time\n| where avg_acceleration > 100\n| table _time, avg_acceleration, max_acceleration",
+        "explanation": "This calculates a rolling average of transfer sizes and identifies periods where transfers were significantly larger than the recent average. Sustained acceleration suggests intentional bulk transfer.",
+        "validation": "Periods with >100% acceleration indicate transfer rates doubling from baseline - a red flag for exfiltration."
+      },
+      {
+        "id": 9,
+        "title": "Build the Detection Query",
+        "question": "Based on your investigation, construct a reusable detection query that could identify similar exfiltration patterns for any user.",
+        "spl": "index=network sourcetype=firewall action=allowed earliest=-24h\n| stats sum(bytes_out) as daily_bytes by user, dest_ip\n| eventstats avg(daily_bytes) as user_avg, stdev(daily_bytes) as user_stdev by user\n| eval z_score = if(user_stdev > 0, round((daily_bytes - user_avg) / user_stdev, 2), 0)\n| where z_score > 3 AND daily_bytes > 1073741824\n| lookup user_directory user OUTPUT department, manager\n| table user, department, manager, dest_ip, daily_bytes, z_score\n| eval daily_gb = round(daily_bytes / 1073741824, 2)\n| sort - z_score",
+        "explanation": "This detection finds any user whose transfer to a single destination is more than 3 standard deviations above their norm AND exceeds 1 GB. The dual threshold reduces false positives from users with low but variable baselines.",
+        "validation": "This query could be scheduled as an alert, triggering when any user shows anomalous exfiltration patterns."
+      },
+      {
+        "id": 10,
+        "title": "Document Findings",
+        "question": "Based on your investigation, summarize what you found and your recommended next steps.",
+        "expected_answer": "Investigation Summary: User jsmith transferred [X] GB to cloud storage IP 104.16.85.20 in the last 24 hours, which is [Z] standard deviations above their 30-day baseline. The transfers occurred primarily during [time period]. Compared to Engineering department peers, jsmith's volume is [X]% higher than the next highest user. Recommended actions: 1) Verify if the cloud storage destination is corporate-approved, 2) Interview jsmith about the transfer purpose, 3) Review DLP logs for file types transferred, 4) Check HR for any status changes (resignation, PIP), 5) If suspicious, preserve logs and engage legal/HR before further action."
+      }
+    ],
+    "conclusion": {
+      "title": "Scenario Complete",
+      "summary": "You used the stats family to investigate a potential data exfiltration alert. By calculating baselines with stats, adding context with eventstats, and detecting acceleration with streamstats, you transformed a vague alert into an actionable investigation.",
+      "key_takeaways": [
+        "stats establishes baselines: average, stdev, and percentiles define 'normal'",
+        "eventstats adds group context: compare individuals to their peers",
+        "streamstats detects patterns over time: acceleration, running totals, rate changes",
+        "z-scores quantify anomaly magnitude: >3 is highly unusual",
+        "Combine multiple signals: volume + timing + peer comparison strengthens conclusions"
+      ],
+      "next_steps": [
+        "Practice the correlation scenario to investigate across multiple data sources",
+        "Apply these patterns to build scheduled detection alerts",
+        "Learn rex extraction to parse custom log formats"
+      ]
+    }
+  }
+}

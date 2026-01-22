@@ -1,0 +1,60 @@
+{
+  "id": "ti-lookup-matching",
+  "type": "tutorial",
+  "title": "Lookup Tables for IOC Matching",
+  "description": "Create, configure, and optimize CSV lookup tables for efficient IOC matching, including lookup definitions, field mappings, and performance considerations.",
+  "category": "threat-intel",
+  "difficulty": "advanced",
+  "duration": "25 min",
+  "tags": ["threat-intel", "lookup", "ioc", "csv", "advanced"],
+  "objectives": [
+    "Create effective IOC lookup tables",
+    "Configure lookup definitions properly",
+    "Optimize lookup performance for large IOC sets",
+    "Handle lookup matching edge cases"
+  ],
+  "content": {
+    "sections": [
+      {
+        "title": "Lookup Table Basics",
+        "body": "<p>Lookup tables are the foundation of IOC matching in Splunk. They store your threat intelligence for efficient searching.</p><h4>Why Lookups for TI?</h4><ul><li>Fast matching against large IOC lists</li><li>Easy updates without changing searches</li><li>Centralized intelligence management</li><li>Support for enrichment beyond matching</li></ul><h4>Lookup vs. Subsearch</h4><table><tr><th>Lookup</th><th>Subsearch</th></tr><tr><td>No result limits</td><td>10,000 result default limit</td></tr><tr><td>Pre-indexed for performance</td><td>Runs as full search</td></tr><tr><td>Requires file management</td><td>Dynamic, always current</td></tr><tr><td>Better for large IOC sets</td><td>Better for small, dynamic lists</td></tr></table>"
+      },
+      {
+        "title": "Creating IOC Lookup Files",
+        "body": "<h4>Basic IOC Lookup Structure</h4><pre><code>indicator,type,confidence,category,source,first_seen,last_seen,description\n192.168.50.100,ip,high,c2,incident-001,2024-01-15,2024-01-15,\"C2 server from phishing campaign\"\nevil.example.com,domain,medium,phishing,feed-abc,2024-01-10,2024-01-14,\"Phishing domain\"\nd41d8cd98f00b204e9800998ecf8427e,md5,high,malware,sandbox,2024-01-12,2024-01-12,\"Emotet dropper\"</code></pre><h4>Minimal IOC Lookup</h4><p>For simple blocking/alerting:</p><pre><code>indicator,threat_type\n192.168.50.100,c2\nevil.example.com,phishing</code></pre><h4>Comprehensive IOC Lookup</h4><p>For full context and enrichment:</p><pre><code>indicator,type,confidence,severity,category,source,campaign,actor,first_seen,last_seen,expiration,mitre_technique,description,reference_url</code></pre>"
+      },
+      {
+        "title": "Uploading and Managing Lookups",
+        "body": "<h4>Upload via Splunk Web</h4><ol><li>Settings → Lookups → Lookup table files</li><li>Click \"Add New\"</li><li>Select destination app</li><li>Upload CSV file</li><li>Name the lookup file</li></ol><h4>Upload via CLI/REST</h4><pre><code>curl -k -u admin:password https://splunk:8089/servicesNS/admin/search/data/lookup-table-files \\\n  -F \"name=threat_iocs.csv\" \\\n  -F \"eai:data=@/path/to/threat_iocs.csv\"</code></pre><h4>Update via SPL</h4><pre><code>| inputlookup threat_iocs.csv\n| append [| makeresults | eval indicator=\"new.bad.com\", type=\"domain\", confidence=\"high\"]\n| outputlookup threat_iocs.csv</code></pre><h4>Scheduled Updates</h4><p>Create a scheduled search to refresh from external source:</p><pre><code>| inputcsv threat_feed_raw.csv\n| eval first_seen = if(isnull(first_seen), strftime(now(), \"%Y-%m-%d\"), first_seen)\n| eval last_seen = strftime(now(), \"%Y-%m-%d\")\n| outputlookup threat_iocs.csv</code></pre>"
+      },
+      {
+        "title": "Lookup Definitions",
+        "body": "<h4>Creating a Lookup Definition</h4><p>Settings → Lookups → Lookup definitions → Add New</p><h4>Definition Settings</h4><ul><li><strong>Name</strong>: threat_intel (reference name in searches)</li><li><strong>Type</strong>: File-based</li><li><strong>Lookup file</strong>: threat_iocs.csv</li><li><strong>Configure time-based lookup</strong>: No (for most TI use cases)</li></ul><h4>Advanced Options</h4><ul><li><strong>Match type</strong>: WILDCARD() for domain wildcards, CIDR() for IP ranges</li><li><strong>Minimum matches</strong>: 1</li><li><strong>Maximum matches</strong>: 1 (or higher for multi-match scenarios)</li><li><strong>Default matches</strong>: Return default values for non-matches</li></ul><h4>CIDR Matching Configuration</h4><p>For IP range matching, configure the lookup definition:</p><pre><code>Match type: CIDR(indicator)</code></pre><p>Lookup file format:</p><pre><code>indicator,threat_type\n192.168.50.0/24,suspicious_range\n10.0.0.0/8,internal</code></pre>"
+      },
+      {
+        "title": "Using Lookups for IOC Matching",
+        "body": "<h4>Basic Lookup Match</h4><pre><code>index=firewall\n| lookup threat_intel indicator as dest_ip OUTPUT threat_type, confidence\n| where isnotnull(threat_type)\n| table _time, src_ip, dest_ip, threat_type, confidence</code></pre><h4>OUTPUT vs OUTPUTNEW</h4><pre><code>| lookup threat_intel indicator as dest_ip OUTPUT threat_type</code></pre><p><code>OUTPUT</code> overwrites existing fields.</p><pre><code>| lookup threat_intel indicator as dest_ip OUTPUTNEW threat_type</code></pre><p><code>OUTPUTNEW</code> only writes if field doesn't exist.</p><h4>Field Name Mapping</h4><pre><code>| lookup threat_intel indicator AS src_ip OUTPUT \n    threat_type AS src_threat_type,\n    confidence AS src_confidence,\n    category AS src_category</code></pre><h4>Matching Multiple Fields</h4><pre><code>index=firewall\n| lookup threat_intel indicator as dest_ip OUTPUT threat_type as dest_threat\n| lookup threat_intel indicator as src_ip OUTPUT threat_type as src_threat\n| where isnotnull(dest_threat) OR isnotnull(src_threat)\n| eval threat_direction = case(\n    isnotnull(dest_threat) AND isnotnull(src_threat), \"both\",\n    isnotnull(dest_threat), \"outbound_to_threat\",\n    isnotnull(src_threat), \"inbound_from_threat\")</code></pre>"
+      },
+      {
+        "title": "Performance Optimization",
+        "body": "<h4>Filter Before Lookup</h4><p>Bad - lookup runs on all events:</p><pre><code>index=firewall\n| lookup threat_intel indicator as dest_ip OUTPUT threat_type</code></pre><p>Good - filter first:</p><pre><code>index=firewall action=allowed direction=outbound earliest=-1h\n| lookup threat_intel indicator as dest_ip OUTPUT threat_type\n| where isnotnull(threat_type)</code></pre><h4>Indexed Lookups</h4><p>For large lookups (>100K rows), enable indexing in the lookup definition transforms.conf:</p><pre><code>[threat_intel_lookup]\nfilename = threat_iocs.csv\ncase_sensitive_match = false\nmatch_type = WILDCARD(indicator)</code></pre><h4>Lookup Size Guidelines</h4><table><tr><th>Size</th><th>Performance</th><th>Recommendation</th></tr><tr><td>&lt;10K rows</td><td>Excellent</td><td>Standard lookup</td></tr><tr><td>10K-100K</td><td>Good</td><td>Consider indexing</td></tr><tr><td>100K-1M</td><td>Moderate</td><td>Index + filter first</td></tr><tr><td>&gt;1M</td><td>Slow</td><td>Consider KV store or summary index</td></tr></table><h4>Batch Lookups with inputlookup</h4><p>For large-scale IOC sweeps:</p><pre><code>| inputlookup threat_intel.csv\n| map maxsearches=1000 search=\"index=firewall dest_ip=$indicator$ earliest=-7d | head 1\"\n| stats count by indicator, threat_type</code></pre>"
+      },
+      {
+        "title": "Handling Edge Cases",
+        "body": "<h4>Case Sensitivity</h4><p>Default lookups are case-sensitive. For case-insensitive matching:</p><pre><code>| eval dest_ip_lower = lower(dest_ip)\n| lookup threat_intel indicator as dest_ip_lower OUTPUT threat_type</code></pre><p>Or configure in transforms.conf:</p><pre><code>case_sensitive_match = false</code></pre><h4>Missing Values</h4><pre><code>| lookup threat_intel indicator as dest_ip OUTPUT threat_type\n| eval threat_status = coalesce(threat_type, \"not_found\")</code></pre><h4>Multiple Matches</h4><p>When an indicator matches multiple lookup rows:</p><pre><code>max_matches = 0</code></pre><p>Returns all matches as multivalue field.</p><h4>Whitespace and Format Issues</h4><pre><code>| eval dest_ip_clean = trim(dest_ip)\n| eval dest_ip_clean = replace(dest_ip_clean, \"\\\\s+\", \"\")\n| lookup threat_intel indicator as dest_ip_clean OUTPUT threat_type</code></pre>"
+      },
+      {
+        "title": "Lookup Maintenance",
+        "body": "<h4>Check Lookup Health</h4><pre><code>| inputlookup threat_intel.csv\n| stats count as total_iocs, dc(type) as ioc_types, min(first_seen) as oldest, max(last_seen) as newest\n| eval age_days = round((now() - strptime(oldest, \"%Y-%m-%d\")) / 86400)</code></pre><h4>Find Stale IOCs</h4><pre><code>| inputlookup threat_intel.csv\n| eval days_since_seen = (now() - strptime(last_seen, \"%Y-%m-%d\")) / 86400\n| where days_since_seen > 90\n| stats count by type</code></pre><h4>Deduplicate Lookup</h4><pre><code>| inputlookup threat_intel.csv\n| dedup indicator\n| outputlookup threat_intel_deduped.csv</code></pre><h4>Merge Multiple Lookups</h4><pre><code>| inputlookup feed_a.csv\n| append [| inputlookup feed_b.csv]\n| append [| inputlookup internal_iocs.csv]\n| dedup indicator\n| eval source = coalesce(source, \"unknown\")\n| outputlookup combined_threat_intel.csv</code></pre>"
+      },
+      {
+        "title": "Type-Specific Lookups",
+        "body": "<h4>IP-Specific Lookup</h4><pre><code>ip,threat_type,confidence,asn,country,category\n192.168.50.100,c2,high,AS12345,RU,apt-28\n10.5.3.0/24,scanner,low,AS54321,US,shodan</code></pre><h4>Domain-Specific Lookup</h4><pre><code>domain,threat_type,confidence,registrar,first_seen,category\nevil.example.com,phishing,high,namecheap,2024-01-10,credential-theft\n*.malware.net,c2,medium,unknown,2024-01-05,emotet</code></pre><h4>Hash-Specific Lookup</h4><pre><code>hash,hash_type,malware_family,confidence,first_seen\nd41d8cd98f00b204...,md5,emotet,high,2024-01-12\ne3b0c44298fc1c14...,sha256,cobalt-strike,high,2024-01-08</code></pre><h4>Using Type-Specific Lookups</h4><pre><code>index=firewall\n| lookup threat_ips ip as dest_ip OUTPUT threat_type as ip_threat, confidence as ip_confidence\n\nindex=dns\n| lookup threat_domains domain as query OUTPUT threat_type as domain_threat\n\nindex=sysmon EventCode=1\n| rex field=Hashes \"SHA256=(?&lt;sha256&gt;[A-Fa-f0-9]{64})\"\n| lookup threat_hashes hash as sha256 OUTPUT malware_family</code></pre>"
+      },
+      {
+        "title": "Summary",
+        "body": "<p>Key lookup best practices for TI:</p><ul><li><strong>Structure</strong>: Include indicator, type, confidence, source, timestamps</li><li><strong>Performance</strong>: Filter before lookup, enable indexing for large files</li><li><strong>Field mapping</strong>: Use AS for field name translation</li><li><strong>Multi-field</strong>: Run separate lookups for src and dest</li><li><strong>Maintenance</strong>: Regular deduplication, stale IOC removal</li><li><strong>Case handling</strong>: Normalize or configure case-insensitive matching</li></ul><p>Well-designed lookups are the foundation of efficient threat intelligence matching.</p>"
+      }
+    ]
+  }
+}
