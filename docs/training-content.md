@@ -49,14 +49,11 @@ Write your lesson content in Markdown here.
 
 The rebuild script converts Markdown to HTML and stores it in the DB.
 
-## Tutorials/Scenarios/Challenges (JSON)
+## Tutorials (JSON)
 
-Structured modules should be JSON files with a `content` object:
+Tutorials use a `sections` array within `content`:
 
-```
-
-Note: SPL blocks must not include inline comments; keep explanations in the
-`explanation` fields or surrounding copy.
+```json
 {
   "id": "found-001",
   "type": "tutorial",
@@ -75,6 +72,165 @@ Note: SPL blocks must not include inline comments; keep explanations in the
         "spl": "index=main | stats count",
         "explanation": "..."
       }
+    ]
+  }
+}
+```
+
+Note: SPL blocks must not include inline comments; keep explanations in the
+`explanation` fields or surrounding copy.
+
+## Scenarios (JSON)
+
+Scenarios use a `situation` object and `steps` array. The canonical format is:
+
+```json
+{
+  "id": "inv-bruteforce",
+  "type": "scenario",
+  "title": "Brute Force Investigation",
+  "description": "Investigate a brute force attack.",
+  "category": "investigation",
+  "difficulty": "intermediate",
+  "duration": "25 min",
+  "tags": ["investigation", "authentication"],
+  "objectives": ["Investigate attack patterns", "Identify compromised accounts"],
+  "content": {
+    "situation": {
+      "title": "Scenario Setup",
+      "description": "<p>HTML content describing the situation...</p>",
+      "environment": "Optional: describe available data sources and time context"
+    },
+    "steps": [
+      {
+        "id": 1,
+        "title": "Confirm the Alert",
+        "question": "How many failed attempts occurred?",
+        "type": "pivot",
+        "content": "<p>Explanation of this step...</p>",
+        "hint": "Try filtering for EventCode=4625",
+        "spl": "index=security EventCode=4625 | stats count",
+        "options": ["Option A", "Option B"]
+      }
+    ],
+    "conclusion": {
+      "title": "Scenario Complete",
+      "summary": "You investigated...",
+      "key_takeaways": ["Takeaway 1", "Takeaway 2"],
+      "next_steps": ["Next scenario to try"]
+    }
+  }
+}
+```
+
+### Scenario Step Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `title` | Yes | Step title |
+| `question` | No | Question format alternative to title |
+| `type` | No | Step type: `pivot`, `reasoning`, etc. |
+| `content` | No | HTML explanation content |
+| `hint` | No | Hint text for the step |
+| `spl` or `solution` | No | SPL query for the step |
+| `options` | No | Array of options for reasoning steps |
+| `output` | No | Output table with `columns` and `rows` |
+
+## Challenges (JSON)
+
+Challenges support two schemas. The renderer auto-detects which to use.
+
+### Schema 1: Structured Challenge
+
+Traditional challenge with problem, hints, and solution:
+
+```json
+{
+  "id": "spl-mastery-challenge",
+  "type": "challenge",
+  "title": "SPL Mastery Challenge",
+  "description": "Build a sophisticated detection query.",
+  "category": "spl-fundamentals",
+  "difficulty": "intermediate",
+  "duration": "35 min",
+  "tags": ["spl", "challenge"],
+  "objectives": ["Integrate multiple SPL techniques"],
+  "content": {
+    "problem_statement": {
+      "title": "Challenge: Insider Threat Detection",
+      "description": "Build a detection query that...",
+      "requirements": ["Requirement 1", "Requirement 2"],
+      "data_context": "Describe available data..."
+    },
+    "constraints": ["Query must complete in <30s", "No custom commands"],
+    "hints": [
+      {
+        "id": 1,
+        "title": "Hint Title",
+        "content": "Hint content..."
+      }
+    ],
+    "solution": {
+      "spl": "index=... | stats ...",
+      "explanation": "This solution uses...",
+      "panels": [
+        {
+          "title": "Step 1: Calculate Baseline",
+          "purpose": "Establish normal behavior",
+          "spl": "...",
+          "notes": "..."
+        }
+      ],
+      "performance_notes": "Consider pre-calculating baselines..."
+    }
+  }
+}
+```
+
+### Schema 2: Assessment Challenge
+
+Multi-requirement assessment with scoring:
+
+```json
+{
+  "id": "fund-basics-challenge",
+  "type": "challenge",
+  "title": "Splunk Fundamentals Challenge",
+  "description": "Test your understanding of fundamentals.",
+  "category": "fundamentals",
+  "difficulty": "beginner",
+  "duration": "25 min",
+  "tags": ["fundamentals", "assessment"],
+  "objectives": ["Demonstrate basic search proficiency"],
+  "content": {
+    "scenario": "<p>HTML scenario description...</p>",
+    "requirements": [
+      {
+        "id": "req1",
+        "title": "Requirement 1: Basic Search",
+        "description": "Find all ERROR events...",
+        "criteria": ["Filter for sourcetype=splunkd", "Limit to 20 results"],
+        "hints": [],
+        "solution": "index=_internal sourcetype=splunkd | head 20"
+      }
+    ],
+    "scoring": {
+      "total_points": 100,
+      "passing_score": 70,
+      "breakdown": [
+        {"requirement": "Basic Search", "points": 10}
+      ]
+    },
+    "bonus_challenges": [
+      {
+        "title": "Bonus: Error Trend Analysis",
+        "description": "Compare first 30 min to last 30 min",
+        "points": 10
+      }
+    ],
+    "submission_checklist": [
+      "All requirements produce results without errors",
+      "Searches use appropriate time ranges"
     ]
   }
 }

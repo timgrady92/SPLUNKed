@@ -14,7 +14,10 @@
     "Create a basic summary of findings"
   ],
   "content": {
-    "background": "<p>You've just been given access to Splunk at a new organization. Before you can investigate security incidents, you need to understand what data is available.</p><p>In this scenario, you'll explore Splunk's internal logs (<code>index=_internal</code>) as if they were an unfamiliar dataset. The techniques you learn apply to any data source.</p><h4>Your Task</h4><p>Explore the <code>_internal</code> index to answer:</p><ul><li>What types of data are in this index?</li><li>What fields are available?</li><li>What's the volume and distribution of events?</li><li>What can this data tell us about system health?</li></ul>",
+    "situation": {
+      "title": "Scenario Setup",
+      "description": "<p>You've just been given access to Splunk at a new organization. Before you can investigate security incidents, you need to understand what data is available.</p><p>In this scenario, you'll explore Splunk's internal logs (<code>index=_internal</code>) as if they were an unfamiliar dataset. The techniques you learn apply to any data source.</p><h4>Your Task</h4><p>Explore the <code>_internal</code> index to answer:</p><ul><li>What types of data are in this index?</li><li>What fields are available?</li><li>What's the volume and distribution of events?</li><li>What can this data tell us about system health?</li></ul>"
+    },
     "steps": [
       {
         "title": "Step 1: Get the Big Picture",

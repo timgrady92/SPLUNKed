@@ -597,7 +597,10 @@ function applySPLHighlighting(container = document, options = {}) {
         'pre.spl-example',
         '.spl-block code',
         '.spl-code-display',
-        '.quick-action-spl'
+        '.quick-action-spl',
+        // Markdown-rendered SPL code blocks (```spl ... ```)
+        'code.language-spl',
+        'pre > code.language-spl'
     ];
 
     const codeBlocks = container.querySelectorAll(selectors.join(', '));

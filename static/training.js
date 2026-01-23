@@ -536,6 +536,32 @@ async function openGuideModal(guide) {
         block.parentNode.replaceChild(newBlock, block);
     });
 
+    // Transform Markdown-rendered SPL code blocks (```spl ... ```) to training-spl-block format
+    body.querySelectorAll('pre > code.language-spl').forEach(codeEl => {
+        const preEl = codeEl.parentElement;
+        const splCode = codeEl.textContent.trim();
+
+        // Skip if already transformed or empty
+        if (!splCode || preEl.closest('.training-spl-block')) return;
+
+        // Create new training-style SPL block with shared highlighting
+        const highlightedCode = window.SPLUNKed?.highlightSPL
+            ? window.SPLUNKed.highlightSPL(splCode, { formatPipelines: true })
+            : escapeHtml(splCode);
+
+        const newBlock = document.createElement('div');
+        newBlock.className = 'training-spl-block';
+        newBlock.innerHTML =
+            '<div class="training-spl-header">' +
+                '<span class="training-spl-label">SPL</span>' +
+                '<button class="training-spl-copy">Copy</button>' +
+            '</div>' +
+            '<pre class="training-spl-code">' + highlightedCode + '</pre>';
+
+        // Replace the pre element with the new block
+        preEl.parentNode.replaceChild(newBlock, preEl);
+    });
+
     // Add copy handlers for transformed SPL blocks
     initSplCopyHandlers(body);
     if (window.SPLUNKed?.applySPLHighlighting) {
@@ -785,10 +811,12 @@ function openPipelineModal(pipelineId) {
     title.textContent = pipeline.title;
     description.textContent = pipeline.description;
 
-    const objectivesHtml = '<div class="pipeline-objectives">' +
-        '<h4>Learning Objectives</h4>' +
-        '<ul>' + pipeline.objectives.map(obj => '<li>' + obj + '</li>').join('') + '</ul>' +
-    '</div>';
+    const objectivesHtml = Array.isArray(pipeline.objectives) && pipeline.objectives.length
+        ? '<div class="pipeline-objectives">' +
+            '<h4>Learning Objectives</h4>' +
+            '<ul>' + pipeline.objectives.map(obj => '<li>' + obj + '</li>').join('') + '</ul>' +
+        '</div>'
+        : '';
 
     const stepsHtml = pipeline.steps.map((step, index) => renderPipelineStep(step, index)).join('');
 
@@ -902,9 +930,11 @@ function renderTutorialContent(content) {
     }
 
     return content.sections.map(section => {
+        const sectionTitle = section.title || 'Untitled';
+        const sectionBody = section.body || '';
         let html = '<div class="tutorial-section">' +
-            '<h3 class="tutorial-section-title">' + section.title + '</h3>' +
-            '<div class="tutorial-section-body">' + section.body + '</div>';
+            '<h3 class="tutorial-section-title">' + sectionTitle + '</h3>' +
+            '<div class="tutorial-section-body">' + sectionBody + '</div>';
 
         // Support both legacy section.spl and new section.example structure
         if (section.example) {
@@ -937,10 +967,27 @@ function renderScenarioContent(content) {
         return '<p>Training content is coming soon.</p>';
     }
 
-    // Support both 'situation' and 'background' field names
-    const situationText = content.situation || content.background || '';
+    // Support both 'situation' object and 'background' string field names
+    let situationTitle = 'Situation';
+    let situationText = '';
+
+    if (content.situation) {
+        if (typeof content.situation === 'object') {
+            situationTitle = content.situation.title || 'Situation';
+            situationText = content.situation.description || '';
+            // Also include environment if present
+            if (content.situation.environment) {
+                situationText += '<div class="scenario-environment"><strong>Environment:</strong> ' + content.situation.environment + '</div>';
+            }
+        } else {
+            situationText = content.situation;
+        }
+    } else if (content.background) {
+        situationText = content.background;
+    }
+
     const situationHtml = '<div class="scenario-situation">' +
-        '<h3>Situation</h3>' +
+        '<h3>' + situationTitle + '</h3>' +
         '<div class="scenario-situation-content">' + situationText + '</div>' +
     '</div>';
 
@@ -1014,7 +1061,7 @@ function renderScenarioContent(content) {
 function renderScenarioOutput(output) {
     if (!output || !output.columns) return '';
 
-    if (output.rows.length === 0) {
+    if (!Array.isArray(output.rows) || output.rows.length === 0) {
         return '<div class="scenario-output">' +
             '<div class="scenario-output-header">' +
                 '<span class="scenario-output-label">Results</span>' +
@@ -1100,24 +1147,59 @@ function formatInlineCode(text) {
 }
 
 function renderChallengeContent(content) {
-    if (!content || !content.problem || !content.solution) {
+    if (!content) {
         return '<p>Training content is coming soon.</p>';
     }
 
+    // Schema detection: Assessment challenges have scenario + requirements
+    if (content.scenario && Array.isArray(content.requirements)) {
+        return renderAssessmentChallenge(content);
+    }
+
+    // Structured challenges have problem_statement or problem + solution
+    const problem = content.problem_statement || content.problem;
+    const solution = content.solution;
+    if (!problem || !solution) {
+        return '<p>Training content is coming soon.</p>';
+    }
+
+    // Extract problem text - handle both string and object formats
+    const problemText = typeof problem === 'string' ? problem : (problem.description || '');
+
     const problemHtml = '<div class="challenge-problem">' +
         '<h3>Challenge</h3>' +
-        '<div class="challenge-problem-text"><p>' + formatProblemText(content.problem) + '</p></div>' +
+        (problem.title ? '<h4 class="challenge-problem-title">' + problem.title + '</h4>' : '') +
+        '<div class="challenge-problem-text"><p>' + formatProblemText(problemText) + '</p></div>' +
+        (problem.requirements ? renderProblemRequirements(problem.requirements) : '') +
+        (problem.data_context ? '<div class="challenge-data-context"><strong>Data:</strong> ' + problem.data_context + '</div>' : '') +
     '</div>';
 
-    const hintsHtml = '<div class="challenge-hints">' +
-        '<h4>Hints (click to reveal)</h4>' +
-        content.hints.map((hint, index) =>
-            '<div class="challenge-hint" data-hint="' + index + '">' +
-                '<span class="challenge-hint-number">' + (index + 1) + '</span>' +
-                '<span class="challenge-hint-text">' + formatInlineCode(hint) + '</span>' +
-            '</div>'
-        ).join('') +
-    '</div>';
+    // Handle constraints if present
+    const constraintsHtml = Array.isArray(content.constraints) && content.constraints.length
+        ? '<div class="challenge-constraints">' +
+            '<h4>Constraints</h4>' +
+            '<ul>' + content.constraints.map(c => '<li>' + c + '</li>').join('') + '</ul>' +
+        '</div>'
+        : '';
+
+    // Handle hints - support both array of strings and array of objects
+    let hintsHtml = '';
+    if (Array.isArray(content.hints) && content.hints.length) {
+        hintsHtml = '<div class="challenge-hints">' +
+            '<h4>Hints (click to reveal)</h4>' +
+            content.hints.map((hint, index) => {
+                const hintText = typeof hint === 'string' ? hint : (hint.content || hint.title || '');
+                const hintTitle = typeof hint === 'object' && hint.title ? hint.title : null;
+                return '<div class="challenge-hint" data-hint="' + index + '">' +
+                    '<span class="challenge-hint-number">' + (index + 1) + '</span>' +
+                    '<span class="challenge-hint-text">' +
+                        (hintTitle ? '<strong>' + hintTitle + ':</strong> ' : '') +
+                        formatInlineCode(hintText) +
+                    '</span>' +
+                '</div>';
+            }).join('') +
+        '</div>';
+    }
 
     const workspaceHtml = '<div class="challenge-workspace">' +
         '<div class="challenge-workspace-header">' +
@@ -1133,18 +1215,162 @@ function renderChallengeContent(content) {
         '</div>' +
     '</div>';
 
+    // Handle solution - support both simple and complex formats
+    const solutionSpl = typeof solution === 'string' ? solution : (solution.spl || '');
+    const solutionExplanation = typeof solution === 'object' ? solution.explanation : null;
+    const solutionPanels = typeof solution === 'object' && Array.isArray(solution.panels) ? solution.panels : null;
+
+    let solutionContentHtml = '';
+    if (solutionPanels) {
+        solutionContentHtml = solutionPanels.map(panel =>
+            '<div class="challenge-solution-panel">' +
+                '<h5>' + (panel.title || 'Solution') + '</h5>' +
+                (panel.purpose ? '<p class="panel-purpose">' + panel.purpose + '</p>' : '') +
+                renderSplBlock(panel.spl, panel.notes || null) +
+            '</div>'
+        ).join('');
+        if (solution.performance_notes) {
+            solutionContentHtml += '<div class="challenge-performance-notes"><strong>Performance Notes:</strong> ' + solution.performance_notes + '</div>';
+        }
+    } else {
+        solutionContentHtml = renderSplBlock(solutionSpl, solutionExplanation);
+    }
+
     const solutionHtml = '<div class="challenge-solution">' +
         '<div class="challenge-solution-header">' +
             '<h4>Solution</h4>' +
             '<button class="show-solution-btn" id="showSolutionBtn">Show Solution</button>' +
         '</div>' +
         '<div class="challenge-solution-content" id="challengeSolutionContent">' +
-            renderSplBlock(content.solution.spl, content.solution.explanation) +
+            solutionContentHtml +
             (content.variations ? renderVariations(content.variations) : '') +
         '</div>' +
     '</div>';
 
-    return problemHtml + hintsHtml + workspaceHtml + solutionHtml;
+    return problemHtml + constraintsHtml + hintsHtml + workspaceHtml + solutionHtml;
+}
+
+/**
+ * Render problem requirements list
+ */
+function renderProblemRequirements(requirements) {
+    if (!Array.isArray(requirements) || !requirements.length) return '';
+    return '<div class="challenge-problem-requirements">' +
+        '<h5>Requirements</h5>' +
+        '<ul>' + requirements.map(r => '<li>' + r + '</li>').join('') + '</ul>' +
+    '</div>';
+}
+
+/**
+ * Render assessment-style challenge (scenario + requirements + scoring)
+ */
+function renderAssessmentChallenge(content) {
+    // Scenario/context section
+    const scenarioHtml = '<div class="assessment-scenario">' +
+        '<h3>Challenge Scenario</h3>' +
+        '<div class="assessment-scenario-content">' + content.scenario + '</div>' +
+    '</div>';
+
+    // Requirements section
+    const requirementsHtml = '<div class="assessment-requirements">' +
+        '<h3>Requirements</h3>' +
+        content.requirements.map((req, index) => {
+            const criteria = Array.isArray(req.criteria) && req.criteria.length
+                ? '<ul class="requirement-criteria">' + req.criteria.map(c => '<li>' + c + '</li>').join('') + '</ul>'
+                : '';
+            const hints = Array.isArray(req.hints) && req.hints.length
+                ? '<div class="requirement-hints">' +
+                    '<span class="hints-toggle">Show hints</span>' +
+                    '<ul class="hints-list">' + req.hints.map(h => '<li>' + h + '</li>').join('') + '</ul>' +
+                '</div>'
+                : '';
+            const solutionHtml = req.solution
+                ? '<div class="requirement-solution" data-req="' + index + '">' +
+                    '<button class="show-req-solution-btn">Show Solution</button>' +
+                    '<div class="req-solution-content">' + renderSplBlock(req.solution, null) + '</div>' +
+                '</div>'
+                : '';
+
+            return '<div class="assessment-requirement" data-req="' + index + '">' +
+                '<div class="requirement-header">' +
+                    '<span class="requirement-number">' + (index + 1) + '</span>' +
+                    '<h4 class="requirement-title">' + (req.title || 'Requirement ' + (index + 1)) + '</h4>' +
+                '</div>' +
+                '<div class="requirement-description">' + (req.description || '') + '</div>' +
+                criteria +
+                hints +
+                solutionHtml +
+            '</div>';
+        }).join('') +
+    '</div>';
+
+    // Workspace
+    const workspaceHtml = '<div class="challenge-workspace">' +
+        '<div class="challenge-workspace-header">' +
+            '<h4>Your Solution</h4>' +
+            '<div class="challenge-workspace-actions">' +
+                '<button class="workspace-btn" id="formatSplBtn" title="Format SPL">Format</button>' +
+                '<button class="workspace-btn" id="clearSplBtn" title="Clear">Clear</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="challenge-spl-editor">' +
+            '<pre class="challenge-spl-highlight" id="challengeSplHighlight"></pre>' +
+            '<textarea class="challenge-spl-input" id="challengeSplInput" placeholder="Write your SPL query here..." spellcheck="false"></textarea>' +
+        '</div>' +
+    '</div>';
+
+    // Scoring section
+    let scoringHtml = '';
+    if (content.scoring) {
+        const breakdownHtml = Array.isArray(content.scoring.breakdown)
+            ? '<table class="scoring-breakdown">' +
+                '<thead><tr><th>Requirement</th><th>Points</th></tr></thead>' +
+                '<tbody>' +
+                content.scoring.breakdown.map(item =>
+                    '<tr><td>' + item.requirement + '</td><td>' + item.points + '</td></tr>'
+                ).join('') +
+                '</tbody></table>'
+            : '';
+
+        scoringHtml = '<div class="assessment-scoring">' +
+            '<h4>Scoring</h4>' +
+            '<div class="scoring-summary">' +
+                '<span class="total-points">Total: ' + (content.scoring.total_points || 100) + ' points</span>' +
+                '<span class="passing-score">Passing: ' + (content.scoring.passing_score || 70) + ' points</span>' +
+            '</div>' +
+            breakdownHtml +
+        '</div>';
+    }
+
+    // Bonus challenges
+    let bonusHtml = '';
+    if (Array.isArray(content.bonus_challenges) && content.bonus_challenges.length) {
+        bonusHtml = '<div class="assessment-bonus">' +
+            '<h4>Bonus Challenges</h4>' +
+            content.bonus_challenges.map(bonus =>
+                '<div class="bonus-challenge">' +
+                    '<div class="bonus-header">' +
+                        '<span class="bonus-title">' + bonus.title + '</span>' +
+                        '<span class="bonus-points">+' + bonus.points + ' pts</span>' +
+                    '</div>' +
+                    '<p class="bonus-description">' + bonus.description + '</p>' +
+                '</div>'
+            ).join('') +
+        '</div>';
+    }
+
+    // Submission checklist
+    let checklistHtml = '';
+    if (Array.isArray(content.submission_checklist) && content.submission_checklist.length) {
+        checklistHtml = '<div class="assessment-checklist">' +
+            '<h4>Submission Checklist</h4>' +
+            '<ul>' + content.submission_checklist.map(item =>
+                '<li><label><input type="checkbox"> ' + item + '</label></li>'
+            ).join('') + '</ul>' +
+        '</div>';
+    }
+
+    return scenarioHtml + requirementsHtml + workspaceHtml + scoringHtml + bonusHtml + checklistHtml;
 }
 
 function renderVariations(variations) {
@@ -1269,6 +1495,28 @@ function initChallengeInteractivity() {
     if (splInput) {
         updateSplHighlight(splInput.value);
     }
+
+    // Assessment challenge: requirement solution reveals
+    document.querySelectorAll('.show-req-solution-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const solution = btn.closest('.requirement-solution');
+            if (solution) {
+                solution.classList.add('visible');
+                btn.style.display = 'none';
+            }
+        });
+    });
+
+    // Assessment challenge: hints toggle
+    document.querySelectorAll('.hints-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const hintsContainer = toggle.closest('.requirement-hints');
+            if (hintsContainer) {
+                hintsContainer.classList.toggle('expanded');
+                toggle.textContent = hintsContainer.classList.contains('expanded') ? 'Hide hints' : 'Show hints';
+            }
+        });
+    });
 }
 
 // ============================================
@@ -1276,6 +1524,11 @@ function initChallengeInteractivity() {
 // ============================================
 
 function renderSplBlock(spl, explanation) {
+    // Validate spl is a string
+    if (typeof spl !== 'string' || !spl.trim()) {
+        return '';
+    }
+
     // Use shared SPL highlighting from core
     const highlightedSpl = window.SPLUNKed?.highlightSPL
         ? window.SPLUNKed.highlightSPL(spl, { formatPipelines: true })
