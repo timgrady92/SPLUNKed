@@ -7557,6 +7557,57 @@ kbd {
     margin-bottom: var(--space-md);
 }
 
+.tutorial-example {
+    margin-bottom: var(--space-md);
+}
+
+.tutorial-example-desc {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-bottom: var(--space-sm);
+    font-style: italic;
+}
+
+.tutorial-explanation {
+    font-size: var(--text-base);
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: var(--space-md);
+}
+
+.tutorial-explanation p {
+    margin-bottom: var(--space-md);
+}
+
+.tutorial-explanation p:last-child {
+    margin-bottom: 0;
+}
+
+.tutorial-explanation ul,
+.tutorial-explanation ol {
+    margin-bottom: var(--space-md);
+    padding-left: var(--space-xl);
+}
+
+.tutorial-explanation li {
+    margin-bottom: var(--space-xs);
+    line-height: 1.6;
+}
+
+.tutorial-explanation code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15em 0.4em;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--splunk-amber);
+}
+
+.tutorial-explanation strong {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
 .tutorial-section-body p {
     margin-bottom: var(--space-md);
 }
@@ -7789,6 +7840,98 @@ kbd {
     margin: 0;
     color: var(--text-main);
     line-height: 1.7;
+}
+
+.scenario-situation-content {
+    color: var(--text-main);
+    line-height: 1.7;
+}
+
+.scenario-situation-content p {
+    margin-bottom: var(--space-md);
+}
+
+.scenario-situation-content p:last-child {
+    margin-bottom: 0;
+}
+
+.scenario-situation-content h4 {
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-main);
+    margin: var(--space-md) 0 var(--space-sm);
+}
+
+.scenario-situation-content ol,
+.scenario-situation-content ul {
+    margin: var(--space-sm) 0;
+    padding-left: var(--space-xl);
+}
+
+.scenario-situation-content li {
+    margin-bottom: var(--space-xs);
+}
+
+.scenario-step-content {
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: var(--space-md);
+}
+
+.scenario-step-content p {
+    margin-bottom: var(--space-md);
+}
+
+.scenario-step-content h4 {
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-main);
+    margin: var(--space-md) 0 var(--space-sm);
+}
+
+.scenario-step-content ul {
+    margin: var(--space-sm) 0;
+    padding-left: var(--space-xl);
+}
+
+.scenario-step-content li {
+    margin-bottom: var(--space-xs);
+}
+
+.scenario-step-hint {
+    background: rgba(var(--splunk-amber-rgb), 0.1);
+    border-left: 3px solid var(--splunk-amber);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-md);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.scenario-options {
+    margin-top: var(--space-md);
+}
+
+.scenario-options ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.scenario-options li {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.scenario-options li:hover {
+    background: rgba(var(--splunk-teal-rgb), 0.1);
+    border-color: var(--splunk-teal);
+    color: var(--text-main);
 }
 
 /* Inline code styling for scenario content */

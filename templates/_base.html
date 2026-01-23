@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="SPLUNKed - Educational SPL Learning Platform for Splunk Analysts">
     <title>{% block title %}SPLUNKed{% endblock %}</title>
-    <link rel="preload" href="{{ url_for('static', filename='fonts/IBMPlexSans-Latin.woff2') }}" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="{{ url_for('static', filename='fonts/IBMPlexMono-Regular-Latin.woff2') }}" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="{{ url_for('static', filename='fonts/IBMPlexMono-SemiBold-Latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ url_for('static', filename='fonts/IBMPlexSans-Latin.woff2') }}" as="font" type="font/woff2">
+    <link rel="preload" href="{{ url_for('static', filename='fonts/IBMPlexMono-Regular-Latin.woff2') }}" as="font" type="font/woff2">
+    <link rel="preload" href="{{ url_for('static', filename='fonts/IBMPlexMono-SemiBold-Latin.woff2') }}" as="font" type="font/woff2">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     {% block head %}{% endblock %}
 </head>

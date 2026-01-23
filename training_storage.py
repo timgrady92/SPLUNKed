@@ -174,12 +174,12 @@ def _row_to_pipeline(row, steps):
 def _row_to_step(row):
     return {
         "id": row["id"],
-        "title": row["title"],
-        "type": row["type"],
-        "source": row["source"],
+        "title": row["title"] or "",
+        "type": row["type"] or "",
+        "source": row["source"] or "",
         "sourceId": row["source_id"],
         "description": row["description"] or "",
-        "duration": row["duration"],
+        "duration": row["duration"] or "",
         "link": row["link"]
     }
 

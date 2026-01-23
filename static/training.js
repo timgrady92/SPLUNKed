@@ -718,7 +718,6 @@ function renderPipelinesGrid() {
  */
 function renderPipelineCard(pipeline) {
     return SPLUNKed.components.createCard(pipeline, { variant: 'pipeline' });
-    '</div>';
 }
 
 // ============================================
@@ -832,18 +831,18 @@ function renderPipelineStep(step, index) {
         challenge: 'Challenge'
     };
 
-    return '<div class="pipeline-step" data-index="' + index + '" data-type="' + step.type + '">' +
+    return '<div class="pipeline-step" data-index="' + index + '" data-type="' + (step.type || '') + '">' +
         '<div class="pipeline-step-number">' + (index + 1) + '</div>' +
         '<div class="pipeline-step-content">' +
             '<div class="pipeline-step-header">' +
-                '<span class="pipeline-step-type ' + step.type + '">' +
+                '<span class="pipeline-step-type ' + (step.type || '') + '">' +
                     '<span class="step-type-icon">' + (typeIcons[step.type] || '•') + '</span>' +
-                    (typeLabels[step.type] || step.type) +
+                    (typeLabels[step.type] || step.type || 'Step') +
                 '</span>' +
-                '<span class="pipeline-step-duration">' + step.duration + '</span>' +
+                '<span class="pipeline-step-duration">' + (step.duration || '') + '</span>' +
             '</div>' +
-            '<h4 class="pipeline-step-title">' + step.title + '</h4>' +
-            '<p class="pipeline-step-description">' + step.description + '</p>' +
+            '<h4 class="pipeline-step-title">' + (step.title || 'Untitled') + '</h4>' +
+            '<p class="pipeline-step-description">' + (step.description || '') + '</p>' +
         '</div>' +
         '<div class="pipeline-step-action">' +
             '<span class="step-go-icon">→</span>' +
@@ -889,18 +888,44 @@ function handlePipelineStepClick(step) {
 // Tutorial Rendering
 // ============================================
 
+function renderTutorialExample(example) {
+    if (!example || !example.spl) return '';
+    return '<div class="tutorial-example">' +
+        (example.description ? '<p class="tutorial-example-desc">' + example.description + '</p>' : '') +
+        renderSplBlock(example.spl) +
+    '</div>';
+}
+
 function renderTutorialContent(content) {
     if (!content || !Array.isArray(content.sections) || content.sections.length === 0) {
         return '<p>Training content is coming soon.</p>';
     }
 
-    return content.sections.map(section =>
-        '<div class="tutorial-section">' +
+    return content.sections.map(section => {
+        let html = '<div class="tutorial-section">' +
             '<h3 class="tutorial-section-title">' + section.title + '</h3>' +
-            '<div class="tutorial-section-body">' + section.body + '</div>' +
-            (section.spl ? renderSplBlock(section.spl, section.explanation) : '') +
-        '</div>'
-    ).join('');
+            '<div class="tutorial-section-body">' + section.body + '</div>';
+
+        // Support both legacy section.spl and new section.example structure
+        if (section.example) {
+            html += renderTutorialExample(section.example);
+        } else if (section.spl) {
+            html += renderSplBlock(section.spl);
+        }
+
+        // Explanation comes after the first example
+        if (section.explanation) {
+            html += '<div class="tutorial-explanation">' + section.explanation + '</div>';
+        }
+
+        // Second example if present
+        if (section.example2) {
+            html += renderTutorialExample(section.example2);
+        }
+
+        html += '</div>';
+        return html;
+    }).join('');
 }
 
 // ============================================
@@ -912,36 +937,76 @@ function renderScenarioContent(content) {
         return '<p>Training content is coming soon.</p>';
     }
 
+    // Support both 'situation' and 'background' field names
+    const situationText = content.situation || content.background || '';
     const situationHtml = '<div class="scenario-situation">' +
         '<h3>Situation</h3>' +
-        '<p>' + content.situation + '</p>' +
+        '<div class="scenario-situation-content">' + situationText + '</div>' +
     '</div>';
 
-    const stepsHtml = content.steps.map((step, index) =>
-        '<div class="scenario-card" data-step="' + index + '">' +
+    const stepsHtml = content.steps.map((step, index) => {
+        // Support both formats: question-based and title-based steps
+        const headerText = step.question || step.title || 'Step ' + (index + 1);
+        const spl = step.spl || step.solution || '';
+        const explanation = step.analysis || step.content || '';
+        const finding = step.finding || '';
+
+        let bodyHtml = '';
+
+        // Add explanation/content if present
+        if (explanation) {
+            bodyHtml += '<div class="scenario-step-content">' + explanation + '</div>';
+        }
+
+        // Add hint if present
+        if (step.hint) {
+            bodyHtml += '<div class="scenario-step-hint"><strong>Hint:</strong> ' + step.hint + '</div>';
+        }
+
+        // Add SPL block if present
+        if (spl) {
+            bodyHtml += renderSplBlock(spl);
+        }
+
+        // Add output table if present
+        if (step.output) {
+            bodyHtml += renderScenarioOutput(step.output);
+        }
+
+        // Add finding if present
+        if (finding) {
+            bodyHtml += '<div class="scenario-card-finding"><p>' + finding + '</p></div>';
+        }
+
+        // Add options for reasoning steps
+        if (step.options && Array.isArray(step.options)) {
+            bodyHtml += '<div class="scenario-options"><ul>' +
+                step.options.map(opt => '<li>' + opt + '</li>').join('') +
+            '</ul></div>';
+        }
+
+        return '<div class="scenario-card" data-step="' + index + '" data-type="' + (step.type || '') + '">' +
             '<div class="scenario-card-header">' +
                 '<span class="scenario-card-number">' + (index + 1) + '</span>' +
-                '<p class="scenario-card-question">' + step.question + '</p>' +
+                '<p class="scenario-card-question">' + headerText + '</p>' +
                 '<span class="scenario-card-toggle">' +
                     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none">' +
                         '<path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
                     '</svg>' +
                 '</span>' +
             '</div>' +
-            '<div class="scenario-card-body">' +
-                renderSplBlock(step.spl, step.analysis) +
-                (step.output ? renderScenarioOutput(step.output) : '') +
-                '<div class="scenario-card-finding">' +
-                    '<p>' + step.finding + '</p>' +
-                '</div>' +
-            '</div>' +
-        '</div>'
-    ).join('');
+            '<div class="scenario-card-body">' + bodyHtml + '</div>' +
+        '</div>';
+    }).join('');
 
-    const conclusionHtml = '<div class="scenario-conclusion">' +
-        '<h3>Conclusion</h3>' +
-        '<p>' + content.conclusion + '</p>' +
-    '</div>';
+    // Conclusion is optional
+    let conclusionHtml = '';
+    if (content.conclusion) {
+        conclusionHtml = '<div class="scenario-conclusion">' +
+            '<h3>Conclusion</h3>' +
+            '<p>' + content.conclusion + '</p>' +
+        '</div>';
+    }
 
     return situationHtml + '<div class="scenario-narrative">' + stepsHtml + '</div>' + conclusionHtml;
 }
